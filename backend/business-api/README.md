@@ -1,6 +1,6 @@
 # Business API — Core Domain Schema
 
-구현 담당자: 박다솔. 기존 SQLAlchemy 2.x sync + psycopg 3, Base 및 세션 관리 방식을 유지합니다. 현재 Domain schema, 상태 머신 및 sync Repository를 제공합니다. Service, JWT, API와 Queue 연동은 아직 없습니다.
+구현 담당자: 박다솔. 기존 SQLAlchemy 2.x sync + psycopg 3, Base 및 세션 관리 방식을 유지합니다. 현재 Domain schema, 상태 머신, sync Repository와 JWT 인증/인가 기반을 제공합니다. AuthService와 로그인 API만 구현했으며 업무 Service/API 및 Queue 연동은 아직 없습니다.
 
 ## 모델과 관계
 
@@ -38,7 +38,7 @@ relationship은 필요한 부모→자식 방향만 추가했습니다. 컬렉�
 
 ## 제약조건과 index
 
-- User.email은 전역 unique이며 case-sensitive입니다. 로그인 도입 시 이메일 정규화 정책을 별도로 결정해야 합니다.
+- User.email은 전역 unique이며 case-sensitive입니다. 로그인은 기존 값을 정확히 조회하고 자동 lower-case/정규화를 적용하지 않습니다.
 - Filing은 `(organization_id, receipt_no)` unique입니다. 같은 외부 공시를 여러 조직이 각각 관리할 수 있습니다.
 - `(filing_id, version)`, `(memo_id, version)`, `(analysis_task_id, sequence)`는 unique입니다.
 - AnalysisTask.thread_id는 전역 unique로, 한 작업의 재개·재시도는 같은 작업/thread를 재사용합니다.
@@ -156,6 +156,65 @@ Perspective active는 REGISTERED/RUNNING입니다. Report와 Perspective의 중�
 
 사용자 요청에는 User/Memo/Filing/Analysis의 조직 범위 조회를 우선 사용해야 합니다. organization을 받지 않는 내부 조회는 JWT 권한을 보장하지 않습니다. Perspective/Revision/Report/Event 조회 전에는 부모 AnalysisTask의 조직 범위를 상위 계층에서 확인해야 합니다. AuditLog 자원 조회는 organization_id를 필수로 받습니다. 목록 조회는 현재 전체 목록이며 향후 서비스 규모에 맞춰 pagination을 추가할 수 있습니다.
 
-기존 모델은 개별 FK와 양수 버전을 보장하지만 조직 일치와 고정한 MemoVersion의 실제 존재를 완전히 강제하지 않습니다. 이 검증은 후속 Service 범위이며 이번에는 schema를 변경하지 않았습니다. JWT/API/RabbitMQ/Agent/저장 retry Service는 구현하지 않았습니다.
+기존 모델은 개별 FK와 양수 버전을 보장하지만 조직 일치와 고정한 MemoVersion의 실제 존재를 완전히 강제하지 않습니다. 이 검증은 후속 Service 범위이며 이번에는 schema를 변경하지 않았습니다. 업무 API/RabbitMQ/Agent/저장 retry Service는 구현하지 않았습니다. JWT 인증은 아래 절을 참고하세요.
 
 실제 Business Service와 Analysis 처리에서 접수번호로 공시를 조회할 때는 JWT 또는 AnalysisTask에서 확정한 organization_id를 사용해 반드시 `get_by_receipt_no_and_organization`을 호출합니다. 조직 없는 단건 접수번호 조회 메서드나 이전 이름의 호환 alias는 제공하지 않습니다.
+
+## JWT 인증 및 조직/역할 인가
+
+Python dependency는 PyJWT 2.x와 argon2-cffi 23.1 이상입니다. argon2-cffi의 PasswordHasher 기본 Argon2id/RFC profile과 무작위 salt를 사용합니다. `app/core/security.py`는 hash_password/verify_password와 create_access_token/decode_access_token을 제공하며 DB/HTTP 로직은 포함하지 않습니다. 비밀번호 검증 실패나 손상된 hash는 False를 반환합니다. 사용자 비밀번호는 기존 User.password_hash에 해시로만 저장해야 하며 이번에는 회원가입/비밀번호 변경/계정 seed API를 만들지 않았습니다.
+
+### 설정
+
+`backend/.env.example`의 JWT 설정을 로컬 실행 환경에 맞게 지정합니다. 실제 secret을 커밋하지 마세요.
+
+```dotenv
+JWT_SECRET_KEY=change-me
+JWT_ALGORITHM=HS256
+JWT_ACCESS_TOKEN_EXPIRE_MINUTES=30
+```
+
+change-me는 의도적으로 사용할 수 없는 placeholder입니다. 인증 기능은 무작위 secret을 최소 32 bytes 길이로 설정해야 동작합니다. Secret은 pydantic SecretStr로 감추고 repr에 포함하지 않습니다. 비밀키가 없거나 너무 짧거나 지원하지 않는 algorithm이면 인증 작업은 AUTH_CONFIGURATION_ERROR(503)로 실패하며 health는 인증 없이 유지합니다. HS256만 지원하며 JWT header의 algorithm은 신뢰하지 않습니다. 실제 환경에서는 HTTPS로 token을 전송해야 합니다.
+
+현재 프로세스는 설정을 cache하므로 환경변수 변경 뒤 재시작해야 합니다. 기존 SecretStr 아닌 문자열로 설정을 직접 읽던 로컬 코드가 있다면 `.get_secret_value()`는 crypto 코드 안에서만 사용하세요. 앱 코드는 password/hash/token/Authorization/secret을 로그에 기록하지 않습니다.
+
+### 로그인
+
+```http
+POST /api/v1/auth/login
+Content-Type: application/json
+
+{"email":"analyst@example.test","password":"<local password>"}
+```
+
+성공 응답은 access_token, token_type="bearer", expires_in(초)입니다. JSON 로그인만 지원하며 OAuth password form은 아닙니다. AuthService가 UserRepository.get_by_email로 조회하고 password를 검증한 뒤 token을 발급합니다. 사용자 없음과 비밀번호 오류는 모두 동일한 401 INVALID_CREDENTIALS를 반환하고, 없는 사용자도 dummy Argon2 hash를 검증합니다. 로그인은 read-only이며 commit이나 자동 password rehash를 하지 않습니다. RequestValidationError 응답에서는 입력값과 context를 제거해 password를 되돌려주지 않습니다.
+
+### Access token과 current_user
+
+Claims는 sub(UUID user id), organization_id(UUID), role(RA/ANALYST), iat/exp(UTC NumericDate 정수)입니다. 발급 시 설정한 만료 분을 사용하고 검증 시 signature/고정 algorithm/expiry/iat와 5개 필수 claim 및 UUID·role·정수 타입/만료 순서를 확인합니다. 만료/미래 iat/손상된 token/alg none/잘못된 signature·claim은 거부합니다.
+
+`app/api/dependencies.py`의 get_current_user는 먼저 HTTP Bearer token을 검증하고 UserRepository.get_by_id로 현재 사용자를 DB에서 조회합니다. User가 없거나 DB organization/role과 token claim이 다르면 401입니다. 조직 이동/역할 변경 이후에는 새로 로그인해야 합니다. CurrentUser는 id/organization_id/email/role만 담는 frozen Pydantic principal이며 password_hash를 포함하지 않습니다. active 필드는 추가하지 않았습니다.
+
+### Organization과 RBAC
+
+`get_current_organization_id`는 검증된 current_user.organization_id만 반환합니다. 이후 Business API/Service의 조직 범위 조회는 client의 body/query/path 조직 값 대신 이 값을 사용해야 합니다. 특히 Filing은 UNIQUE(organization_id,receipt_no)를 유지하고 단건 조회에 `get_by_receipt_no_and_organization(receipt_no,current_user.organization_id)`를 사용합니다. 조직 미지정 `list_by_receipt_no`는 내부 목록 조회용이며 단건으로 대체하지 않습니다.
+
+`require_roles(UserRole.RA)` 또는 `require_roles(UserRole.RA,UserRole.ANALYST)`는 재사용 가능한 FastAPI dependency를 반환합니다. 역할 불일치는 403이며 빈 허용 역할 목록은 구성 오류로 즉시 거부합니다. RA와 ANALYST 사이에 암묵적 상하 권한 관계는 두지 않습니다. 아직 업무 endpoint별 정책을 적용하지 않았고 production에는 테스트용 protected endpoint를 추가하지 않았습니다. /health 및 /health/db는 공개 상태로 유지합니다.
+
+### 오류와 범위
+
+| 내부 오류 코드 | HTTP | 외부 노출 |
+| --- | --- | --- |
+| INVALID_CREDENTIALS | 401 | 동일한 로그인 실패 메시지 |
+| UNAUTHENTICATED | 401 | 인증 필요 |
+| INVALID_TOKEN | 401 | token 무효 |
+| TOKEN_EXPIRED | 401 | token 만료 |
+| USER_NOT_FOUND | 401 | INVALID_TOKEN으로 감춤 |
+| FORBIDDEN | 403 | 권한 부족 |
+| AUTH_CONFIGURATION_ERROR | 503 | 세부 secret 없는 인증 불가 |
+
+401에는 WWW-Authenticate: Bearer를 포함합니다. crypto/Service/dependency는 구조화 AuthError를 사용하고 HTTP 매핑은 app/api/exception_handlers.py에 분리했습니다. 기존 상태 전이 예외는 변경하지 않았습니다.
+
+Refresh/rotation/logout blacklist/비밀번호 reset/signup/계정 CRUD/MCP·internal 인증/업무 API/RabbitMQ/Agent는 이번 범위가 아닙니다. DB schema와 기존 Repository는 수정하지 않았습니다. 인증 테스트는 별도 test secret과 임시 PostgreSQL을 사용하며 테스트 앱에서만 protected routes를 구성합니다.
+
+구현 참고: [PyJWT 검증 API](https://pyjwt.readthedocs.io/en/stable/api.html), [argon2-cffi PasswordHasher](https://argon2-cffi.readthedocs.io/en/stable/api.html).

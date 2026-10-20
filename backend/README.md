@@ -27,7 +27,7 @@ backend/
 cd backend
 cp .env.example .env
 # .env의 개발용 비밀번호를 변경하면 DATABASE_URL/RABBITMQ_URL도 함께 변경
-# JWT_SECRET_KEY는 실제 인증 구현 전에 안전한 값으로 설정
+# JWT_SECRET_KEY는 최소 32 bytes의 무작위 값으로 설정 (change-me로는 인증 불가)
 
 docker compose config --quiet
 docker compose up --build -d
@@ -95,7 +95,7 @@ MCP는 공식 Python SDK v1의 Streamable HTTP를 사용합니다. JSON 응답/s
 ## 다음 단계 / TODO
 
 - RAG 모델·pgvector extension·checkpoint 영역의 별도 migration 설계
-- JWT 발급·검증, 조직/역할 접근 제어, 서비스 간 내부 인증
+- 실제 업무 endpoint별 조직/역할 정책 적용 및 서비스 간 내부 인증 (JWT 로그인/current_user/RBAC 기반은 구현됨)
 - 업무 API, `/internal/**`, Business MCP HTTP client와 실제 Tool
 - RabbitMQ queue 선언, 메시지 계약, publish/consume, 재시도와 중복 처리
 - RAG read-only DB 계정, 검색·원문·claim source Tool, embedding 정책
