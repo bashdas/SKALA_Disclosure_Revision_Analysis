@@ -1,12 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="ffbcf8cb-579f-4040-a942-6077a235c7d1" name="변경" comment="feat: Business MCP와 Internal API 연동 Tool 7개 추가">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/.env.example" beforeDir="false" afterPath="$PROJECT_DIR$/backend/.env.example" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/docker-compose.yml" beforeDir="false" afterPath="$PROJECT_DIR$/backend/docker-compose.yml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/docs/다솔.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/다솔.md" afterDir="false" />
-    </list>
+    <list default="true" id="ffbcf8cb-579f-4040-a942-6077a235c7d1" name="변경" comment="feat: External MCP와 OpenDART 공시 원문 조회 Tool 추가" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -73,7 +68,7 @@
       <option name="presentableId" value="Default" />
       <updated>1792383332834</updated>
       <workItem from="1792383334324" duration="4533000" />
-      <workItem from="1792464864790" duration="17590000" />
+      <workItem from="1792464864790" duration="17911000" />
     </task>
     <task id="LOCAL-00001" summary="feat: 백엔드 1단계 실행 뼈대와 Docker Compose 구성">
       <option name="closed" value="true" />
@@ -171,7 +166,15 @@
       <option name="project" value="LOCAL" />
       <updated>1792486480136</updated>
     </task>
-    <option name="localTasksCounter" value="13" />
+    <task id="LOCAL-00013" summary="feat: External MCP와 OpenDART 공시 원문 조회 Tool 추가">
+      <option name="closed" value="true" />
+      <created>1792487263656</created>
+      <option name="number" value="00013" />
+      <option name="presentableId" value="LOCAL-00013" />
+      <option name="project" value="LOCAL" />
+      <updated>1792487263656</updated>
+    </task>
+    <option name="localTasksCounter" value="14" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -205,7 +208,8 @@
     <MESSAGE value="feat: 분석 조회와 이벤트 영속화 및 SSE, 취소 API 추가" />
     <MESSAGE value="feat: Internal API Key 인증과 분석 Context, 상태, 관점, 보고서 API 추가" />
     <MESSAGE value="feat: Business MCP와 Internal API 연동 Tool 7개 추가" />
-    <option name="LAST_COMMIT_MESSAGE" value="feat: Business MCP와 Internal API 연동 Tool 7개 추가" />
+    <MESSAGE value="feat: External MCP와 OpenDART 공시 원문 조회 Tool 추가" />
+    <option name="LAST_COMMIT_MESSAGE" value="feat: External MCP와 OpenDART 공시 원문 조회 Tool 추가" />
   </component>
   <component name="XSLT-Support.FileAssociations.UIState">
     <expand />
