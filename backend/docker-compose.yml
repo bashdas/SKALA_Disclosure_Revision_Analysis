@@ -29,6 +29,20 @@ services:
       business-api:
         condition: service_healthy
 
+  external-mcp:
+    build:
+      context: .
+      dockerfile: mcp/external-mcp/Dockerfile
+    environment:
+      ENVIRONMENT: ${ENVIRONMENT:-local}
+      OPENDART_API_KEY: ${OPENDART_API_KEY:-}
+      OPENDART_BASE_URL: ${OPENDART_BASE_URL:-https://opendart.fss.or.kr/api}
+      EXTERNAL_MCP_HOST: ${EXTERNAL_MCP_HOST:-0.0.0.0}
+      EXTERNAL_MCP_PORT: ${EXTERNAL_MCP_PORT:-8083}
+      EXTERNAL_MCP_REQUEST_TIMEOUT_SECONDS: ${EXTERNAL_MCP_REQUEST_TIMEOUT_SECONDS:-30}
+    expose:
+      - "${EXTERNAL_MCP_PORT:-8083}"
+
   rag-mcp:
     build:
       context: .
