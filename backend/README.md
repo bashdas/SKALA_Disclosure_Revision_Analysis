@@ -44,7 +44,7 @@ docker compose logs -f business-api business-mcp rag-mcp
 docker compose down
 ```
 
-`down`은 이름 있는 DB/큐 볼륨을 보존합니다. pgvector 이미지까지 준비하지만 extension 활성화, 업무 DB 스키마와 큐 선언·연결 코드는 아직 없습니다. Business API의 DB 연결 기반은 구성되어 있습니다. PostgreSQL 초기 자격 증명은 빈 볼륨을 처음 생성할 때 적용됩니다.
+`down`은 이름 있는 DB/큐 볼륨을 보존합니다. pgvector 이미지를 준비했고 core 업무 schema는 Alembic migration으로 관리합니다. pgvector extension 활성화와 큐 선언·연결 코드는 아직 없습니다. PostgreSQL 초기 자격 증명은 빈 볼륨을 처음 생성할 때 적용됩니다.
 
 ## 로컬 독립 실행
 
@@ -96,7 +96,7 @@ MCP는 공식 Python SDK v1의 Streamable HTTP를 사용합니다. JSON 응답/s
 
 - RAG 모델·pgvector extension·checkpoint 영역의 별도 migration 설계
 - 실제 업무 endpoint별 조직/역할 정책 적용 및 서비스 간 내부 인증 (JWT 로그인/current_user/RBAC 기반은 구현됨)
-- 업무 API, `/internal/**`, Business MCP HTTP client와 실제 Tool
+- 분석 생성 API·나머지 업무 API, `/internal/**`, Business MCP HTTP client와 실제 Tool (Filing/Memo 조직 범위 조회는 구현됨)
 - RabbitMQ queue 선언, 메시지 계약, publish/consume, 재시도와 중복 처리
 - RAG read-only DB 계정, 검색·원문·claim source Tool, embedding 정책
 - 의존성 lock 파일, CI, 운영 비밀 관리와 readiness 정책

@@ -10,9 +10,11 @@ from app.core.database import get_db
 from app.core.security import decode_access_token
 from app.domain.auth_exceptions import Forbidden, InvalidToken, Unauthenticated, UserNotFound
 from app.models.enums import UserRole
-from app.repositories import UserRepository
+from app.repositories import FilingRepository, MemoRepository, UserRepository
 from app.schemas.auth import CurrentUser, TokenPayload
 from app.services.auth import AuthService
+from app.services.filing import FilingService
+from app.services.memo import MemoService
 
 _bearer = HTTPBearer(auto_error=False)
 
@@ -61,3 +63,12 @@ def get_auth_service(
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> AuthService:
     return AuthService(UserRepository(session), settings)
+
+
+
+def get_filing_service(session: Annotated[Session, Depends(get_db)]) -> FilingService:
+    return FilingService(FilingRepository(session))
+
+
+def get_memo_service(session: Annotated[Session, Depends(get_db)]) -> MemoService:
+    return MemoService(MemoRepository(session))

@@ -3,6 +3,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
 from app.domain.auth_exceptions import AuthError
+from app.domain.resource_exceptions import ResourceNotFound
 
 
 async def auth_error_handler(request: Request, exc: AuthError) -> JSONResponse:
@@ -20,6 +21,11 @@ async def validation_error_handler(request: Request, exc: RequestValidationError
     return JSONResponse(status_code=422, content={"detail": details})
 
 
+async def resource_not_found_handler(request: Request, exc: ResourceNotFound) -> JSONResponse:
+    return JSONResponse(status_code=404, content={"error": {"code": exc.code, "message": exc.message}})
+
+
 def install_exception_handlers(app: FastAPI) -> None:
     app.add_exception_handler(AuthError, auth_error_handler)
+    app.add_exception_handler(ResourceNotFound, resource_not_found_handler)
     app.add_exception_handler(RequestValidationError, validation_error_handler)

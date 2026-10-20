@@ -36,8 +36,15 @@ class MemoRepository:
             query = query.join(Memo).where(Memo.organization_id == organization_id)
         return self.session.scalar(query)
 
-    def list_versions(self, memo_id: UUID, *, organization_id: UUID | None = None) -> list[MemoVersion]:
+    def list_versions(self, memo_id: UUID, *, organization_id: UUID | None = None, limit: int | None = None, offset: int = 0) -> list[MemoVersion]:
         query = select(MemoVersion).where(MemoVersion.memo_id == memo_id)
         if organization_id is not None:
             query = query.join(Memo).where(Memo.organization_id == organization_id)
-        return list(self.session.scalars(query.order_by(MemoVersion.version)))
+        return list(self.session.scalars(query.order_by(MemoVersion.version).limit(limit).offset(offset)))
+
+
+    def list_by_organization(self, organization_id: UUID, *, limit: int = 20, offset: int = 0, company_name: str | None = None) -> list[Memo]:
+        query = select(Memo).where(Memo.organization_id == organization_id)
+        if company_name is not None:
+            query = query.where(Memo.company_name == company_name)
+        return list(self.session.scalars(query.order_by(Memo.updated_at.desc(), Memo.id.desc()).limit(limit).offset(offset)))

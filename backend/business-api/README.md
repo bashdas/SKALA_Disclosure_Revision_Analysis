@@ -1,6 +1,6 @@
 # Business API — Core Domain Schema
 
-구현 담당자: 박다솔. 기존 SQLAlchemy 2.x sync + psycopg 3, Base 및 세션 관리 방식을 유지합니다. 현재 Domain schema, 상태 머신, sync Repository와 JWT 인증/인가 기반을 제공합니다. AuthService와 로그인 API만 구현했으며 업무 Service/API 및 Queue 연동은 아직 없습니다.
+구현 담당자: 박다솔. 기존 SQLAlchemy 2.x sync + psycopg 3, Base 및 세션 관리 방식을 유지합니다. 현재 Domain schema, 상태 머신, sync Repository와 JWT 인증/인가 기반을 제공합니다. AuthService/로그인 및 조직 범위 Filing/Memo 조회 API를 제공합니다. 분석 API와 Queue 연동은 아직 없습니다.
 
 ## 모델과 관계
 
@@ -154,9 +154,9 @@ active duplicate는 organization_id/memo_id/base_memo_version/disclosure_receipt
 
 Perspective active는 REGISTERED/RUNNING입니다. Report와 Perspective의 중복은 기존 DB unique가 차단하고 Repository는 IntegrityError를 숨기지 않습니다. 보고서 존재 확인과 add 사이의 동시성도 Service가 처리해야 합니다. AuditLog에는 update/delete 메서드가 없습니다.
 
-사용자 요청에는 User/Memo/Filing/Analysis의 조직 범위 조회를 우선 사용해야 합니다. organization을 받지 않는 내부 조회는 JWT 권한을 보장하지 않습니다. Perspective/Revision/Report/Event 조회 전에는 부모 AnalysisTask의 조직 범위를 상위 계층에서 확인해야 합니다. AuditLog 자원 조회는 organization_id를 필수로 받습니다. 목록 조회는 현재 전체 목록이며 향후 서비스 규모에 맞춰 pagination을 추가할 수 있습니다.
+사용자 요청에는 User/Memo/Filing/Analysis의 조직 범위 조회를 우선 사용해야 합니다. organization을 받지 않는 내부 조회는 JWT 권한을 보장하지 않습니다. Perspective/Revision/Report/Event 조회 전에는 부모 AnalysisTask의 조직 범위를 상위 계층에서 확인해야 합니다. AuditLog 자원 조회는 organization_id를 필수로 받습니다. 기존 내부 목록 조회는 전체 목록이며 Filing/Memo 공개 목록 및 버전 목록에는 limit/offset pagination을 적용합니다.
 
-기존 모델은 개별 FK와 양수 버전을 보장하지만 조직 일치와 고정한 MemoVersion의 실제 존재를 완전히 강제하지 않습니다. 이 검증은 후속 Service 범위이며 이번에는 schema를 변경하지 않았습니다. 업무 API/RabbitMQ/Agent/저장 retry Service는 구현하지 않았습니다. JWT 인증은 아래 절을 참고하세요.
+기존 모델은 개별 FK와 양수 버전을 보장하지만 조직 일치와 고정한 MemoVersion의 실제 존재를 완전히 강제하지 않습니다. 이 검증은 후속 Service 범위이며 이번에는 schema를 변경하지 않았습니다. 분석 API/RabbitMQ/Agent/저장 retry Service는 구현하지 않았습니다. JWT 인증과 Filing/Memo 조회는 아래 절을 참고하세요.
 
 실제 Business Service와 Analysis 처리에서 접수번호로 공시를 조회할 때는 JWT 또는 AnalysisTask에서 확정한 organization_id를 사용해 반드시 `get_by_receipt_no_and_organization`을 호출합니다. 조직 없는 단건 접수번호 조회 메서드나 이전 이름의 호환 alias는 제공하지 않습니다.
 
@@ -199,7 +199,7 @@ Claims는 sub(UUID user id), organization_id(UUID), role(RA/ANALYST), iat/exp(UT
 
 `get_current_organization_id`는 검증된 current_user.organization_id만 반환합니다. 이후 Business API/Service의 조직 범위 조회는 client의 body/query/path 조직 값 대신 이 값을 사용해야 합니다. 특히 Filing은 UNIQUE(organization_id,receipt_no)를 유지하고 단건 조회에 `get_by_receipt_no_and_organization(receipt_no,current_user.organization_id)`를 사용합니다. 조직 미지정 `list_by_receipt_no`는 내부 목록 조회용이며 단건으로 대체하지 않습니다.
 
-`require_roles(UserRole.RA)` 또는 `require_roles(UserRole.RA,UserRole.ANALYST)`는 재사용 가능한 FastAPI dependency를 반환합니다. 역할 불일치는 403이며 빈 허용 역할 목록은 구성 오류로 즉시 거부합니다. RA와 ANALYST 사이에 암묵적 상하 권한 관계는 두지 않습니다. 아직 업무 endpoint별 정책을 적용하지 않았고 production에는 테스트용 protected endpoint를 추가하지 않았습니다. /health 및 /health/db는 공개 상태로 유지합니다.
+`require_roles(UserRole.RA)` 또는 `require_roles(UserRole.RA,UserRole.ANALYST)`는 재사용 가능한 FastAPI dependency를 반환합니다. 역할 불일치는 403이며 빈 허용 역할 목록은 구성 오류로 즉시 거부합니다. RA와 ANALYST 사이에 암묵적 상하 권한 관계는 두지 않습니다. Filing/Memo 읽기 endpoint에는 두 역할 허용 정책을 적용했으며 나머지 업무 정책은 미구현입니다. production에는 테스트용 protected endpoint를 추가하지 않았습니다. /health 및 /health/db는 공개 상태로 유지합니다.
 
 ### 오류와 범위
 
@@ -215,6 +215,44 @@ Claims는 sub(UUID user id), organization_id(UUID), role(RA/ANALYST), iat/exp(UT
 
 401에는 WWW-Authenticate: Bearer를 포함합니다. crypto/Service/dependency는 구조화 AuthError를 사용하고 HTTP 매핑은 app/api/exception_handlers.py에 분리했습니다. 기존 상태 전이 예외는 변경하지 않았습니다.
 
-Refresh/rotation/logout blacklist/비밀번호 reset/signup/계정 CRUD/MCP·internal 인증/업무 API/RabbitMQ/Agent는 이번 범위가 아닙니다. DB schema와 기존 Repository는 수정하지 않았습니다. 인증 테스트는 별도 test secret과 임시 PostgreSQL을 사용하며 테스트 앱에서만 protected routes를 구성합니다.
+Refresh/rotation/logout blacklist/비밀번호 reset/signup/계정 CRUD/MCP·internal 인증/분석 API/RabbitMQ/Agent는 아직 구현하지 않았습니다. 인증 단계에서는 DB schema와 기존 Repository를 수정하지 않았습니다. 인증 테스트는 별도 test secret과 임시 PostgreSQL을 사용하며 테스트 앱에서만 protected routes를 구성합니다.
 
 구현 참고: [PyJWT 검증 API](https://pyjwt.readthedocs.io/en/stable/api.html), [argon2-cffi PasswordHasher](https://argon2-cffi.readthedocs.io/en/stable/api.html).
+
+## Filing / Memo 조직 범위 조회 API
+
+모든 endpoint는 Bearer 인증과 require_roles(RA, ANALYST)를 적용합니다. JWT를 DB User와 대조한 current_user.organization_id만 Service로 넘깁니다. 클라이언트가 organization_id query를 추가해도 조회 범위에 영향을 주지 않습니다. DTO에는 organization_id나 relationship을 노출하지 않습니다.
+
+| Method | Endpoint | 응답 |
+| --- | --- | --- |
+| GET | /api/v1/filings | FilingSummaryResponse 배열 |
+| GET | /api/v1/filings/by-receipt/{receipt_no} | 조직 범위 FilingDetailResponse |
+| GET | /api/v1/filings/{filing_id} | FilingDetailResponse |
+| GET | /api/v1/filings/{filing_id}/versions | FilingVersionSummaryResponse 배열 |
+| GET | /api/v1/filings/{filing_id}/versions/{version} | raw_content 포함 버전 상세 |
+| GET | /api/v1/memos | MemoSummaryResponse 배열 |
+| GET | /api/v1/memos/{memo_id} | MemoDetailResponse |
+| GET | /api/v1/memos/{memo_id}/versions | MemoVersionSummaryResponse 배열 |
+| GET | /api/v1/memos/{memo_id}/versions/{version} | content 포함 버전 상세 |
+
+모든 목록은 limit 기본 20, 범위 1~100, offset 기본 0/최소 0을 사용합니다. 응답은 JSON 배열이며 total count를 별도로 조회하지 않습니다. Filing은 filed_at DESC, id DESC, Memo는 updated_at DESC, id DESC입니다. 버전 목록은 version ASC이며 같은 pagination을 적용합니다. Filing 목록은 company_name/filing_type, Memo 목록은 company_name의 선택적 정확 일치 필터를 지원합니다. 대소문자 정규화·부분 검색·외부 API 조회는 하지 않습니다.
+
+FilingRepository의 UNIQUE(organization_id,receipt_no), list_by_receipt_no 다건 조회와 get_by_receipt_no_and_organization 단건 조회는 유지했습니다. Business API의 접수번호 조회는 단건 조직 범위 메서드만 사용합니다. 다른 조직에만 있는 receipt_no나 ID는 없는 리소스와 동일한 404를 반환합니다. 조직 미지정 단건 메서드나 호환 alias는 없습니다.
+
+FilingService/MemoService가 조직 범위 부모 조회·존재 판단을 담당하고, 버전 조회 전에 부모를 반드시 확인합니다. 버전 Repository query에도 organization_id를 전달해 부모 join scope를 추가합니다. 다른 조직 부모는 FILING_NOT_FOUND/MEMO_NOT_FOUND, 현재 조직 부모의 없는 버전은 FILING_VERSION_NOT_FOUND/MEMO_VERSION_NOT_FOUND로 처리하며, 모두 기존 error envelope의 HTTP 404입니다. Repository는 None을 반환하고 HTTP 예외를 만들지 않습니다.
+
+요약과 상세는 명시적인 Pydantic DTO를 사용합니다. Filing/Memo 일반 상세에는 전체 원문이나 버전 relationship을 포함하지 않고 버전 목록에도 raw_content/content를 포함하지 않습니다. 정확한 버전 상세 endpoint에서만 본문을 반환합니다. 생성자 ID와 content_hash 등 명세에 필요한 필드는 버전 DTO에 포함합니다.
+
+MemoService.get_current_version은 조직 범위 Memo를 조회한 뒤 current_version에 해당하는 MemoVersion을 반환합니다. 참조 버전이 실제로 없으면 MEMO_VERSION_NOT_FOUND입니다. 별도 /current-version endpoint는 versions/{version}와 중복이므로 추가하지 않았습니다.
+
+Filing은 저장된 OpenDART cache/snapshot만 조회합니다. 없으면 404이며 OpenDART 호출이나 cache 생성은 없습니다. 향후 AnalysisTask의 disclosure_receipt_no 입력에 Filing row 존재를 강제하지 않습니다. GET은 commit/rollback/close나 데이터 생성을 수행하지 않으며 기존 Session lifecycle을 재사용합니다. 모델/migration 변경은 없습니다.
+
+실행 예시는 token을 로그에 남기지 않는 로컬 환경에서 사용하세요.
+
+```bash
+# Business API 실행 후 로컬 환경에 ACCESS_TOKEN을 설정한 상태
+curl -H "Authorization: Bearer $ACCESS_TOKEN" 'http://localhost:8080/api/v1/filings?limit=20&offset=0'
+curl -H "Authorization: Bearer $ACCESS_TOKEN" 'http://localhost:8080/api/v1/memos?limit=20&offset=0'
+```
+
+PostgreSQL 검증은 test_read_api.py에 있으며 기존 JWT·상태 머신·Repository·migration 회귀 테스트와 함께 실행합니다. 다음 단계의 Analysis 생성 API/RabbitMQ는 이번에 구현하지 않았습니다.
