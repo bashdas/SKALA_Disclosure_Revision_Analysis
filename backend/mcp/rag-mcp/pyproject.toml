@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "disclosure-rag-mcp"
 version = "0.1.0"
 requires-python = ">=3.12"
-dependencies = ['fastapi>=0.115,<1', 'uvicorn>=0.34,<1', 'disclosure-shared==0.1.0', 'mcp>=1.12,<2']
+dependencies = ['fastapi>=0.115,<1', 'uvicorn>=0.34,<1', 'disclosure-shared==0.1.0', 'mcp>=1.30,<2', 'httpx>=0.28,<1', 'sqlalchemy>=2.0,<3', 'psycopg[binary]>=3.2,<4', 'alembic>=1.14,<2', 'pgvector>=0.4,<1']
 
 [project.optional-dependencies]
 dev = ["pytest>=8,<10", "httpx>=0.28,<1"]
