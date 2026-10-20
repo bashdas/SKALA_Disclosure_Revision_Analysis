@@ -1,24 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="ffbcf8cb-579f-4040-a942-6077a235c7d1" name="변경" comment="feat: 조직 범위를 적용한 Filing,Memo 및 버전 조회 API 구현">
+    <list default="true" id="ffbcf8cb-579f-4040-a942-6077a235c7d1" name="변경" comment="feat: 분석 조회와 이벤트 영속화 및 SSE, 취소 API 추가">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/backend/.env.example" beforeDir="false" afterPath="$PROJECT_DIR$/backend/.env.example" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/backend/README.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/business-api/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/backend/business-api/README.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/business-api/alembic/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/backend/business-api/alembic/README.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/business-api/alembic/versions/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/backend/business-api/alembic/versions/README.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/business-api/app/api/dependencies.py" beforeDir="false" afterPath="$PROJECT_DIR$/backend/business-api/app/api/dependencies.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/business-api/app/api/exception_handlers.py" beforeDir="false" afterPath="$PROJECT_DIR$/backend/business-api/app/api/exception_handlers.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/business-api/app/api/memo.py" beforeDir="false" afterPath="$PROJECT_DIR$/backend/business-api/app/api/memo.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/backend/business-api/app/core/config.py" beforeDir="false" afterPath="$PROJECT_DIR$/backend/business-api/app/core/config.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/business-api/app/models/domain.py" beforeDir="false" afterPath="$PROJECT_DIR$/backend/business-api/app/models/domain.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/business-api/app/repositories/memo.py" beforeDir="false" afterPath="$PROJECT_DIR$/backend/business-api/app/repositories/memo.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/business-api/app/schemas/memo.py" beforeDir="false" afterPath="$PROJECT_DIR$/backend/business-api/app/schemas/memo.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/business-api/app/services/memo.py" beforeDir="false" afterPath="$PROJECT_DIR$/backend/business-api/app/services/memo.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/business-api/pyproject.toml" beforeDir="false" afterPath="$PROJECT_DIR$/backend/business-api/pyproject.toml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/business-api/tests/test_migrations.py" beforeDir="false" afterPath="$PROJECT_DIR$/backend/business-api/tests/test_migrations.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/business-api/tests/test_read_api.py" beforeDir="false" afterPath="$PROJECT_DIR$/backend/business-api/tests/test_read_api.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/business-api/app/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/backend/business-api/app/main.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/business-api/app/repositories/perspective_task.py" beforeDir="false" afterPath="$PROJECT_DIR$/backend/business-api/app/repositories/perspective_task.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/business-api/tests/test_analysis_api.py" beforeDir="false" afterPath="$PROJECT_DIR$/backend/business-api/tests/test_analysis_api.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/docs/다솔.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/다솔.md" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -87,7 +76,7 @@
       <option name="presentableId" value="Default" />
       <updated>1792383332834</updated>
       <workItem from="1792383334324" duration="4533000" />
-      <workItem from="1792464864790" duration="14075000" />
+      <workItem from="1792464864790" duration="16413000" />
     </task>
     <task id="LOCAL-00001" summary="feat: 백엔드 1단계 실행 뼈대와 Docker Compose 구성">
       <option name="closed" value="true" />
@@ -145,7 +134,31 @@
       <option name="project" value="LOCAL" />
       <updated>1792482040294</updated>
     </task>
-    <option name="localTasksCounter" value="8" />
+    <task id="LOCAL-00008" summary="feat: Memo 텍스트 업로드와 최초 버전 및 원본 메타데이터 저장 구현">
+      <option name="closed" value="true" />
+      <created>1792483519136</created>
+      <option name="number" value="00008" />
+      <option name="presentableId" value="LOCAL-00008" />
+      <option name="project" value="LOCAL" />
+      <updated>1792483519136</updated>
+    </task>
+    <task id="LOCAL-00009" summary="feat: 분석 생성 API와 RabbitMQ Producer 및 재시도 큐 추가">
+      <option name="closed" value="true" />
+      <created>1792484557703</created>
+      <option name="number" value="00009" />
+      <option name="presentableId" value="LOCAL-00009" />
+      <option name="project" value="LOCAL" />
+      <updated>1792484557703</updated>
+    </task>
+    <task id="LOCAL-00010" summary="feat: 분석 조회와 이벤트 영속화 및 SSE, 취소 API 추가">
+      <option name="closed" value="true" />
+      <created>1792485286611</created>
+      <option name="number" value="00010" />
+      <option name="presentableId" value="LOCAL-00010" />
+      <option name="project" value="LOCAL" />
+      <updated>1792485286611</updated>
+    </task>
+    <option name="localTasksCounter" value="11" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -174,7 +187,10 @@
     <MESSAGE value="feat: 분석 상태, 단계 전이 규칙과 핵심 Repository 구현" />
     <MESSAGE value="feat: JWT 인증과 비밀번호 해싱 및 조직 및 역할 RBAC 구현" />
     <MESSAGE value="feat: 조직 범위를 적용한 Filing,Memo 및 버전 조회 API 구현" />
-    <option name="LAST_COMMIT_MESSAGE" value="feat: 조직 범위를 적용한 Filing,Memo 및 버전 조회 API 구현" />
+    <MESSAGE value="feat: Memo 텍스트 업로드와 최초 버전 및 원본 메타데이터 저장 구현" />
+    <MESSAGE value="feat: 분석 생성 API와 RabbitMQ Producer 및 재시도 큐 추가" />
+    <MESSAGE value="feat: 분석 조회와 이벤트 영속화 및 SSE, 취소 API 추가" />
+    <option name="LAST_COMMIT_MESSAGE" value="feat: 분석 조회와 이벤트 영속화 및 SSE, 취소 API 추가" />
   </component>
   <component name="XSLT-Support.FileAssociations.UIState">
     <expand />

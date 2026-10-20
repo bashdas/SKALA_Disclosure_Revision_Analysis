@@ -199,7 +199,7 @@ def test_upload_downgrade_cannot_fabricate_company_or_lose_metadata(legacy_datab
     with pytest.raises(DBAPIError, match="Archive upload metadata"):
         command.downgrade(config, "0002_align_report_flow")
     with engine.connect() as connection:
-        assert connection.execute(text("SELECT version_num FROM public.alembic_version")).scalar_one() == "0003_memo_upload"
+        assert connection.execute(text("SELECT version_num FROM public.alembic_version")).scalar_one() == "0004_analysis_company"
         assert connection.execute(text(f"SELECT {field} FROM core.{table} WHERE id=:id"), {"id": ids[key]}).scalar_one() == value
 
 
@@ -212,3 +212,24 @@ def test_memo_metadata_size_constraint(legacy_database):
         with engine.begin() as connection:
             connection.execute(text("UPDATE core.memo_versions SET size_bytes=-1 WHERE id=:version"), ids)
     assert error.value.orig.diag.constraint_name == "ck_memo_versions_size_nonnegative"
+
+
+@pytest.mark.postgres
+def test_unknown_analysis_company_downgrade_guard(legacy_database):
+    from sqlalchemy.exc import DBAPIError
+    engine, config, ids = legacy_database
+    command.upgrade(config, "head")
+    assert next(column for column in inspect(engine).get_columns("analysis_tasks", schema="core") if column["name"] == "company_name_snapshot")["nullable"]
+    with engine.begin() as connection:
+        connection.execute(text("UPDATE core.analysis_tasks SET company_name_snapshot=NULL WHERE id=:task"), ids)
+    with pytest.raises(DBAPIError, match="Reconcile unknown analysis companies"):
+        command.downgrade(config, "0003_memo_upload")
+    with engine.connect() as connection:
+        assert connection.execute(text("SELECT version_num FROM public.alembic_version")).scalar_one() == "0004_analysis_company"
+        assert connection.execute(text("SELECT company_name_snapshot FROM core.analysis_tasks WHERE id=:task"), ids).scalar_one() is None
+    with engine.begin() as connection:
+        connection.execute(text("UPDATE core.analysis_tasks SET company_name_snapshot='Verified legacy company' WHERE id=:task"), ids)
+    command.downgrade(config, "0003_memo_upload")
+    assert not next(column for column in inspect(engine).get_columns("analysis_tasks", schema="core") if column["name"] == "company_name_snapshot")["nullable"]
+    command.upgrade(config, "head")
+    command.check(config)
