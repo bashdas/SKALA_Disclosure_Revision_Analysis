@@ -19,8 +19,12 @@ services:
     environment:
       ENVIRONMENT: ${ENVIRONMENT:-local}
       BUSINESS_API_BASE_URL: http://business-api:8080
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY:-}
+      BUSINESS_MCP_HOST: ${BUSINESS_MCP_HOST:-0.0.0.0}
+      BUSINESS_MCP_PORT: ${BUSINESS_MCP_PORT:-8081}
+      BUSINESS_MCP_REQUEST_TIMEOUT_SECONDS: ${BUSINESS_MCP_REQUEST_TIMEOUT_SECONDS:-30}
     expose:
-      - "8081"
+      - "${BUSINESS_MCP_PORT:-8081}"
     depends_on:
       business-api:
         condition: service_healthy
