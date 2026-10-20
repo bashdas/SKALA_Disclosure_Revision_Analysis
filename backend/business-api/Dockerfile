@@ -5,6 +5,8 @@ COPY shared /shared
 RUN pip install --no-cache-dir /shared
 COPY business-api/pyproject.toml ./
 COPY business-api/app ./app
+COPY business-api/alembic.ini ./
+COPY business-api/alembic ./alembic
 RUN pip install --no-cache-dir . && useradd --create-home appuser
 USER appuser
 EXPOSE 8080

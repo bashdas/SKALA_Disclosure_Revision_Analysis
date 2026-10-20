@@ -1,4 +1,4 @@
-# Backend — 1단계
+# Backend — 실행 뼈대 및 Business API DB 기반 구성
 
 구현 담당자: 박다솔
 
@@ -44,7 +44,7 @@ docker compose logs -f business-api business-mcp rag-mcp
 docker compose down
 ```
 
-`down`은 이름 있는 DB/큐 볼륨을 보존합니다. pgvector 이미지까지 준비하지만 extension 활성화, DB 스키마, 큐 선언과 연결 코드는 아직 없습니다. PostgreSQL 초기 자격 증명은 빈 볼륨을 처음 생성할 때 적용됩니다.
+`down`은 이름 있는 DB/큐 볼륨을 보존합니다. pgvector 이미지까지 준비하지만 extension 활성화, 업무 DB 스키마와 큐 선언·연결 코드는 아직 없습니다. Business API의 DB 연결 기반은 구성되어 있습니다. PostgreSQL 초기 자격 증명은 빈 볼륨을 처음 생성할 때 적용됩니다.
 
 ## 로컬 독립 실행
 
@@ -94,7 +94,6 @@ MCP는 공식 Python SDK v1의 Streamable HTTP를 사용합니다. JSON 응답/s
 
 ## 다음 단계 / TODO
 
-- SQLAlchemy, PostgreSQL 드라이버, Alembic 설치 및 환경 구성: 현재 DB 관련 의존성은 실제 사용 전까지 추가하지 않았습니다. `alembic.ini`와 디렉터리는 예약 구조이며 migration 실행은 아직 지원하지 않습니다.
 - core/rag 모델, 스키마 소유권, pgvector extension 및 실제 migration 설계
 - JWT 발급·검증, 조직/역할 접근 제어, 서비스 간 내부 인증
 - 업무 API, `/internal/**`, Business MCP HTTP client와 실제 Tool
@@ -102,3 +101,54 @@ MCP는 공식 Python SDK v1의 Streamable HTTP를 사용합니다. JSON 응답/s
 - RAG read-only DB 계정, 검색·원문·claim source Tool, embedding 정책
 - 의존성 lock 파일, CI, 운영 비밀 관리와 readiness 정책
 - frontend, ai-agent, LangGraph checkpoint는 별도 영역에서 구현
+
+## Business API DB 구성
+
+SQLAlchemy 2.x sync + psycopg 3를 사용합니다. 현재 업무 중심 서비스의 트랜잭션을 단순하게 관리하기 위한 선택이며 DB를 사용하는 Router는 `def`로 작성해 FastAPI thread pool에서 실행합니다. `async def`에서 sync DB 작업을 직접 실행하지 않습니다.
+
+`app/core/database.py`의 `Base`가 공통 ORM base입니다. Engine과 session factory는 프로세스별로 지연 생성하며 PostgreSQL 연결 URL은 `postgresql+psycopg://`만 허용합니다. 연결 timeout은 `DATABASE_CONNECT_TIMEOUT`(기본 3초)입니다. 실행 중 환경변수 변경 시 프로세스를 재시작하세요.
+
+`Depends(get_db)`로 요청별 Session을 받습니다. dependency 종료 시 Session을 닫아 미완료 트랜잭션을 rollback하고 자동 commit은 하지 않습니다. 향후 Service가 `with session.begin():` 또는 명시적 `commit()/rollback()`으로 경계를 관리합니다. Repository는 commit하지 않습니다. Service에서 `session.begin()`을 쓸 경우 그 전에 같은 Session에서 쿼리를 실행해 autobegin한 상태가 아닌지 확인해야 합니다.
+
+DB가 없어도 `/health`는 기존 응답을 유지합니다. `/health/db`는 `SELECT 1` 성공 시 `200 {"status":"ok","service":"business-api-db"}`, 설정 누락·연결 실패 시 세부 credential을 노출하지 않는 `503 {"detail":"Database unavailable"}`을 반환합니다. Engine 생성과 연결만 준비하며 시작 시 테이블을 생성하지 않습니다.
+
+환경변수는 `backend/.env.example`의 예시를 참고하세요. 예시 비밀번호는 실제 credential이 아닙니다. 로컬 실행은 서비스 실행 디렉터리의 `.env` 또는 export한 환경변수를 읽으며, Compose의 `postgres` 호스트 이름은 Compose 네트워크에서만 해석됩니다. 비밀번호의 특수 문자는 URL-encode하세요.
+
+### Alembic 실행
+
+Business API 폴더에서 로컬 가상환경으로:
+
+```bash
+cd backend/business-api
+# DATABASE_URL 설정 후
+.venv/bin/alembic current
+.venv/bin/alembic check
+# 실제 모델을 추가하는 다음 단계부터 생성 및 검토
+# .venv/bin/alembic revision --autogenerate -m "initial domain models"
+# .venv/bin/alembic upgrade head
+```
+
+Compose에서는 저장소의 backend 폴더에서:
+
+```bash
+docker compose up -d --build business-api
+docker compose exec business-api alembic current
+docker compose exec business-api alembic check
+curl -f http://localhost:8080/health/db
+```
+
+`env.py`가 앱과 동일한 설정으로 URL을 읽고 `app.models`를 import하여 `Base.metadata`에 연결합니다. 새 모델은 `app/models/__init__.py`에서 명시적으로 import해야 합니다. 현재 모델과 revision은 없으며 `versions/README.md`만 있습니다. `create_all`은 사용하지 않습니다. 현재 autogenerate는 기본 schema 기준입니다. core/rag/checkpoint의 schema 소유권과 다른 영역 테이블 제외 정책을 다음 모델 단계에서 결정한 후 공유 DB에 적용해야 합니다.
+
+### PostgreSQL 테스트
+
+```bash
+cd backend/business-api
+.venv/bin/python -m pytest -q
+# 전용 임시 PostgreSQL DB를 지정하면 통합 테스트까지 실행
+# TEST_DATABASE_URL은 실제 credential을 문서나 커밋에 넣지 않고 로컬에서 설정
+TEST_DATABASE_URL="$DATABASE_URL" .venv/bin/python -m pytest -q
+```
+
+통합 테스트는 일반 개발·운영 DB가 아닌 비어 있는 전용 테스트 DB를 사용하세요. `TEST_DATABASE_URL` 미설정 시 PostgreSQL 테스트 4개는 skip합니다. 잘못된 password가 거부되는 password 인증 DB여야 합니다. 테스트는 연결, health, 트랜잭션 정리, Alembic 비교를 확인하며 업무 테이블이나 빈 initial revision을 만들지 않습니다.
+
+구현 근거: [SQLAlchemy Session 관리](https://docs.sqlalchemy.org/en/20/orm/session_basics.html), [Alembic metadata 연결](https://alembic.sqlalchemy.org/en/latest/autogenerate.html).
