@@ -19,6 +19,8 @@ class Settings(ServiceSettings):
     rabbitmq_retry_delay_seconds: int = Field(default=5, ge=1, le=60)
     rabbitmq_publish_max_attempts: int = Field(default=3, ge=1, le=5)
     rabbitmq_publish_timeout_seconds: float = Field(default=5, ge=1, le=30)
+    internal_api_key: SecretStr = Field(default="", repr=False)
+    internal_report_save_max_attempts: int = Field(default=3, ge=1, le=5)
     jwt_secret_key: SecretStr = Field(default="", repr=False)
     jwt_algorithm: str = "HS256"
     jwt_access_token_expire_minutes: int = Field(default=30, gt=0)

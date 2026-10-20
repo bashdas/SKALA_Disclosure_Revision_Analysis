@@ -7,6 +7,7 @@ from starlette.concurrency import run_in_threadpool
 
 from disclosure_shared.health import HealthResponse
 
+from app.api.internal.analyses import router as internal_router
 from app.api.analysis import router as analysis_router
 from app.api.auth import router as auth_router
 from app.api.filing import router as filing_router
@@ -30,6 +31,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="business-api", version="0.1.0", lifespan=lifespan)
 install_exception_handlers(app)
+app.include_router(internal_router)
 app.include_router(analysis_router)
 app.include_router(auth_router)
 app.include_router(filing_router)

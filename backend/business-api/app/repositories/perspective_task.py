@@ -28,3 +28,10 @@ class PerspectiveTaskRepository:
 
     def list_active_by_analysis_task(self, analysis_task_id: UUID) -> list[AnalysisPerspectiveTask]:
         return list(self.session.scalars(select(AnalysisPerspectiveTask).where(AnalysisPerspectiveTask.analysis_task_id == analysis_task_id, AnalysisPerspectiveTask.status.in_(ACTIVE_PERSPECTIVE_STATUSES)).order_by(AnalysisPerspectiveTask.created_at, AnalysisPerspectiveTask.id)))
+
+    def get_by_id_and_analysis_task(self, perspective_id: UUID, analysis_task_id: UUID) -> AnalysisPerspectiveTask | None:
+        query = select(AnalysisPerspectiveTask).where(
+            AnalysisPerspectiveTask.id == perspective_id,
+            AnalysisPerspectiveTask.analysis_task_id == analysis_task_id,
+        ).execution_options(populate_existing=True)
+        return self.session.scalar(query)
