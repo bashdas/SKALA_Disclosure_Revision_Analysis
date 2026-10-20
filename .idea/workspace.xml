@@ -1,14 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="ffbcf8cb-579f-4040-a942-6077a235c7d1" name="변경" comment="feat: Business API PostgreSQL 연결과 SQLAlchemy, Alembic 기반 구성">
+    <list default="true" id="ffbcf8cb-579f-4040-a942-6077a235c7d1" name="변경" comment="feat: 핵심 도메인 ORM과 제약조건 및 초기 core 스키마 migration 추가">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/backend/README.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/business-api/alembic/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/backend/business-api/alembic/README.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/business-api/alembic/env.py" beforeDir="false" afterPath="$PROJECT_DIR$/backend/business-api/alembic/env.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/business-api/alembic/versions/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/backend/business-api/alembic/versions/README.md" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/backend/business-api/app/models/__init__.py" beforeDir="false" afterPath="$PROJECT_DIR$/backend/business-api/app/models/__init__.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/business-api/tests/test_database.py" beforeDir="false" afterPath="$PROJECT_DIR$/backend/business-api/tests/test_database.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/business-api/app/models/domain.py" beforeDir="false" afterPath="$PROJECT_DIR$/backend/business-api/app/models/domain.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/business-api/app/models/enums.py" beforeDir="false" afterPath="$PROJECT_DIR$/backend/business-api/app/models/enums.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/business-api/tests/test_domain.py" beforeDir="false" afterPath="$PROJECT_DIR$/backend/business-api/tests/test_domain.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/docs/다솔.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/다솔.md" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -77,7 +75,7 @@
       <option name="presentableId" value="Default" />
       <updated>1792383332834</updated>
       <workItem from="1792383334324" duration="4533000" />
-      <workItem from="1792464864790" duration="8192000" />
+      <workItem from="1792464864790" duration="9645000" />
     </task>
     <task id="LOCAL-00001" summary="feat: 백엔드 1단계 실행 뼈대와 Docker Compose 구성">
       <option name="closed" value="true" />
@@ -95,7 +93,15 @@
       <option name="project" value="LOCAL" />
       <updated>1792475386118</updated>
     </task>
-    <option name="localTasksCounter" value="3" />
+    <task id="LOCAL-00003" summary="feat: 핵심 도메인 ORM과 제약조건 및 초기 core 스키마 migration 추가">
+      <option name="closed" value="true" />
+      <created>1792477807169</created>
+      <option name="number" value="00003" />
+      <option name="presentableId" value="LOCAL-00003" />
+      <option name="project" value="LOCAL" />
+      <updated>1792477807169</updated>
+    </task>
+    <option name="localTasksCounter" value="4" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -119,7 +125,8 @@
     <MESSAGE value="archve" />
     <MESSAGE value="feat: 백엔드 1단계 실행 뼈대와 Docker Compose 구성" />
     <MESSAGE value="feat: Business API PostgreSQL 연결과 SQLAlchemy, Alembic 기반 구성" />
-    <option name="LAST_COMMIT_MESSAGE" value="feat: Business API PostgreSQL 연결과 SQLAlchemy, Alembic 기반 구성" />
+    <MESSAGE value="feat: 핵심 도메인 ORM과 제약조건 및 초기 core 스키마 migration 추가" />
+    <option name="LAST_COMMIT_MESSAGE" value="feat: 핵심 도메인 ORM과 제약조건 및 초기 core 스키마 migration 추가" />
   </component>
   <component name="XSLT-Support.FileAssociations.UIState">
     <expand />

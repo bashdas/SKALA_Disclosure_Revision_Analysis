@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import date, datetime
 from decimal import Decimal
-from uuid import UUID, uuid4
+from uuid import UUID
 from typing import Any
 
 from sqlalchemy import (
@@ -15,7 +15,8 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.core.database import Base
 from app.models.common import CORE_SCHEMA, IdentityCreatedMixin, UpdatedMixin
 from app.models.enums import (
-    AnalysisStatus, ApprovalStatus, ImpactType, UserRole, ValidationStatus, enum_column,
+    AnalysisStage, AnalysisStatus, ImpactType, PerspectiveStatus, PerspectiveType,
+    UserRole, ValidationStatus, enum_column,
 )
 
 class Organization(IdentityCreatedMixin, Base):
@@ -119,26 +120,35 @@ class AnalysisTask(IdentityCreatedMixin, UpdatedMixin, Base):
         UniqueConstraint("thread_id", name="uq_analysis_tasks_thread_id"),
         Index("ix_analysis_tasks_organization_status", "organization_id", "status"),
         Index("ix_analysis_tasks_status", "status"),
+        Index("ix_analysis_tasks_receipt_no", "disclosure_receipt_no"),
+        Index("ix_analysis_tasks_duplicate_lookup", "organization_id", "memo_id", "base_memo_version", "disclosure_receipt_no", "status"),
         {"schema": CORE_SCHEMA},
     )
 
     organization_id: Mapped[UUID] = mapped_column(ForeignKey("core.organizations.id", ondelete="RESTRICT"))
     requested_by: Mapped[UUID] = mapped_column(ForeignKey("core.users.id", ondelete="RESTRICT"))
-    filing_id: Mapped[UUID] = mapped_column(ForeignKey("core.filings.id", ondelete="RESTRICT"), index=True)
+    filing_id: Mapped[UUID | None] = mapped_column(ForeignKey("core.filings.id", ondelete="RESTRICT"), index=True)
     memo_id: Mapped[UUID] = mapped_column(ForeignKey("core.memos.id", ondelete="RESTRICT"), index=True)
     base_memo_version: Mapped[int] = mapped_column(Integer)
+    disclosure_receipt_no: Mapped[str] = mapped_column(String(64))
+    corp_code: Mapped[str | None] = mapped_column(String(8))
+    company_name_snapshot: Mapped[str] = mapped_column(String(255))
     thread_id: Mapped[str] = mapped_column(String(255))
     status: Mapped[AnalysisStatus] = mapped_column(
         enum_column(AnalysisStatus, "ck_analysis_tasks_status"),
         default=AnalysisStatus.CREATED, server_default=AnalysisStatus.CREATED.value,
     )
+    current_stage: Mapped[AnalysisStage | None] = mapped_column(enum_column(AnalysisStage, "ck_analysis_tasks_current_stage"))
+    has_warnings: Mapped[bool] = mapped_column(Boolean, default=False, server_default=text("false"))
+    error_stage: Mapped[AnalysisStage | None] = mapped_column(enum_column(AnalysisStage, "ck_analysis_tasks_error_stage"))
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     error_code: Mapped[str | None] = mapped_column(String(100))
     error_message: Mapped[str | None] = mapped_column(Text)
     revision_proposals: Mapped[list[RevisionProposal]] = relationship(passive_deletes="all")
     analysis_events: Mapped[list[AnalysisEvent]] = relationship(passive_deletes="all", order_by="AnalysisEvent.sequence")
-    approval: Mapped[Approval | None] = relationship(passive_deletes="all", uselist=False)
+    perspective_tasks: Mapped[list[AnalysisPerspectiveTask]] = relationship(passive_deletes="all")
+    report: Mapped[AnalysisReport | None] = relationship(passive_deletes="all", uselist=False)
 
 
 class RevisionProposal(IdentityCreatedMixin, Base):
@@ -156,37 +166,6 @@ class RevisionProposal(IdentityCreatedMixin, Base):
         enum_column(ValidationStatus, "ck_revision_proposals_validation_status"),
         default=ValidationStatus.PENDING, server_default=ValidationStatus.PENDING.value,
     )
-
-
-class Approval(IdentityCreatedMixin, Base):
-    __tablename__ = "approvals"
-    __table_args__ = (
-        UniqueConstraint("analysis_task_id", name="uq_approvals_analysis_task_id"),
-        {"schema": CORE_SCHEMA},
-    )
-
-    analysis_task_id: Mapped[UUID] = mapped_column(ForeignKey("core.analysis_tasks.id", ondelete="RESTRICT"))
-    approved_by: Mapped[UUID | None] = mapped_column(ForeignKey("core.users.id", ondelete="RESTRICT"))
-    status: Mapped[ApprovalStatus] = mapped_column(
-        enum_column(ApprovalStatus, "ck_approvals_status"),
-        default=ApprovalStatus.PENDING, server_default=ApprovalStatus.PENDING.value,
-    )
-    approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    approval_items: Mapped[list[ApprovalItem]] = relationship(passive_deletes="all")
-
-
-class ApprovalItem(Base):
-    __tablename__ = "approval_items"
-    __table_args__ = (
-        UniqueConstraint("approval_id", "revision_proposal_id", name="uq_approval_items_approval_proposal"),
-        {"schema": CORE_SCHEMA},
-    )
-
-    # No created_at field is needed for this association in the current contract.
-    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
-    approval_id: Mapped[UUID] = mapped_column(ForeignKey("core.approvals.id", ondelete="RESTRICT"))
-    revision_proposal_id: Mapped[UUID] = mapped_column(ForeignKey("core.revision_proposals.id", ondelete="RESTRICT"))
-    approved: Mapped[bool] = mapped_column(Boolean)
 
 
 class AnalysisEvent(IdentityCreatedMixin, Base):
@@ -218,16 +197,43 @@ class AuditLog(IdentityCreatedMixin, Base):
     metadata_json: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict, server_default=text("'{}'::jsonb"))
 
 
-class RevisionApplication(IdentityCreatedMixin, Base):
-    __tablename__ = "revision_applications"
+class AnalysisPerspectiveTask(IdentityCreatedMixin, Base):
+    __tablename__ = "analysis_perspective_tasks"
     __table_args__ = (
-        UniqueConstraint("revision_proposal_id", name="uq_revision_applications_proposal"),
-        CheckConstraint("result_memo_version >= 1", name="ck_revision_applications_result_version_positive"),
-        Index("ix_revision_applications_analysis_task_id", "analysis_task_id"),
+        UniqueConstraint("analysis_task_id", "perspective_type", name="uq_analysis_perspective_tasks_task_type"),
+        CheckConstraint("max_tool_calls >= 0", name="ck_analysis_perspective_tasks_tool_limit"),
+        CheckConstraint("timeout_seconds > 0", name="ck_analysis_perspective_tasks_timeout"),
         {"schema": CORE_SCHEMA},
     )
 
     analysis_task_id: Mapped[UUID] = mapped_column(ForeignKey("core.analysis_tasks.id", ondelete="RESTRICT"))
-    approval_id: Mapped[UUID] = mapped_column(ForeignKey("core.approvals.id", ondelete="RESTRICT"))
-    revision_proposal_id: Mapped[UUID] = mapped_column(ForeignKey("core.revision_proposals.id", ondelete="RESTRICT"))
-    result_memo_version: Mapped[int] = mapped_column(Integer)
+    perspective_type: Mapped[PerspectiveType] = mapped_column(enum_column(PerspectiveType, "ck_analysis_perspective_tasks_type"))
+    selection_reason: Mapped[str] = mapped_column(Text)
+    question: Mapped[str] = mapped_column(Text)
+    status: Mapped[PerspectiveStatus] = mapped_column(
+        enum_column(PerspectiveStatus, "ck_analysis_perspective_tasks_status"),
+        default=PerspectiveStatus.REGISTERED, server_default=PerspectiveStatus.REGISTERED.value,
+    )
+    max_tool_calls: Mapped[int] = mapped_column(Integer)
+    timeout_seconds: Mapped[int] = mapped_column(Integer)
+    result_json: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    failure_code: Mapped[str | None] = mapped_column(String(100))
+    failure_message: Mapped[str | None] = mapped_column(Text)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class AnalysisReport(IdentityCreatedMixin, UpdatedMixin, Base):
+    __tablename__ = "analysis_reports"
+    __table_args__ = (
+        UniqueConstraint("analysis_task_id", name="uq_analysis_reports_analysis_task_id"),
+        {"schema": CORE_SCHEMA},
+    )
+
+    analysis_task_id: Mapped[UUID] = mapped_column(ForeignKey("core.analysis_tasks.id", ondelete="RESTRICT"))
+    content: Mapped[str] = mapped_column(Text)
+    report_json: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict, server_default=text("'{}'::jsonb"))
+    has_warnings: Mapped[bool] = mapped_column(Boolean, default=False, server_default=text("false"))
+    no_additional_analysis_reason: Mapped[str | None] = mapped_column(Text)
+    generated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    saved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

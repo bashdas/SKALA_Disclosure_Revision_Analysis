@@ -15,18 +15,18 @@ from sqlalchemy.orm import Session, configure_mappers
 from app.core.config import get_settings
 from app.core.database import Base
 from app.models import (
-    AnalysisEvent, AnalysisTask, Approval, ApprovalItem, AuditLog, Contract,
-    Filing, FilingVersion, Memo, MemoVersion, Organization, RevisionApplication,
+    AnalysisEvent, AnalysisPerspectiveTask, AnalysisReport, AnalysisTask, AuditLog, Contract,
+    Filing, FilingVersion, Memo, MemoVersion, Organization,
     RevisionProposal, User,
 )
-from app.models.enums import AnalysisStatus, ApprovalStatus, ImpactType, UserRole, ValidationStatus
+from app.models.enums import AnalysisStatus, ImpactType, UserRole, ValidationStatus
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
 def test_model_metadata_and_delete_policy():
     configure_mappers()
-    assert len(Base.metadata.tables) == 14
+    assert len(Base.metadata.tables) == 13
     for table in Base.metadata.tables.values():
         assert table.schema == "core"
         for fk in table.foreign_keys:
@@ -77,14 +77,13 @@ def graph(db):
     db.add_all([user, filing, memo])
     db.flush()
     version = MemoVersion(memo_id=memo.id, version=1, content="original", created_by=user.id)
-    task = AnalysisTask(organization_id=org.id, requested_by=user.id, filing_id=filing.id, memo_id=memo.id, base_memo_version=1, thread_id=str(uuid4()))
+    task = AnalysisTask(organization_id=org.id, requested_by=user.id, memo_id=memo.id, base_memo_version=1, thread_id=str(uuid4()), disclosure_receipt_no="202610200001", company_name_snapshot="Example")
     db.add_all([version, task])
     db.flush()
     proposal = RevisionProposal(analysis_task_id=task.id, claim_id="claim-1", impact_type=ImpactType.HOLD, before_text="before", after_text=None, reason="review", evidence_json={"sources": [{"page": 1}]})
-    approval = Approval(analysis_task_id=task.id)
-    db.add_all([proposal, approval])
+    db.add(proposal)
     db.flush()
-    return SimpleNamespace(org=org, user=user, filing=filing, memo=memo, version=version, task=task, proposal=proposal, approval=approval)
+    return SimpleNamespace(org=org, user=user, filing=filing, memo=memo, version=version, task=task, proposal=proposal)
 
 
 def rejected(db, instance, constraint):
@@ -105,11 +104,9 @@ def test_organization_and_relationships(db, graph):
     assert graph.task in graph.org.analysis_tasks
     assert graph.version in graph.memo.memo_versions
     assert graph.proposal in graph.task.revision_proposals
-    assert graph.task.approval is graph.approval
     assert graph.user.role is UserRole.ANALYST
     assert graph.task.status is AnalysisStatus.CREATED
     assert graph.proposal.validation_status is ValidationStatus.PENDING
-    assert graph.approval.status is ApprovalStatus.PENDING
     assert graph.memo.current_version == 1
     assert graph.org.created_at.utcoffset() is not None
     assert graph.task.created_at.utcoffset() is not None
@@ -160,22 +157,9 @@ def test_contract_decimal_and_dates(db, graph):
 
 @pytest.mark.postgres
 def test_task_version_and_thread_unique(db, graph):
-    values = dict(organization_id=graph.org.id, requested_by=graph.user.id, filing_id=graph.filing.id, memo_id=graph.memo.id)
+    values = dict(organization_id=graph.org.id, requested_by=graph.user.id, filing_id=graph.filing.id, memo_id=graph.memo.id, disclosure_receipt_no="202610200001", company_name_snapshot="Example")
     rejected(db, AnalysisTask(**values, base_memo_version=0, thread_id=str(uuid4())), "ck_analysis_tasks_base_version_positive")
     rejected(db, AnalysisTask(**values, base_memo_version=1, thread_id=graph.task.thread_id), "uq_analysis_tasks_thread_id")
-
-
-@pytest.mark.postgres
-def test_approval_and_items_unique(db, graph):
-    rejected(db, Approval(analysis_task_id=graph.task.id), "uq_approvals_analysis_task_id")
-    item = ApprovalItem(approval_id=graph.approval.id, revision_proposal_id=graph.proposal.id, approved=False)
-    db.add(item)
-    db.flush()
-    rejected(db, ApprovalItem(approval_id=graph.approval.id, revision_proposal_id=graph.proposal.id, approved=True), "uq_approval_items_approval_proposal")
-    db.expire(graph.approval)
-    assert graph.approval.approval_items == [item]
-    assert item.approved is False
-
 
 @pytest.mark.postgres
 def test_event_sequence_and_jsonb(db, graph):
@@ -193,23 +177,8 @@ def test_event_sequence_and_jsonb(db, graph):
     assert graph.task.analysis_events == [event]
     assert db.execute(text("SELECT jsonb_typeof(payload_json) FROM core.analysis_events WHERE id=:id"), {"id": event.id}).scalar_one() == "object"
 
-
 @pytest.mark.postgres
-def test_revision_application_idempotency(db, graph):
-    values = dict(analysis_task_id=graph.task.id, approval_id=graph.approval.id, revision_proposal_id=graph.proposal.id)
-    db.add(RevisionApplication(**values, result_memo_version=2))
-    db.flush()
-    rejected(db, RevisionApplication(**values, result_memo_version=2), "uq_revision_applications_proposal")
-    # Check the positive-version constraint separately, before uniqueness can mask it.
-    with db.begin_nested():
-        with pytest.raises(IntegrityError) as error:
-            with db.begin_nested():
-                db.execute(text("UPDATE core.revision_applications SET result_memo_version=0"))
-        assert error.value.orig.diag.constraint_name == "ck_revision_applications_result_version_positive"
-
-
-@pytest.mark.postgres
-@pytest.mark.parametrize("parent", ["org", "user", "filing", "memo", "task", "proposal", "approval"])
+@pytest.mark.parametrize("parent", ["org", "user", "memo", "task"])
 def test_loaded_parent_delete_preserves_history(db, graph, parent):
     # Load collections so the ORM must also obey the non-cascading policy.
     list(graph.org.users)
@@ -218,11 +187,6 @@ def test_loaded_parent_delete_preserves_history(db, graph, parent):
     list(graph.org.analysis_tasks)
     list(graph.memo.memo_versions)
     list(graph.task.revision_proposals)
-    _ = graph.task.approval
-    if parent in ("proposal", "approval"):
-        db.add(ApprovalItem(approval_id=graph.approval.id, revision_proposal_id=graph.proposal.id, approved=True))
-        db.flush()
-        list(graph.approval.approval_items)
     with pytest.raises(IntegrityError):
         with db.begin_nested():
             db.delete(getattr(graph, parent))
@@ -233,7 +197,7 @@ def test_loaded_parent_delete_preserves_history(db, graph, parent):
 
 @pytest.mark.postgres
 def test_enum_checks_reject_raw_sql(db, graph):
-    for table, column in [("users", "role"), ("analysis_tasks", "status"), ("revision_proposals", "impact_type"), ("revision_proposals", "validation_status"), ("approvals", "status")]:
+    for table, column in [("users", "role"), ("analysis_tasks", "status"), ("revision_proposals", "impact_type"), ("revision_proposals", "validation_status")]:
         with pytest.raises(IntegrityError):
             with db.begin_nested():
                 db.execute(text(f"UPDATE core.{table} SET {column}='BAD'"))
@@ -264,6 +228,6 @@ def test_foreign_key_and_required_fields(db, graph):
     assert error.value.orig.sqlstate == "23503"
     with pytest.raises(IntegrityError) as error:
         with db.begin_nested():
-            db.add(ApprovalItem(approval_id=graph.approval.id, revision_proposal_id=graph.proposal.id, approved=None))
+            db.add(AnalysisReport(analysis_task_id=graph.task.id, content=None, generated_at=datetime.now(timezone.utc)))
             db.flush()
     assert error.value.orig.sqlstate == "23502"

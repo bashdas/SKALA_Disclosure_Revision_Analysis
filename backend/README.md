@@ -136,7 +136,7 @@ docker compose exec business-api alembic check
 curl -f http://localhost:8080/health/db
 ```
 
-`env.py`가 앱과 동일한 설정으로 URL을 읽고 `app.models`를 import하여 `Base.metadata`에 연결합니다. 새 모델은 `app/models/__init__.py`에서 명시적으로 import해야 합니다. 14개 업무 모델과 `0001_initial_core` revision이 있습니다. 업무 테이블은 `core` schema에 생성하며 autogenerate는 core만 비교합니다. RAG/checkpoint/public의 다른 테이블은 제외합니다. `create_all`은 사용하지 않습니다. 상세 nullable·unique·삭제 정책과 PostgreSQL 모델/migration 테스트는 [Business API README](business-api/README.md)를 참고하세요.
+`env.py`가 앱과 동일한 설정으로 URL을 읽고 `app.models`를 import하여 `Base.metadata`에 연결합니다. 새 모델은 `app/models/__init__.py`에서 명시적으로 import해야 합니다. 13개 업무 모델과 `0001_initial_core` → `0002_align_report_flow` revision chain이 있습니다. 업무 테이블은 `core` schema에 생성하며 autogenerate는 core만 비교합니다. RAG/checkpoint/public의 다른 테이블은 제외합니다. `create_all`은 사용하지 않습니다. 상세 nullable·unique·삭제 정책과 PostgreSQL 모델/migration 테스트는 [Business API README](business-api/README.md)를 참고하세요.
 
 ### PostgreSQL 테스트
 
