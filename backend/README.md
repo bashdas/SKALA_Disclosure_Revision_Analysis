@@ -96,7 +96,7 @@ MCP는 공식 Python SDK v1의 Streamable HTTP를 사용합니다. JSON 응답/s
 
 - RAG 모델·pgvector extension·checkpoint 영역의 별도 migration 설계
 - 실제 업무 endpoint별 조직/역할 정책 적용 및 서비스 간 내부 인증 (JWT 로그인/current_user/RBAC 기반은 구현됨)
-- 분석 조회·이벤트·SSE·취소 API, 나머지 업무 API, `/internal/**`, Business MCP HTTP client와 실제 Tool (분석 생성과 Filing/Memo 조직 범위 조회는 구현됨)
+- Internal API + Internal API Key 인증, 나머지 업무 API, Business MCP HTTP client와 실제 Tool (분석 생성·조회·이벤트·SSE·취소와 Filing/Memo 조회는 구현됨)
 - RabbitMQ Consumer 업무 retry·DLQ 판단·task_id 중복 실행 보호 (queue topology·메시지 계약·Producer는 구현됨)
 - RAG read-only DB 계정, 검색·원문·claim source Tool, embedding 정책
 - 의존성 lock 파일, CI, 운영 비밀 관리와 readiness 정책
@@ -253,4 +253,116 @@ TEST_RABBITMQ_URL='<test AMQP URL>' python -m pytest -q
 ```
 
 실제 RabbitMQ integration probe는 고유 이름의 exchange/queue를 만들고 정리합니다.
-Consumer 서비스나 분석 조회/SSE/취소 기능은 이번 단계에 포함하지 않습니다.
+Consumer 서비스는 아직 구현하지 않았습니다. 분석 조회/SSE/취소는 다음 절을 따릅니다.
+
+
+## Analysis 조회·Event·SSE·취소
+
+모든 endpoint는 Authorization Bearer 인증과 RA / ANALYST 권한이 필요합니다.
+Task ID는 항상 DB User에서 확인한 current_user.organization_id로 제한합니다.
+다른 조직의 Task와 없는 Task는 동일한 404 ANALYSIS_NOT_FOUND입니다.
+
+| Endpoint | 동작 |
+| --- | --- |
+| GET /api/v1/analyses/{task_id} | 상태·단계·기준 Memo 버전·접수번호·시각·회사 snapshot |
+| GET /api/v1/analyses/{task_id}/events | sequence ASC 이벤트 조회 |
+| GET /api/v1/analyses/{task_id}/events/stream | 영속 이벤트 기반 SSE |
+| POST /api/v1/analyses/{task_id}/cancel | 요청자 본인의 협력적 취소 |
+
+상세 응답은 error_stage/error_code를 포함하지만 내부 error_message, thread_id,
+organization_id, requested_by는 노출하지 않습니다. 회사 식별값은 조회 전 NULL입니다.
+이벤트 응답은 sequence/event_type/payload/created_at이며 목록은 after_sequence(기본 0)와
+limit(기본 200, 최대 500)을 지원합니다. sequence > after_sequence 조건을 사용합니다.
+
+### 영속 Event와 transaction
+
+AnalysisEventType은 queued/started, 입력 조회, RAG, 기본 분석, Perspective 선택·실행·실패,
+보고서 생성·저장·실패, warning/failed/cancelled/completed 이벤트 이름을 정의합니다.
+Agent 이벤트 수신 API는 이번 단계에서 만들지 않았습니다.
+
+AnalysisEventService.append_event는 조직 범위 Task를 SELECT FOR UPDATE로 잠근 뒤
+latest sequence + 1을 할당하고 INSERT/commit합니다. 따라서 같은 Task의 동시 append를
+직렬화하며, 기존 UNIQUE(analysis_task_id, sequence)도 유지합니다. 다른 Task는 독립적으로
+1부터 시작합니다. 별도 sequence 컬럼이나 migration은 추가하지 않았습니다.
+모든 event writer는 같은 Task 잠금 규약을 따라야 합니다. Repository는 sequence를 할당하거나
+commit하지 않습니다. 이 정책은 PostgreSQL 기본 READ COMMITTED를 전제로 합니다.
+
+append_in_transaction은 상위 Service의 transaction에 합성하는 용도이며 commit하지 않습니다.
+기존 Task 변경과 합칠 때는 먼저 해당 Task를 잠가 최신 상태를 확인하고, 변경을 flush한 뒤
+append해야 합니다. 해당 조회가 populate_existing으로 ORM 객체를 갱신하기 때문입니다.
+
+Task 생성과 ANALYSIS_QUEUED(sequence 1)를 같은 transaction에서 commit한 뒤 Broker에
+publish합니다. 이 이벤트는 DB의 QUEUED 전이를 뜻하며, Broker 수신 확인 자체를 뜻하지 않습니다.
+202는 기존대로 publisher confirm 이후에만 반환합니다. publish 최종 실패로 Task를 FAILED로
+바꿀 때 ANALYSIS_FAILED도 같은 transaction에 저장합니다. 이미 Worker가 진행한 Task는
+이전 정책대로 실패 처리로 덮어쓰지 않습니다.
+취소와 ANALYSIS_CANCELLED도 한 transaction입니다. 이 세 workflow는 이벤트 저장/commit
+실패 시 상태 변경도 rollback합니다. DB 장애 때의 정체 Task 복구는 기존 Outbox 미사용 한계로 남습니다.
+
+payload는 status/stage/code/message/perspective/reason의 명시적인 요약 필드만 허용합니다.
+code 100자, message 500자, reason 1000자 한도이며 임의 nested 데이터, memo_content,
+password, JWT/API key 같은 필드는 거부합니다. 자유 텍스트 안의 credential을 자동 탐지하는
+기능은 없으므로 호출자도 반드시 안전한 요약만 전달해야 합니다. 원문·secret은 기록하지 않습니다.
+
+### SSE 재연결과 Session
+
+```bash
+# TOKEN에는 로컬 로그인에서 발급받은 Access Token을 설정합니다.
+curl -N -H "Authorization: Bearer $TOKEN" \
+  -H "Last-Event-ID: 15" \
+  "http://localhost:8080/api/v1/analyses/$TASK_ID/events/stream"
+```
+
+응답 Content-Type은 text/event-stream이며 각 frame은 다음 구조입니다.
+
+```text
+id: 16
+event: BASE_ANALYSIS_COMPLETED
+data: {"sequence":16,"event_type":"BASE_ANALYSIS_COMPLETED","payload":{},"created_at":"..."}
+
+```
+
+명시적 after_sequence가 Last-Event-ID보다 우선합니다. after_sequence=0도 명시적 우선값입니다.
+헤더는 0~2147483647의 ASCII 숫자를 허용하고 잘못된 값은 400 INVALID_LAST_EVENT_ID입니다.
+Query는 0~2147483647로 검증합니다. after_sequence 이외 query는 400 INVALID_STREAM_QUERY로
+거부하며, URL token 인증을 지원하지 않습니다. 인증이 없으면 query token이 있어도 401입니다.
+브라우저에서는 Authorization 헤더를 보낼 수 있는 fetch streaming/fetch-event-source 방식을 사용합니다.
+프레임 형식 참고: [WHATWG SSE](https://html.spec.whatwg.org/dev/server-sent-events.html).
+
+SSE 인증은 짧은 별도 Session에서 기존 DB-backed current_user 검증을 재사용합니다.
+일반 request-scoped get_db 의존성을 사용하지 않습니다. 최초 scope 검사와 각 polling도
+별도 Session에서 DTO를 만든 뒤 닫습니다. sync DB 작업은 thread pool에서 실행하며,
+전송/heartbeat/sleep 중에는 Session/transaction을 보유하지 않습니다.
+
+기본 SSE_POLL_INTERVAL_SECONDS=1, SSE_HEARTBEAT_SECONDS=15입니다. 새 이벤트가 없으면
+heartbeat 주기에 `: heartbeat` comment를 전송합니다. heartbeat는 polling 주기 단위로
+확인하므로 poll interval을 heartbeat보다 길게 설정하지 않는 것을 권장합니다.
+backlog는 200개씩 읽으며 full batch 뒤에는 대기 없이 다음 batch를 읽습니다.
+Cache-Control: no-cache, no-store 및 X-Accel-Buffering: no를 설정합니다.
+배포 proxy의 buffering/idle timeout도 별도로 맞춰야 합니다.
+
+COMPLETED / COMPLETED_WITH_WARNINGS / FAILED / CANCELLED이면 남은 이벤트를 전송하고 종료합니다.
+SAVE_FAILED는 terminal이 아니므로 연결을 유지합니다. disconnect 시 loop를 종료합니다.
+스트리밍 도중 DB 장애/리소스 소멸 시 민감한 예외 대신 SSE comment 후 연결을 종료합니다.
+클라이언트는 마지막으로 받은 sequence에서 재연결할 수 있습니다. terminal 상태 변경과 마지막
+이벤트는 같은 transaction에서 저장해야 하며, terminal 이후의 추가 기록은 이미 끝난 stream에
+자동 전달되지 않습니다. 별도 Redis/Consumer/Agent/Event 수신 API는 구현하지 않았습니다.
+
+### 협력적 취소
+
+취소는 조직 범위를 확인한 뒤 requested_by == current_user.id인 경우에만 허용합니다.
+같은 조직의 다른 사용자는 403 ANALYSIS_CANCEL_FORBIDDEN입니다. Task 행 잠금으로 최신 상태를
+다시 읽고 기존 상태 머신으로 CANCELLED 전이를 검증합니다. COMPLETED /
+COMPLETED_WITH_WARNINGS / FAILED는 409 ANALYSIS_CANNOT_BE_CANCELLED입니다.
+
+이미 CANCELLED인 경우에도 먼저 조직·요청자 권한을 검증하고 200을 반환합니다.
+completed_at을 바꾸거나 ANALYSIS_CANCELLED를 중복 추가하지 않습니다. 응답은
+`{"task_id":"...","status":"CANCELLED"}`입니다.
+
+RabbitMQ 메시지를 삭제하거나 Worker를 kill하지 않습니다. 향후 Consumer는 실행 전 Task 상태를
+조회하여 CANCELLED이면 실행하지 않고 ack해야 합니다. 실행 중 Agent도 주요 subgraph/Perspective/
+외부 tool 반복/보고서 생성 전에 취소를 확인해야 합니다. Worker의 상태 변경 역시 같은 Task 행 잠금과
+최신 상태 검증을 따라야 취소를 stale ORM 객체로 덮어쓰지 않습니다. 이 Worker 계약은 문서화만 했고
+Consumer/Internal API/Agent는 아직 구현하지 않았습니다.
+
+다음 구현 범위는 Internal API + X-Internal-API-Key 인증입니다.

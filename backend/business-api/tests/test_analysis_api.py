@@ -15,7 +15,7 @@ from app.core.database import get_db
 from app.core.security import create_access_token
 from app.domain.analysis_exceptions import AnalysisAlreadyRunning, RabbitMQPublishFailed
 from app.main import app
-from app.models import AnalysisTask, Memo, MemoVersion, Organization, User
+from app.models import AnalysisEvent, AnalysisTask, Memo, MemoVersion, Organization, User
 from app.models.enums import AnalysisStage, AnalysisStatus as S, UserRole
 from app.repositories import AnalysisRepository, MemoRepository
 from app.services.analysis import AnalysisService
@@ -58,6 +58,8 @@ def analysis_context(migrated_engine, auth_settings):
     finally:
         with factory() as db:
             ids = [org.id for org in orgs]
+            task_ids = select(AnalysisTask.id).where(AnalysisTask.organization_id.in_(ids))
+            db.execute(delete(AnalysisEvent).where(AnalysisEvent.analysis_task_id.in_(task_ids)))
             db.execute(delete(AnalysisTask).where(AnalysisTask.organization_id.in_(ids)))
             db.execute(delete(MemoVersion).where(MemoVersion.memo_id.in_([memo.id for memo in memos])))
             db.execute(delete(Memo).where(Memo.organization_id.in_(ids)))

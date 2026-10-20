@@ -23,3 +23,10 @@ class AnalysisEventRepository:
     def get_latest_sequence(self, analysis_task_id: UUID) -> int:
         """Zero means no events. This query never reserves or allocates a sequence."""
         return self.session.scalar(select(func.coalesce(func.max(AnalysisEvent.sequence), 0)).where(AnalysisEvent.analysis_task_id == analysis_task_id))
+
+    def list_after_sequence(self, analysis_task_id: UUID, after_sequence: int, *, limit: int = 200) -> list[AnalysisEvent]:
+        query = select(AnalysisEvent).where(
+            AnalysisEvent.analysis_task_id == analysis_task_id,
+            AnalysisEvent.sequence > after_sequence,
+        ).order_by(AnalysisEvent.sequence).limit(limit)
+        return list(self.session.scalars(query))

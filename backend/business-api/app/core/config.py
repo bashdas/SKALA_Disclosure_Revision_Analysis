@@ -7,6 +7,8 @@ from disclosure_shared.config import ServiceSettings
 class Settings(ServiceSettings):
     database_url: str = Field(default="", repr=False)
     database_connect_timeout: int = Field(default=3, ge=1, le=60)
+    sse_poll_interval_seconds: float = Field(default=1, ge=0.1, le=60)
+    sse_heartbeat_seconds: float = Field(default=15, ge=1, le=300)
     memo_upload_max_bytes: int = Field(default=5 * 1024 * 1024, gt=0)
     rabbitmq_url: SecretStr = Field(default="", repr=False)
     rabbitmq_analysis_queue: str = Field(default="analysis.tasks", min_length=1, max_length=240)

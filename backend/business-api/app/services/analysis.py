@@ -1,13 +1,19 @@
 from uuid import UUID, uuid4
 
-from app.domain.analysis_exceptions import AnalysisAlreadyRunning, RabbitMQPublishFailed, RabbitMQUnavailable
+from app.domain.analysis_events import AnalysisEventType
+from app.domain.analysis_exceptions import (
+    AnalysisAlreadyRunning, AnalysisNotFound, AnalysisCannotBeCancelled,
+    AnalysisCancelForbidden, RabbitMQPublishFailed, RabbitMQUnavailable,
+)
+from app.domain.exceptions import InvalidAnalysisStateTransition
 from app.domain.analysis_state_machine import advance_analysis_stage, transition_analysis
 from app.domain.resource_exceptions import MemoNotFound, MemoVersionNotFound
 from app.infrastructure.analysis_queue import AnalysisQueueProducer
 from app.models import AnalysisTask
 from app.models.enums import AnalysisStage, AnalysisStatus
-from app.repositories import AnalysisRepository, MemoRepository
-from app.schemas.analysis import AnalysisAcceptedResponse
+from app.repositories import AnalysisEventRepository, AnalysisRepository, MemoRepository
+from app.schemas.analysis import AnalysisAcceptedResponse, AnalysisDetailResponse, AnalysisCancelResponse, AnalysisEventResponse
+from app.services.analysis_event import AnalysisEventService
 
 
 class AnalysisService:
@@ -16,6 +22,7 @@ class AnalysisService:
             raise ValueError("Analysis creation requires a shared Session")
         self.analyses, self.memos, self.producer = analyses, memos, producer
         self.session = analyses.session
+        self.events = AnalysisEventService(analyses, AnalysisEventRepository(self.session))
 
     def create(self, *, memo_id: UUID, disclosure_receipt_no: str, organization_id: UUID, requested_by: UUID) -> AnalysisAcceptedResponse:
         try:
@@ -40,6 +47,8 @@ class AnalysisService:
             advance_analysis_stage(task, AnalysisStage.REQUEST_VALIDATION)
             transition_analysis(task, AnalysisStatus.QUEUED)
             self.analyses.add(task)
+            self.events.append_in_transaction(task.id, organization_id, AnalysisEventType.ANALYSIS_QUEUED,
+                {"status": AnalysisStatus.QUEUED, "stage": AnalysisStage.REQUEST_VALIDATION})
             response = AnalysisAcceptedResponse(task_id=task.id, created_at=task.created_at)
             self.session.commit()
         except Exception:
@@ -63,7 +72,44 @@ class AnalysisService:
                 task.error_stage = AnalysisStage.REQUEST_VALIDATION
                 task.error_code = "RABBITMQ_PUBLISH_FAILED"
                 task.error_message = "Queue publish failed after bounded attempts"
+                self.session.flush()
+                self.events.append_in_transaction(task.id, organization_id, AnalysisEventType.ANALYSIS_FAILED,
+                    {"status": AnalysisStatus.FAILED, "code": "RABBITMQ_PUBLISH_FAILED"})
             self.session.commit()
+        except Exception:
+            self.session.rollback()
+            raise
+
+
+    def get_analysis(self, task_id: UUID, organization_id: UUID) -> AnalysisDetailResponse:
+        task = self.analyses.get_by_id_and_organization(task_id, organization_id)
+        if task is None:
+            raise AnalysisNotFound()
+        return AnalysisDetailResponse.model_validate(task)
+
+    def list_events(self, task_id: UUID, organization_id: UUID, *, after_sequence: int = 0, limit: int = 200) -> list[AnalysisEventResponse]:
+        self.get_analysis(task_id, organization_id)
+        rows = self.events.events.list_after_sequence(task_id, after_sequence, limit=limit)
+        return [AnalysisEventResponse.model_validate(row) for row in rows]
+
+    def cancel_analysis(self, task_id: UUID, organization_id: UUID, requested_by: UUID) -> AnalysisCancelResponse:
+        try:
+            task = self.analyses.get_by_id_and_organization(task_id, organization_id, for_update=True)
+            if task is None:
+                raise AnalysisNotFound()
+            if task.requested_by != requested_by:
+                raise AnalysisCancelForbidden()
+            # Idempotency applies only after organization and requester checks.
+            if task.status != AnalysisStatus.CANCELLED:
+                try:
+                    transition_analysis(task, AnalysisStatus.CANCELLED)
+                except InvalidAnalysisStateTransition:
+                    raise AnalysisCannotBeCancelled() from None
+                self.session.flush()
+                self.events.append_in_transaction(task.id, organization_id, AnalysisEventType.ANALYSIS_CANCELLED,
+                    {"status": AnalysisStatus.CANCELLED})
+            self.session.commit()
+            return AnalysisCancelResponse(task_id=task_id)
         except Exception:
             self.session.rollback()
             raise
