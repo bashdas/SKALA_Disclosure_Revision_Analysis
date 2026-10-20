@@ -1,0 +1,226 @@
+{
+ "_note": "사람이 DART 공개 뷰어(manifest.json의 viewer_url)에서 직접 읽어 확인한 기대값입니다. 파서 출력으로 만들지 않았습니다. 확인일 2026-10-20. 금액은 원 단위 환산값. 'full_chain' 항목은 실제 document.xml ZIP(tests/fixtures/real/api)을 사람이 읽어 확인한 체인입니다(2026-10-20).",
+ "cases": [
+  {
+   "id": "A",
+   "type": "단일판매ㆍ공급계약체결 정정 (금액 변경, 앞 버전 = 최초 원본)",
+   "corp": {
+    "corp_code": "00138279",
+    "corp_name": "S-Oil"
+   },
+   "correction": "20261019800110",
+   "report_nm": "[기재정정]단일판매ㆍ공급계약체결",
+   "expected_original": "20251223800740",
+   "original_evidence": "정정본 '※ 관련공시' 행: 2025-12-23 단일판매ㆍ공급계약체결 (링크 rcpNo=20251223800740). 원본 '2. 계약내역 / 계약금액(원) 943,000,000,000' = 정정 전 값.",
+   "header_note": "정정본 머리말 '2. 정정관련 공시서류제출일'은 2026-10-19로 원본 접수일(2025-12-23)과 다릅니다.",
+   "changes": [
+    {
+     "location": "정정사항 표 1행 '2. 계약내역 / 계약금액(원)'",
+     "field_key": "contract_amount",
+     "before": 943000000000,
+     "after": 1284544500098,
+     "unit": "KRW"
+    },
+    {
+     "location": "정정사항 표 2행 '2. 계약내역 / 매출액대비(%)'",
+     "field_key": "revenue_ratio",
+     "before": 2.6,
+     "after": 3.5,
+     "unit": "PERCENT"
+    },
+    {
+     "location": "정정사항 표 3행 '9. 기타 투자판단과 관련한 중요사항'",
+     "change_type": "text_changed"
+    }
+   ]
+  },
+  {
+   "id": "C1",
+   "type": "같은 날 같은 제목 정정 2건 (서로 다른 계약)",
+   "corp": {
+    "corp_code": "00138279",
+    "corp_name": "S-Oil"
+   },
+   "correction": "20261019800117",
+   "expected_original": "20251027800243",
+   "must_not_link": [
+    "20261019800110",
+    "20251223800740"
+   ],
+   "original_evidence": "'※ 관련공시' 2025-10-27 (rcpNo=20251027800243). 원본 계약금액(원) 1,181,000,000,000 = 정정 전 값. 같은 날 정정 20261019800110의 원문에는 이 값이 없음.",
+   "changes": [
+    {
+     "location": "정정사항 표 1행 '2. 계약내역 / 계약금액 (원)'",
+     "field_key": "contract_amount",
+     "before": 1181000000000,
+     "after": 1740795519703,
+     "unit": "KRW"
+    },
+    {
+     "location": "정정사항 표 2행 '2. 계약내역 / 매출액대비 (%)'",
+     "field_key": "revenue_ratio",
+     "before": 3.2,
+     "after": 4.8,
+     "unit": "PERCENT"
+    }
+   ]
+  },
+  {
+   "id": "B",
+   "type": "주요사항보고서(전환사채권발행결정) 정정",
+   "corp": {
+    "corp_code": "01275665",
+    "corp_name": "리메드"
+   },
+   "correction": "20261019000366",
+   "expected_original": "20261014000424",
+   "original_evidence": "정정본 머리말 '2. 정정대상 공시서류의 최초제출일 : 2026년 10월 14일' = 원본 접수일. 원본 본문에 전환가액 (원/주) 2,954, 주식수 3,385,240, 주식총수 대비 비율(%) 11.18, 사채만기일 2031년 10월 26일이 있음.",
+   "changes": [
+    {
+     "location": "정정사항 표 1행 '5. 사채만기일'",
+     "field_key": "maturity_date",
+     "before": "2031-10-26",
+     "after": "2031-10-27",
+     "unit": "DATE"
+    },
+    {
+     "location": "정정사항 표 2행 '9. 전환에 관한 사항' (-전환가액)",
+     "field_key": "conversion_price",
+     "before": 2954,
+     "after": 2774,
+     "unit": "KRW_PER_SHARE"
+    },
+    {
+     "location": "정정사항 표 3행 하위 '주식 수'",
+     "field_label": "주식 수",
+     "before": 3385240,
+     "after": 3604902
+    },
+    {
+     "location": "정정사항 표 3행 하위 '주식 총수 대비 비율(%)'",
+     "field_label": "주식 총수 대비 비율(%)",
+     "before": 11.18,
+     "after": 11.91,
+     "unit": "PERCENT"
+    },
+    {
+     "location": "정정사항 표 4행 하위 '시작일'(전환청구기간)",
+     "field_label": "시작일",
+     "before": "2027-10-27",
+     "after": "2027-10-28",
+     "unit": "DATE"
+    },
+    {
+     "location": "정정사항 표 4행 하위 '종료일'(전환청구기간)",
+     "field_label": "종료일",
+     "before": "2031-09-26",
+     "after": "2031-09-27",
+     "unit": "DATE"
+    },
+    {
+     "location": "정정사항 표 5행 '11. 청약일'",
+     "field_key": "subscription_date",
+     "before": "2026-10-26",
+     "after": "2026-10-27",
+     "unit": "DATE"
+    },
+    {
+     "location": "정정사항 표 6행 '12. 납입일'",
+     "field_key": "payment_date",
+     "before": "2026-10-26",
+     "after": "2026-10-27",
+     "unit": "DATE"
+    }
+   ]
+  },
+  {
+   "id": "C2",
+   "type": "여러 차례 정정 (정정 전 = 직전 정정의 정정 후)",
+   "corp": {
+    "corp_code": "00178754",
+    "corp_name": "동아지질"
+   },
+   "correction": "20261016800813",
+   "expected_previous": "20260206801693",
+   "previous_evidence": "'※ 관련공시' 2026-02-06 (rcpNo=20260206801693, 이 자체가 [기재정정]). 직전 정정의 정정 후 계약금액 21,520,400,000 = 이번 정정 전 값. 직전 정정은 다시 2025-09-23 공시(20250923800143, 역시 [기재정정])를 가리킴 → 최초 원본은 fixture 범위 밖.",
+   "expected_original": null,
+   "changes": [
+    {
+     "location": "정정사항 표 1행 '2. 계약금액(원)'",
+     "field_key": "contract_amount",
+     "before": 21520400000,
+     "after": 21787700000,
+     "unit": "KRW"
+    },
+    {
+     "location": "정정사항 표 2행 '2. 매출액대비(%)'",
+     "field_key": "revenue_ratio",
+     "before": 6.2,
+     "after": 6.3,
+     "unit": "PERCENT"
+    },
+    {
+     "location": "정정사항 표 3행 '5. 계약기간(종료일)'",
+     "field_key": "contract_end_date",
+     "before": "2027-05-12",
+     "after": "2027-12-30",
+     "unit": "DATE"
+    }
+   ],
+   "full_chain": {
+    "expected_original": "20240603800216",
+    "expected_chain": [
+     "20240603800216",
+     "20250923800143",
+     "20260206801693",
+     "20261016800813"
+    ],
+    "evidence": "모두 '상계노원전력구 SHIELD TBM 공사'(계약일 2024-06-03). 계약금액: 원본 21,122,200,000 → 0923 정정 21,122,200,000→21,508,300,000 → 0206 정정 21,508,300,000→21,520,400,000 → 이번 정정 21,520,400,000→21,787,700,000. 각 정정 머리말 '정정관련 공시서류제출일'이 앞 버전 접수일."
+   }
+  },
+  {
+   "id": "C3",
+   "type": "같은 회사·같은 제목의 다른 사건이 여러 개인 정정",
+   "corp": {
+    "corp_code": "00178754",
+    "corp_name": "동아지질"
+   },
+   "correction": "20261019800483",
+   "expected_previous": "20260930800147",
+   "must_not_link": [
+    "20261016800813",
+    "20260930801285"
+   ],
+   "previous_evidence": "'※ 관련공시' 2026-09-30 (rcpNo=20260930800147). 같은 날 같은 제목 정정 20260930801285는 싱가포르 공사로 다른 계약.",
+   "expected_original": null,
+   "changes": [
+    {
+     "location": "정정사항 표 1행 '5. 계약기간(종료일)'",
+     "field_key": "contract_end_date",
+     "change_type": "added",
+     "before": null,
+     "after": "2026-11-30"
+    },
+    {
+     "location": "정정사항 표 2행 '9. 기타 투자판단과 관련한 중요사항'",
+     "change_type": "text_changed"
+    }
+   ],
+   "full_chain": {
+    "expected_original": null,
+    "expected_chain": [
+     "20260901800177",
+     "20260930800147",
+     "20261019800483"
+    ],
+    "evidence": "0901 정정의 앞 버전 날짜 2026-08-31에는 같은 제목 정정이 2건(20260831800786, 20260831800557)이고 둘 다 같은 안내 문장을 담고 있어 정정 전 값으로 구분 불가 → 추적 중단이 기대 동작. 원문 '※ 관련공시'의 KIND acptno 20260831000786은 공식 대응 규칙이 없어 판정에 쓰지 않음.",
+    "must_not_link": [
+     "20260930801285",
+     "20261016800813",
+     "20260831800557",
+     "20260831800786"
+    ]
+   }
+  }
+ ]
+}

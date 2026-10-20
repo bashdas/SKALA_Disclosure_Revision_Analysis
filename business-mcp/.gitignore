@@ -1,0 +1,40 @@
+# ── 비밀값: OpenDART 키·DB 접속 정보 ──
+.env
+.env.*
+!.env.example
+
+# ── Python 가상환경·캐시·빌드 산출물 ──
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+
+# ── 테스트·린트 도구 캐시 ──
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# ── live 파일 캐시 (DART_DATA_DIR 기본값 ./data/dart) ──
+# 루트의 data/만 제외합니다. src/business_mcp/mock/data/(가상 데이터)는 커밋 대상입니다.
+/data/
+
+# ── 원문 ZIP: 캐시·임시 ZIP은 제외, 테스트 fixture(실제 공시 원문)는 커밋 ──
+*.zip
+!tests/fixtures/**/*.zip
+
+# ── 로그 ──
+*.log
+
+# ── OS·편집기 ──
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# ── 설계 문서 (팀 결정 전까지 제외: 05 계약 문서·구현 보고서·spike_notes 포함) ──
+docs/

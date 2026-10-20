@@ -1,0 +1,910 @@
+{
+ "viewer": {
+  "20261019800110": {
+   "viewer_url": "https://dart.fss.or.kr/report/viewer.do?rcpNo=20261019800110&dcmNo=11617883&eleId=0&offset=0&length=0&dtd=HTML",
+   "dtd": "HTML",
+   "sha256": "647850527b9eddd34475ae19fdc8e1c72f080b33be1705ec705fbd106ac16336",
+   "bytes": 12666,
+   "retrieved_at": "2026-10-20T01:57:25Z"
+  },
+  "20261019800117": {
+   "viewer_url": "https://dart.fss.or.kr/report/viewer.do?rcpNo=20261019800117&dcmNo=11617900&eleId=0&offset=0&length=0&dtd=HTML",
+   "dtd": "HTML",
+   "sha256": "f45945ae3e96c18bf770a1e9ed232dc1f94407950fbacfa30e1912d4107b5d89",
+   "bytes": 12237,
+   "retrieved_at": "2026-10-20T01:57:26Z"
+  },
+  "20251223800740": {
+   "viewer_url": "https://dart.fss.or.kr/report/viewer.do?rcpNo=20251223800740&dcmNo=10938915&eleId=0&offset=0&length=0&dtd=HTML",
+   "dtd": "HTML",
+   "sha256": "4d736454d7e5b959ecd015eac60b40334bd29c94f16741479e9790af111a4b5b",
+   "bytes": 7684,
+   "retrieved_at": "2026-10-20T01:57:27Z"
+  },
+  "20251027800243": {
+   "viewer_url": "https://dart.fss.or.kr/report/viewer.do?rcpNo=20251027800243&dcmNo=10852870&eleId=0&offset=0&length=0&dtd=HTML",
+   "dtd": "HTML",
+   "sha256": "e70414e297acfcad9080c24d2f4ecc98a93f763a7a5fe878c76ea1cee0116485",
+   "bytes": 7524,
+   "retrieved_at": "2026-10-20T01:57:28Z"
+  },
+  "20251126800332": {
+   "viewer_url": "https://dart.fss.or.kr/report/viewer.do?rcpNo=20251126800332&dcmNo=10896902&eleId=0&offset=0&length=0&dtd=HTML",
+   "dtd": "HTML",
+   "sha256": "cec1c4afeb4bd22e21260114a05ce02a830fd42c9a4ec5dd1912fee34a1e5c55",
+   "bytes": 7520,
+   "retrieved_at": "2026-10-20T01:57:29Z"
+  },
+  "20261019000366": {
+   "viewer_url": "https://dart.fss.or.kr/report/viewer.do?rcpNo=20261019000366&dcmNo=11619236&eleId=0&offset=0&length=0&dtd=dart4.xsd",
+   "dtd": "dart4.xsd",
+   "sha256": "dd5e5a9312ffdb2a5d36dd6b7b5b11de67deac5f9f2105d1eee4fc0445711386",
+   "bytes": 56900,
+   "retrieved_at": "2026-10-20T01:57:30Z"
+  },
+  "20261014000424": {
+   "viewer_url": "https://dart.fss.or.kr/report/viewer.do?rcpNo=20261014000424&dcmNo=11614083&eleId=0&offset=0&length=0&dtd=dart4.xsd",
+   "dtd": "dart4.xsd",
+   "sha256": "6c88e7c66bca4233b0e9d2c32338d24138fdec7f497a4fe2809106a349be7b02",
+   "bytes": 39818,
+   "retrieved_at": "2026-10-20T01:57:32Z"
+  },
+  "20261016800813": {
+   "viewer_url": "https://dart.fss.or.kr/report/viewer.do?rcpNo=20261016800813&dcmNo=11617630&eleId=0&offset=0&length=0&dtd=HTML",
+   "dtd": "HTML",
+   "sha256": "bdab6fdceacd347b853fc51f48a8962d0216c1868410533713761cd1a04b680e",
+   "bytes": 12033,
+   "retrieved_at": "2026-10-20T01:57:33Z"
+  },
+  "20260206801693": {
+   "viewer_url": "https://dart.fss.or.kr/report/viewer.do?rcpNo=20260206801693&dcmNo=11006826&eleId=0&offset=0&length=0&dtd=HTML",
+   "dtd": "HTML",
+   "sha256": "a60c6810a50244512e5d489f7966cfdc7ba03e3508b50145dc8fa1a30f72dc6d",
+   "bytes": 11172,
+   "retrieved_at": "2026-10-20T01:57:34Z"
+  },
+  "20261019800483": {
+   "viewer_url": "https://dart.fss.or.kr/report/viewer.do?rcpNo=20261019800483&dcmNo=11618774&eleId=0&offset=0&length=0&dtd=HTML",
+   "dtd": "HTML",
+   "sha256": "abe48eea945071c117e46b877e860ae1258743b187d096883bc3124ef15b181b",
+   "bytes": 12632,
+   "retrieved_at": "2026-10-20T01:57:35Z"
+  },
+  "20260930800147": {
+   "viewer_url": "https://dart.fss.or.kr/report/viewer.do?rcpNo=20260930800147&dcmNo=11595842&eleId=0&offset=0&length=0&dtd=HTML",
+   "dtd": "HTML",
+   "sha256": "e122e4092e39e1a94d4cda4963265ca30f6ef6732725a4483deeedf81af04ad3",
+   "bytes": 12834,
+   "retrieved_at": "2026-10-20T01:57:36Z"
+  }
+ },
+ "list_rows": [
+  {
+   "corp_cls": "K",
+   "corp_name": "리메드",
+   "corp_code": "01275665",
+   "stock_code": null,
+   "report_nm": "주식소각결정",
+   "rcept_no": "20261019900678",
+   "flr_nm": "리메드",
+   "rcept_dt": "20261019",
+   "rm": "코"
+  },
+  {
+   "corp_cls": "Y",
+   "corp_name": "동아지질",
+   "corp_code": "00178754",
+   "stock_code": null,
+   "report_nm": "[기재정정]단일판매ㆍ공급계약체결",
+   "rcept_no": "20261019800483",
+   "flr_nm": "동아지질",
+   "rcept_dt": "20261019",
+   "rm": "유"
+  },
+  {
+   "corp_cls": "Y",
+   "corp_name": "S-Oil",
+   "corp_code": "00138279",
+   "stock_code": null,
+   "report_nm": "[기재정정]단일판매ㆍ공급계약체결",
+   "rcept_no": "20261019800117",
+   "flr_nm": "S-Oil",
+   "rcept_dt": "20261019",
+   "rm": "유"
+  },
+  {
+   "corp_cls": "Y",
+   "corp_name": "S-Oil",
+   "corp_code": "00138279",
+   "stock_code": null,
+   "report_nm": "[기재정정]단일판매ㆍ공급계약체결",
+   "rcept_no": "20261019800110",
+   "flr_nm": "S-Oil",
+   "rcept_dt": "20261019",
+   "rm": "유"
+  },
+  {
+   "corp_cls": "K",
+   "corp_name": "리메드",
+   "corp_code": "01275665",
+   "stock_code": null,
+   "report_nm": "[기재정정]주요사항보고서(전환사채권발행결정)",
+   "rcept_no": "20261019000366",
+   "flr_nm": "리메드",
+   "rcept_dt": "20261019",
+   "rm": ""
+  },
+  {
+   "corp_cls": "Y",
+   "corp_name": "동아지질",
+   "corp_code": "00178754",
+   "stock_code": null,
+   "report_nm": "[기재정정]단일판매ㆍ공급계약체결",
+   "rcept_no": "20261016800813",
+   "flr_nm": "동아지질",
+   "rcept_dt": "20261016",
+   "rm": "유"
+  },
+  {
+   "corp_cls": "K",
+   "corp_name": "리메드",
+   "corp_code": "01275665",
+   "stock_code": null,
+   "report_nm": "임원ㆍ주요주주특정증권등거래계획보고서",
+   "rcept_no": "20261014000447",
+   "flr_nm": "이근용",
+   "rcept_dt": "20261014",
+   "rm": ""
+  },
+  {
+   "corp_cls": "K",
+   "corp_name": "리메드",
+   "corp_code": "01275665",
+   "stock_code": null,
+   "report_nm": "주요사항보고서(전환사채권발행결정)",
+   "rcept_no": "20261014000424",
+   "flr_nm": "리메드",
+   "rcept_dt": "20261014",
+   "rm": "정"
+  },
+  {
+   "corp_cls": "Y",
+   "corp_name": "동아지질",
+   "corp_code": "00178754",
+   "stock_code": null,
+   "report_nm": "[기재정정]단일판매ㆍ공급계약체결",
+   "rcept_no": "20260930801285",
+   "flr_nm": "동아지질",
+   "rcept_dt": "20260930",
+   "rm": "유"
+  },
+  {
+   "corp_cls": "Y",
+   "corp_name": "동아지질",
+   "corp_code": "00178754",
+   "stock_code": null,
+   "report_nm": "[기재정정]단일판매ㆍ공급계약체결",
+   "rcept_no": "20260930800147",
+   "flr_nm": "동아지질",
+   "rcept_dt": "20260930",
+   "rm": "유정"
+  },
+  {
+   "corp_cls": "K",
+   "corp_name": "리메드",
+   "corp_code": "01275665",
+   "stock_code": null,
+   "report_nm": "[기재정정]단일판매ㆍ공급계약체결",
+   "rcept_no": "20260929900396",
+   "flr_nm": "리메드",
+   "rcept_dt": "20260929",
+   "rm": "코"
+  },
+  {
+   "corp_cls": "K",
+   "corp_name": "리메드",
+   "corp_code": "01275665",
+   "stock_code": null,
+   "report_nm": "주식등의대량보유상황보고서(일반)",
+   "rcept_no": "20260923000248",
+   "flr_nm": "이근용",
+   "rcept_dt": "20260923",
+   "rm": ""
+  },
+  {
+   "corp_cls": "K",
+   "corp_name": "리메드",
+   "corp_code": "01275665",
+   "stock_code": null,
+   "report_nm": "주식등의대량보유상황보고서(일반)",
+   "rcept_no": "20260918000208",
+   "flr_nm": "이근용",
+   "rcept_dt": "20260918",
+   "rm": ""
+  },
+  {
+   "corp_cls": "Y",
+   "corp_name": "S-Oil",
+   "corp_code": "00138279",
+   "stock_code": null,
+   "report_nm": "단일판매ㆍ공급계약체결",
+   "rcept_no": "20260910800120",
+   "flr_nm": "S-Oil",
+   "rcept_dt": "20260910",
+   "rm": "유"
+  },
+  {
+   "corp_cls": "K",
+   "corp_name": "리메드",
+   "corp_code": "01275665",
+   "stock_code": null,
+   "report_nm": "주식등의대량보유상황보고서(일반)",
+   "rcept_no": "20260909000368",
+   "flr_nm": "이근용",
+   "rcept_dt": "20260909",
+   "rm": ""
+  },
+  {
+   "corp_cls": "Y",
+   "corp_name": "동아지질",
+   "corp_code": "00178754",
+   "stock_code": null,
+   "report_nm": "[기재정정]단일판매ㆍ공급계약체결",
+   "rcept_no": "20260901800177",
+   "flr_nm": "동아지질",
+   "rcept_dt": "20260901",
+   "rm": "유정"
+  },
+  {
+   "corp_cls": "Y",
+   "corp_name": "동아지질",
+   "corp_code": "00178754",
+   "stock_code": null,
+   "report_nm": "[기재정정]단일판매ㆍ공급계약체결",
+   "rcept_no": "20260831800786",
+   "flr_nm": "동아지질",
+   "rcept_dt": "20260831",
+   "rm": "유정"
+  },
+  {
+   "corp_cls": "Y",
+   "corp_name": "동아지질",
+   "corp_code": "00178754",
+   "stock_code": null,
+   "report_nm": "[기재정정]단일판매ㆍ공급계약체결",
+   "rcept_no": "20260831800557",
+   "flr_nm": "동아지질",
+   "rcept_dt": "20260831",
+   "rm": "유"
+  },
+  {
+   "corp_cls": "Y",
+   "corp_name": "동아지질",
+   "corp_code": "00178754",
+   "stock_code": null,
+   "report_nm": "[기재정정]단일판매ㆍ공급계약체결",
+   "rcept_no": "20260828800403",
+   "flr_nm": "동아지질",
+   "rcept_dt": "20260828",
+   "rm": "유"
+  },
+  {
+   "corp_cls": "Y",
+   "corp_name": "동아지질",
+   "corp_code": "00178754",
+   "stock_code": null,
+   "report_nm": "[기재정정]단일판매ㆍ공급계약체결",
+   "rcept_no": "20260828800390",
+   "flr_nm": "동아지질",
+   "rcept_dt": "20260828",
+   "rm": "유"
+  },
+  {
+   "corp_cls": "Y",
+   "corp_name": "동아지질",
+   "corp_code": "00178754",
+   "stock_code": null,
+   "report_nm": "[기재정정]단일판매ㆍ공급계약체결",
+   "rcept_no": "20260826800335",
+   "flr_nm": "동아지질",
+   "rcept_dt": "20260826",
+   "rm": "유"
+  },
+  {
+   "corp_cls": "Y",
+   "corp_name": "동아지질",
+   "corp_code": "00178754",
+   "stock_code": null,
+   "report_nm": "[기재정정]단일판매ㆍ공급계약체결",
+   "rcept_no": "20260814801198",
+   "flr_nm": "동아지질",
+   "rcept_dt": "20260814",
+   "rm": "유"
+  },
+  {
+   "corp_cls": "Y",
+   "corp_name": "동아지질",
+   "corp_code": "00178754",
+   "stock_code": null,
+   "report_nm": "단일판매ㆍ공급계약체결",
+   "rcept_no": "20260806800133",
+   "flr_nm": "동아지질",
+   "rcept_dt": "20260806",
+   "rm": "유"
+  },
+  {
+   "corp_cls": "Y",
+   "corp_name": "동아지질",
+   "corp_code": "00178754",
+   "stock_code": null,
+   "report_nm": "[기재정정]단일판매ㆍ공급계약체결",
+   "rcept_no": "20260803801027",
+   "flr_nm": "동아지질",
+   "rcept_dt": "20260803",
+   "rm": "유"
+  },
+  {
+   "corp_cls": "Y",
+   "corp_name": "동아지질",
+   "corp_code": "00178754",
+   "stock_code": null,
+   "report_nm": "[기재정정]단일판매ㆍ공급계약체결",
+   "rcept_no": "20260730800860",
+   "flr_nm": "동아지질",
+   "rcept_dt": "20260730",
+   "rm": "유정"
+  },
+  {
+   "corp_cls": "Y",
+   "corp_name": "동아지질",
+   "corp_code": "00178754",
+   "stock_code": null,
+   "report_nm": "[기재정정]단일판매ㆍ공급계약체결",
+   "rcept_no": "20260727800311",
+   "flr_nm": "동아지질",
+   "rcept_dt": "20260727",
+   "rm": "유"
+  },
+  {
+   "corp_cls": "Y",
+   "corp_name": "동아지질",
+   "corp_code": "00178754",
+   "stock_code": null,
+   "report_nm": "[기재정정]단일판매ㆍ공급계약체결",
+   "rcept_no": "20260630801516",
+   "flr_nm": "동아지질",
+   "rcept_dt": "20260630",
+   "rm": "유정"
+  },
+  {
+   "corp_cls": "Y",
+   "corp_name": "동아지질",
+   "corp_code": "00178754",
+   "stock_code": null,
+   "report_nm": "[기재정정]단일판매ㆍ공급계약체결",
+   "rcept_no": "20260630800437",
+   "flr_nm": "동아지질",
+   "rcept_dt": "20260630",
+   "rm": "유정"
+  },
+  {
+   "corp_cls": "Y",
+   "corp_name": "동아지질",
+   "corp_code": "00178754",
+   "stock_code": null,
+   "report_nm": "[기재정정]단일판매ㆍ공급계약체결",
+   "rcept_no": "20260630800432",
+   "flr_nm": "동아지질",
+   "rcept_dt": "20260630",
+   "rm": "유"
+  },
+  {
+   "corp_cls": "Y",
+   "corp_name": "동아지질",
+   "corp_code": "00178754",
+   "stock_code": null,
+   "report_nm": "[기재정정]단일판매ㆍ공급계약체결",
+   "rcept_no": "20260630800184",
+   "flr_nm": "동아지질",
+   "rcept_dt": "20260630",
+   "rm": "유정"
+  },
+  {
+   "corp_cls": "Y",
+   "corp_name": "동아지질",
+   "corp_code": "00178754",
+   "stock_code": null,
+   "report_nm": "[기재정정]단일판매ㆍ공급계약체결",
+   "rcept_no": "20260625800341",
+   "flr_nm": "동아지질",
+   "rcept_dt": "20260625",
+   "rm": "유"
+  },
+  {
+   "corp_cls": "Y",
+   "corp_name": "동아지질",
+   "corp_code": "00178754",
+   "stock_code": null,
+   "report_nm": "[기재정정]단일판매ㆍ공급계약체결",
+   "rcept_no": "20260529801026",
+   "flr_nm": "동아지질",
+   "rcept_dt": "20260529",
+   "rm": "유"
+  },
+  {
+   "corp_cls": "Y",
+   "corp_name": "동아지질",
+   "corp_code": "00178754",
+   "stock_code": null,
+   "report_nm": "[기재정정]단일판매ㆍ공급계약체결",
+   "rcept_no": "20260518800502",
+   "flr_nm": "동아지질",
+   "rcept_dt": "20260518",
+   "rm": "유"
+  },
+  {
+   "corp_cls": "Y",
+   "corp_name": "동아지질",
+   "corp_code": "00178754",
+   "stock_code": null,
+   "report_nm": "[기재정정]단일판매ㆍ공급계약체결",
+   "rcept_no": "20260508800003",
+   "flr_nm": "동아지질",
+   "rcept_dt": "20260508",
+   "rm": "유정"
+  },
+  {
+   "corp_cls": "Y",
+   "corp_name": "동아지질",
+   "corp_code": "00178754",
+   "stock_code": null,
+   "report_nm": "[기재정정]단일판매ㆍ공급계약체결",
+   "rcept_no": "20260429800229",
+   "flr_nm": "동아지질",
+   "rcept_dt": "20260429",
+   "rm": "유"
+  },
+  {
+   "corp_cls": "Y",
+   "corp_name": "S-Oil",
+   "corp_code": "00138279",
+   "stock_code": null,
+   "report_nm": "[기재정정]단일판매ㆍ공급계약체결",
+   "rcept_no": "20260420800332",
+   "flr_nm": "S-Oil",
+   "rcept_dt": "20260420",
+   "rm": "유"
+  },
+  {
+   "corp_cls": "Y",
+   "corp_name": "동아지질",
+   "corp_code": "00178754",
+   "stock_code": null,
+   "report_nm": "단일판매ㆍ공급계약체결",
+   "rcept_no": "20260409800475",
+   "flr_nm": "동아지질",
+   "rcept_dt": "20260409",
+   "rm": "유"
+  },
+  {
+   "corp_cls": "Y",
+   "corp_name": "동아지질",
+   "corp_code": "00178754",
+   "stock_code": null,
+   "report_nm": "[기재정정]단일판매ㆍ공급계약체결",
+   "rcept_no": "20260227801584",
+   "flr_nm": "동아지질",
+   "rcept_dt": "20260227",
+   "rm": "유정"
+  },
+  {
+   "corp_cls": "Y",
+   "corp_name": "동아지질",
+   "corp_code": "00178754",
+   "stock_code": null,
+   "report_nm": "[기재정정]단일판매ㆍ공급계약체결",
+   "rcept_no": "20260212800580",
+   "flr_nm": "동아지질",
+   "rcept_dt": "20260212",
+   "rm": "유정"
+  },
+  {
+   "corp_cls": "Y",
+   "corp_name": "S-Oil",
+   "corp_code": "00138279",
+   "stock_code": null,
+   "report_nm": "단일판매ㆍ공급계약체결",
+   "rcept_no": "20260209801487",
+   "flr_nm": "S-Oil",
+   "rcept_dt": "20260209",
+   "rm": "유"
+  },
+  {
+   "corp_cls": "Y",
+   "corp_name": "동아지질",
+   "corp_code": "00178754",
+   "stock_code": null,
+   "report_nm": "[기재정정]단일판매ㆍ공급계약체결",
+   "rcept_no": "20260206801693",
+   "flr_nm": "동아지질",
+   "rcept_dt": "20260206",
+   "rm": "유정"
+  },
+  {
+   "corp_cls": "Y",
+   "corp_name": "동아지질",
+   "corp_code": "00178754",
+   "stock_code": null,
+   "report_nm": "[기재정정]단일판매ㆍ공급계약체결",
+   "rcept_no": "20260129801077",
+   "flr_nm": "동아지질",
+   "rcept_dt": "20260129",
+   "rm": "유정"
+  },
+  {
+   "corp_cls": "Y",
+   "corp_name": "S-Oil",
+   "corp_code": "00138279",
+   "stock_code": null,
+   "report_nm": "[기재정정]단일판매ㆍ공급계약체결",
+   "rcept_no": "20260114800408",
+   "flr_nm": "S-Oil",
+   "rcept_dt": "20260114",
+   "rm": "유"
+  },
+  {
+   "corp_cls": "Y",
+   "corp_name": "S-Oil",
+   "corp_code": "00138279",
+   "stock_code": null,
+   "report_nm": "[기재정정]단일판매ㆍ공급계약체결",
+   "rcept_no": "20260114800212",
+   "flr_nm": "S-Oil",
+   "rcept_dt": "20260114",
+   "rm": "유"
+  },
+  {
+   "corp_cls": "Y",
+   "corp_name": "S-Oil",
+   "corp_code": "00138279",
+   "stock_code": null,
+   "report_nm": "[기재정정]단일판매ㆍ공급계약체결",
+   "rcept_no": "20260114800209",
+   "flr_nm": "S-Oil",
+   "rcept_dt": "20260114",
+   "rm": "유"
+  },
+  {
+   "corp_cls": "Y",
+   "corp_name": "동아지질",
+   "corp_code": "00178754",
+   "stock_code": null,
+   "report_nm": "[기재정정]단일판매ㆍ공급계약체결",
+   "rcept_no": "20260112800645",
+   "flr_nm": "동아지질",
+   "rcept_dt": "20260112",
+   "rm": "유"
+  },
+  {
+   "corp_cls": "Y",
+   "corp_name": "동아지질",
+   "corp_code": "00178754",
+   "stock_code": null,
+   "report_nm": "단일판매ㆍ공급계약체결",
+   "rcept_no": "20260109800362",
+   "flr_nm": "동아지질",
+   "rcept_dt": "20260109",
+   "rm": "유"
+  },
+  {
+   "corp_cls": "Y",
+   "corp_name": "동아지질",
+   "corp_code": "00178754",
+   "stock_code": null,
+   "report_nm": "[기재정정]단일판매ㆍ공급계약체결",
+   "rcept_no": "20251231800145",
+   "flr_nm": "동아지질",
+   "rcept_dt": "20251231",
+   "rm": "유정"
+  },
+  {
+   "corp_cls": "Y",
+   "corp_name": "동아지질",
+   "corp_code": "00178754",
+   "stock_code": null,
+   "report_nm": "[기재정정]단일판매ㆍ공급계약체결",
+   "rcept_no": "20251230801175",
+   "flr_nm": "동아지질",
+   "rcept_dt": "20251230",
+   "rm": "유정"
+  },
+  {
+   "corp_cls": "Y",
+   "corp_name": "동아지질",
+   "corp_code": "00178754",
+   "stock_code": null,
+   "report_nm": "[기재정정]단일판매ㆍ공급계약체결",
+   "rcept_no": "20251226800468",
+   "flr_nm": "동아지질",
+   "rcept_dt": "20251226",
+   "rm": "유정"
+  },
+  {
+   "corp_cls": "Y",
+   "corp_name": "S-Oil",
+   "corp_code": "00138279",
+   "stock_code": null,
+   "report_nm": "단일판매ㆍ공급계약체결",
+   "rcept_no": "20251223800740",
+   "flr_nm": "S-Oil",
+   "rcept_dt": "20251223",
+   "rm": "유정"
+  },
+  {
+   "corp_cls": "Y",
+   "corp_name": "동아지질",
+   "corp_code": "00178754",
+   "stock_code": null,
+   "report_nm": "[기재정정]단일판매ㆍ공급계약체결",
+   "rcept_no": "20251222800268",
+   "flr_nm": "동아지질",
+   "rcept_dt": "20251222",
+   "rm": "유정"
+  },
+  {
+   "corp_cls": "Y",
+   "corp_name": "동아지질",
+   "corp_code": "00178754",
+   "stock_code": null,
+   "report_nm": "[기재정정]단일판매ㆍ공급계약체결",
+   "rcept_no": "20251219800569",
+   "flr_nm": "동아지질",
+   "rcept_dt": "20251219",
+   "rm": "유"
+  },
+  {
+   "corp_cls": "Y",
+   "corp_name": "동아지질",
+   "corp_code": "00178754",
+   "stock_code": null,
+   "report_nm": "[기재정정]단일판매ㆍ공급계약체결",
+   "rcept_no": "20251219800331",
+   "flr_nm": "동아지질",
+   "rcept_dt": "20251219",
+   "rm": "유"
+  },
+  {
+   "corp_cls": "Y",
+   "corp_name": "동아지질",
+   "corp_code": "00178754",
+   "stock_code": null,
+   "report_nm": "[기재정정]단일판매ㆍ공급계약체결",
+   "rcept_no": "20251127800390",
+   "flr_nm": "동아지질",
+   "rcept_dt": "20251127",
+   "rm": "유"
+  },
+  {
+   "corp_cls": "Y",
+   "corp_name": "S-Oil",
+   "corp_code": "00138279",
+   "stock_code": null,
+   "report_nm": "단일판매ㆍ공급계약체결",
+   "rcept_no": "20251126800332",
+   "flr_nm": "S-Oil",
+   "rcept_dt": "20251126",
+   "rm": "유"
+  },
+  {
+   "corp_cls": "Y",
+   "corp_name": "동아지질",
+   "corp_code": "00178754",
+   "stock_code": null,
+   "report_nm": "[기재정정]단일판매ㆍ공급계약체결",
+   "rcept_no": "20251126800207",
+   "flr_nm": "동아지질",
+   "rcept_dt": "20251126",
+   "rm": "유정"
+  },
+  {
+   "corp_cls": "Y",
+   "corp_name": "동아지질",
+   "corp_code": "00178754",
+   "stock_code": null,
+   "report_nm": "단일판매ㆍ공급계약체결",
+   "rcept_no": "20251107800290",
+   "flr_nm": "동아지질",
+   "rcept_dt": "20251107",
+   "rm": "유"
+  },
+  {
+   "corp_cls": "Y",
+   "corp_name": "동아지질",
+   "corp_code": "00178754",
+   "stock_code": null,
+   "report_nm": "[기재정정]단일판매ㆍ공급계약체결",
+   "rcept_no": "20251028800794",
+   "flr_nm": "동아지질",
+   "rcept_dt": "20251028",
+   "rm": "유정"
+  },
+  {
+   "corp_cls": "Y",
+   "corp_name": "동아지질",
+   "corp_code": "00178754",
+   "stock_code": null,
+   "report_nm": "[기재정정]단일판매ㆍ공급계약체결",
+   "rcept_no": "20251027800676",
+   "flr_nm": "동아지질",
+   "rcept_dt": "20251027",
+   "rm": "유정"
+  },
+  {
+   "corp_cls": "Y",
+   "corp_name": "S-Oil",
+   "corp_code": "00138279",
+   "stock_code": null,
+   "report_nm": "단일판매ㆍ공급계약체결",
+   "rcept_no": "20251027800243",
+   "flr_nm": "S-Oil",
+   "rcept_dt": "20251027",
+   "rm": "유정"
+  },
+  {
+   "corp_cls": "Y",
+   "corp_name": "동아지질",
+   "corp_code": "00178754",
+   "stock_code": null,
+   "report_nm": "[기재정정]단일판매ㆍ공급계약체결",
+   "rcept_no": "20251024800214",
+   "flr_nm": "동아지질",
+   "rcept_dt": "20251024",
+   "rm": "유"
+  },
+  {
+   "corp_cls": "Y",
+   "corp_name": "동아지질",
+   "corp_code": "00178754",
+   "stock_code": null,
+   "report_nm": "[기재정정]단일판매ㆍ공급계약체결",
+   "rcept_no": "20251020800453",
+   "flr_nm": "동아지질",
+   "rcept_dt": "20251020",
+   "rm": "유정"
+  },
+  {
+   "corp_cls": "Y",
+   "corp_name": "S-Oil",
+   "corp_code": "00138279",
+   "stock_code": null,
+   "report_nm": "[기재정정]단일판매ㆍ공급계약체결",
+   "rcept_no": "20251015800563",
+   "flr_nm": "S-Oil",
+   "rcept_dt": "20251015",
+   "rm": "유"
+  },
+  {
+   "corp_cls": "Y",
+   "corp_name": "S-Oil",
+   "corp_code": "00138279",
+   "stock_code": null,
+   "report_nm": "[기재정정]단일판매ㆍ공급계약체결",
+   "rcept_no": "20251015800531",
+   "flr_nm": "S-Oil",
+   "rcept_dt": "20251015",
+   "rm": "유"
+  },
+  {
+   "corp_cls": "Y",
+   "corp_name": "동아지질",
+   "corp_code": "00178754",
+   "stock_code": null,
+   "report_nm": "[기재정정]단일판매ㆍ공급계약체결",
+   "rcept_no": "20251002800078",
+   "flr_nm": "동아지질",
+   "rcept_dt": "20251002",
+   "rm": "유"
+  },
+  {
+   "corp_cls": "Y",
+   "corp_name": "동아지질",
+   "corp_code": "00178754",
+   "stock_code": null,
+   "report_nm": "[기재정정]단일판매ㆍ공급계약체결",
+   "rcept_no": "20250923800143",
+   "flr_nm": "동아지질",
+   "rcept_dt": "20250923",
+   "rm": "유정"
+  },
+  {
+   "corp_cls": "Y",
+   "corp_name": "동아지질",
+   "corp_code": "00178754",
+   "stock_code": null,
+   "report_nm": "[기재정정]단일판매ㆍ공급계약체결",
+   "rcept_no": "20240628800901",
+   "flr_nm": "동아지질",
+   "rcept_dt": "20240628",
+   "rm": "유정"
+  },
+  {
+   "corp_cls": "Y",
+   "corp_name": "동아지질",
+   "corp_code": "00178754",
+   "stock_code": null,
+   "report_nm": "단일판매ㆍ공급계약체결",
+   "rcept_no": "20240625800442",
+   "flr_nm": "동아지질",
+   "rcept_dt": "20240625",
+   "rm": "유정"
+  },
+  {
+   "corp_cls": "Y",
+   "corp_name": "동아지질",
+   "corp_code": "00178754",
+   "stock_code": null,
+   "report_nm": "[기재정정]단일판매ㆍ공급계약체결",
+   "rcept_no": "20240624800162",
+   "flr_nm": "동아지질",
+   "rcept_dt": "20240624",
+   "rm": "유정"
+  },
+  {
+   "corp_cls": "Y",
+   "corp_name": "동아지질",
+   "corp_code": "00178754",
+   "stock_code": null,
+   "report_nm": "[기재정정]단일판매ㆍ공급계약체결",
+   "rcept_no": "20240614800255",
+   "flr_nm": "동아지질",
+   "rcept_dt": "20240614",
+   "rm": "유정"
+  },
+  {
+   "corp_cls": "Y",
+   "corp_name": "동아지질",
+   "corp_code": "00178754",
+   "stock_code": null,
+   "report_nm": "단일판매ㆍ공급계약체결",
+   "rcept_no": "20240603800216",
+   "flr_nm": "동아지질",
+   "rcept_dt": "20240603",
+   "rm": "유정"
+  }
+ ],
+ "searches": [
+  {
+   "company": "S-Oil",
+   "start": "20250901",
+   "end": "20261020",
+   "report": "단일판매ㆍ공급계약체결",
+   "rows": 13,
+   "retrieved_at": "2026-10-20T01:57:21Z"
+  },
+  {
+   "company": "리메드",
+   "start": "20260901",
+   "end": "20261020",
+   "report": "",
+   "rows": 8,
+   "retrieved_at": "2026-10-20T01:57:22Z"
+  },
+  {
+   "company": "동아지질",
+   "start": "20250901",
+   "end": "20261020",
+   "report": "단일판매ㆍ공급계약체결",
+   "rows": 46,
+   "retrieved_at": "2026-10-20T01:57:23Z"
+  },
+  {
+   "company": "동아지질",
+   "start": "20240601",
+   "end": "20240630",
+   "report": "단일판매ㆍ공급계약체결",
+   "rows": 5,
+   "retrieved_at": "2026-10-20T02:17:12Z"
+  }
+ ],
+ "_note": "DART 공개 뷰어 HTML과 공개 검색 결과로 만든 fixture입니다. viewer/*.html은 document.xml ZIP이 아니며, list_rows는 공개 검색 결과를 list.json 행 형식으로 재구성한 것입니다(stock_code 없음)."
+}

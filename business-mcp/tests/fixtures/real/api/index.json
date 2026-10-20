@@ -1,0 +1,122 @@
+{
+ "20240603800216": {
+  "sha256": "df3058d1b49db4f5c6af6322df1632fe36aab9f06ec27d349af9756bb2faa3dc",
+  "bytes": 1903,
+  "retrieved_at": "2026-10-20T02:17:32Z",
+  "list_row": null
+ },
+ "20250923800143": {
+  "sha256": "4f26c3fdcede0e0dc865c5648e29431006253dea27e29ee886ac3fb63425ab56",
+  "bytes": 2429,
+  "retrieved_at": "2026-10-20T02:17:32Z",
+  "list_row": null
+ },
+ "20251027800243": {
+  "sha256": "22508655f12bfbba1834c5c021a068a0f32290e691acf3cbd0d70ea83b1f377f",
+  "bytes": 1816,
+  "retrieved_at": "2026-10-20T02:17:31Z",
+  "list_row": null
+ },
+ "20251223800740": {
+  "sha256": "66edc7612b94a8fdede53eabfd58170cb4b36168788bb1f29fc7a8ba766617f1",
+  "bytes": 1844,
+  "retrieved_at": "2026-10-20T02:17:31Z",
+  "list_row": null
+ },
+ "20260206801693": {
+  "sha256": "6a5b6142439addfe76674df118c695d0a46d47f85282c16d08e04eda2b0a0b67",
+  "bytes": 2415,
+  "retrieved_at": "2026-10-20T02:17:32Z",
+  "list_row": null
+ },
+ "20260831800557": {
+  "sha256": "91a7a9c01297b08294a2809e28e1c8ad8b5c960b0e4de621958f90a3926cdf13",
+  "bytes": 2619,
+  "retrieved_at": "2026-10-20T02:17:33Z",
+  "list_row": null
+ },
+ "20260831800786": {
+  "sha256": "40d43f69df0c11ec6dc77c339cd854c313cea4a9a6f3f66c85b0fe2dd7414ea9",
+  "bytes": 2518,
+  "retrieved_at": "2026-10-20T02:17:32Z",
+  "list_row": null
+ },
+ "20260901800177": {
+  "sha256": "de0e1ba9c3c9f7f7160f0adc6116622af9d46a3156afe9e6b87b5375bcc0b7d4",
+  "bytes": 2515,
+  "retrieved_at": "2026-10-20T02:17:32Z",
+  "list_row": null
+ },
+ "20260930800147": {
+  "sha256": "2219f70b3b9ec140778dbcedc29d8b468a5f78e91b175d3359c7bad9c26ba44e",
+  "bytes": 2515,
+  "retrieved_at": "2026-10-20T02:17:32Z",
+  "list_row": null
+ },
+ "20261014000424": {
+  "sha256": "2740cc536a79828155a24ba0dc93d38db163dc281f655d0b10d7f395a2b02ec2",
+  "bytes": 10637,
+  "retrieved_at": "2026-10-20T02:17:32Z",
+  "list_row": {
+   "corp_code": "01275665",
+   "corp_name": "리메드",
+   "stock_code": "302550",
+   "corp_cls": "K",
+   "report_nm": "주요사항보고서(전환사채권발행결정)",
+   "rcept_no": "20261014000424",
+   "flr_nm": "리메드",
+   "rcept_dt": "20261014",
+   "rm": "정"
+  }
+ },
+ "20261016800813": {
+  "sha256": "abf0bbd4bc281e94ff4c433d3a6c3597c1d4d6516b46c78b099c469ec55e47be",
+  "bytes": 2473,
+  "retrieved_at": "2026-10-20T02:17:32Z",
+  "list_row": {
+   "corp_code": "00178754",
+   "corp_name": "동아지질",
+   "stock_code": "028100",
+   "corp_cls": "Y",
+   "report_nm": "[기재정정]단일판매ㆍ공급계약체결              ",
+   "rcept_no": "20261016800813",
+   "flr_nm": "동아지질",
+   "rcept_dt": "20261016",
+   "rm": "유"
+  }
+ },
+ "20261019000366": {
+  "sha256": "99ec647b787b517e2263a94610b8175c7b55c117d87cf4c16718ce80878d497f",
+  "bytes": 12252,
+  "retrieved_at": "2026-10-20T02:17:32Z",
+  "list_row": {
+   "corp_code": "01275665",
+   "corp_name": "리메드",
+   "stock_code": "302550",
+   "corp_cls": "K",
+   "report_nm": "[기재정정]주요사항보고서(전환사채권발행결정)",
+   "rcept_no": "20261019000366",
+   "flr_nm": "리메드",
+   "rcept_dt": "20261019",
+   "rm": ""
+  }
+ },
+ "20261019800110": {
+  "sha256": "87a0c8d88012e5861d693d9a195993e1bdffa03feeb08ceb3c1a9519721a791e",
+  "bytes": 2489,
+  "retrieved_at": "2026-10-20T02:17:31Z",
+  "list_row": null
+ },
+ "20261019800117": {
+  "sha256": "995c81d8793aa44ebe33859a7d7b4f26438a823653f16f9764303891a6174351",
+  "bytes": 2461,
+  "retrieved_at": "2026-10-20T02:17:31Z",
+  "list_row": null
+ },
+ "20261019800483": {
+  "sha256": "10bdd36cf94eeeffd680c07b9bc241a8d605006cfa05a5b5e61acdb747b510aa",
+  "bytes": 2518,
+  "retrieved_at": "2026-10-20T02:17:32Z",
+  "list_row": null
+ }
+}

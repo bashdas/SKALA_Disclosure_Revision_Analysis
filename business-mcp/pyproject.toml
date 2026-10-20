@@ -1,0 +1,33 @@
+[project]
+name = "gongsi-business-mcp"
+version = "0.1.0"
+description = "공시체크 Business MCP 서버 (정정 공시 검색·비교·메모 조회)"
+requires-python = ">=3.12,<3.14"
+dependencies = [
+  "fastmcp==4.1.1",          # Agent·RAG MCP와 같은 버전으로 고정 (07 문서 §2)
+  "httpx>=0.28,<1",
+  "lxml>=5,<7",
+  "pydantic>=2.7,<3",
+  "pydantic-settings>=2.3,<3",
+]
+# PostgreSQL 저장소 단계에서 추가: psycopg[binary,pool]
+
+[dependency-groups]
+dev = ["pytest>=8", "pytest-asyncio>=0.24", "ruff>=0.6"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/dart_core", "src/business_mcp"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+pythonpath = ["src"]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"

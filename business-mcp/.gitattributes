@@ -1,0 +1,2 @@
+# 실제 공시 fixture는 받은 바이트 그대로 보존 (줄바꿈 변환 금지 → manifest/index의 sha256 유지)
+tests/fixtures/real/** -text

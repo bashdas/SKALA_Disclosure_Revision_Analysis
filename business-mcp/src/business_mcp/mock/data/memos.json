@@ -1,0 +1,62 @@
+{
+  "_mock": "MOCK DATA - 가상 RA 분석 메모입니다. analysis_memos + memo_versions(05 문서 §4) 행을 메모별로 묶은 형식입니다.",
+  "items": [
+    {
+      "memo_id": "6f1c2e0a-0000-4000-8000-000000000001",
+      "corp_code": "00000001", "corp_name": "예시전자",
+      "title": "예시전자 2026 1H 실적 전망", "author": "ra_kim",
+      "versions": [
+        {"version": 1, "created_at": "2026-02-20T08:00:00Z", "source_rcept_nos": [],
+         "sections": [
+           {"section_id": "s1", "heading": "투자 요약", "text": "디스플레이 부품 업황 회복으로 1H 매출 반등을 예상합니다.", "cited_rcept_nos": []}
+         ]},
+        {"version": 2, "created_at": "2026-03-05T10:00:00Z", "source_rcept_nos": ["20260305000045"],
+         "sections": [
+           {"section_id": "s1", "heading": "투자 요약", "text": "디스플레이 부품 업황 회복과 신규 수주로 1H 매출 반등을 예상합니다.", "cited_rcept_nos": []},
+           {"section_id": "s2", "heading": "수주 모멘텀", "text": "3/5 공시된 120억원 규모 공급계약은 최근 매출액 대비 4.2% 수준입니다.", "cited_rcept_nos": ["20260305000045"]}
+         ]},
+        {"version": 3, "created_at": "2026-03-06T09:00:00Z", "source_rcept_nos": ["20260305000045"],
+         "sections": [
+           {"section_id": "s1", "heading": "투자 요약", "text": "디스플레이 부품 업황 회복과 신규 수주로 1H 매출 반등을 예상합니다. 목표주가 유지.", "cited_rcept_nos": []},
+           {"section_id": "s2", "heading": "수주 모멘텀", "text": "3/5 공시된 120억원 규모 공급계약(계약기간 2026년 말까지)은 최근 매출액 대비 4.2% 수준으로, 하반기 매출 인식이 집중될 것으로 봅니다.", "cited_rcept_nos": ["20260305000045"]},
+           {"section_id": "s3", "heading": "실적 추정", "text": "공급계약 120억원을 2026년 4분기까지 균등 인식한다고 가정해 2026년 매출 추정치에 반영했습니다.", "cited_rcept_nos": ["20260305000045"]}
+         ]}
+      ]
+    },
+    {
+      "memo_id": "6f1c2e0a-0000-4000-8000-000000000003",
+      "corp_code": "00000001", "corp_name": "예시전자",
+      "title": "예시전자 자기주식 취득 코멘트", "author": "ra_park",
+      "versions": [
+        {"version": 1, "created_at": "2026-02-11T07:30:00Z", "source_rcept_nos": ["20260210000077"],
+         "sections": [
+           {"section_id": "s1", "heading": "코멘트", "text": "2/10 자기주식 취득 결정은 주주환원 강화 신호로 판단합니다.", "cited_rcept_nos": ["20260210000077"]}
+         ]}
+      ]
+    },
+    {
+      "memo_id": "6f1c2e0a-0000-4000-8000-000000000002",
+      "corp_code": "00000002", "corp_name": "가상화학",
+      "title": "가상화학 CB 발행 희석 영향 점검", "author": "ra_lee",
+      "versions": [
+        {"version": 1, "created_at": "2026-04-02T06:00:00Z", "source_rcept_nos": ["20260401000210"],
+         "sections": [
+           {"section_id": "s1", "heading": "발행 개요", "text": "권면총액 300억원, 전환가액 12,500원, 납입일 2026-04-20의 전환사채 발행을 결정했습니다.", "cited_rcept_nos": ["20260401000210"]},
+           {"section_id": "s2", "heading": "희석 영향", "text": "전환가액 12,500원 기준 잠재 주식 240만주, 발행주식수 대비 약 4.8% 희석을 추정합니다.", "cited_rcept_nos": ["20260401000210"]},
+           {"section_id": "s3", "heading": "자금 사용", "text": "조달 자금 300억원 전액을 시설자금으로 사용할 계획입니다.", "cited_rcept_nos": ["20260401000210"]}
+         ]}
+      ]
+    },
+    {
+      "memo_id": "6f1c2e0a-0000-4000-8000-000000000004",
+      "corp_code": "00000003", "corp_name": "가상바이오",
+      "title": "가상바이오 원료의약품 수주 점검", "author": "ra_choi",
+      "versions": [
+        {"version": 1, "created_at": "2026-06-11T05:00:00Z", "source_rcept_nos": ["20260610000101", "20260610000102"],
+         "sections": [
+           {"section_id": "s1", "heading": "수주 현황", "text": "6/10 같은 날 50억원 규모 공급계약 2건(가상제약, 가상메디칼)을 공시했습니다.", "cited_rcept_nos": ["20260610000101", "20260610000102"]}
+         ]}
+      ]
+    }
+  ]
+}

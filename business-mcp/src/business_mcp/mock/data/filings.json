@@ -1,0 +1,18 @@
+{
+  "_mock": "MOCK DATA - 가상 공시입니다. OpenDART list.json의 list[] 행 원본 필드(rcept_dt=YYYYMMDD) + pblntf_ty 형식입니다.",
+  "items": [
+    {"corp_cls": "K", "corp_name": "예시전자", "corp_code": "00000001", "stock_code": "000001", "report_nm": "주요사항보고서(자기주식취득결정)", "rcept_no": "20260210000077", "flr_nm": "예시전자", "rcept_dt": "20260210", "rm": "코", "pblntf_ty": "B"},
+    {"corp_cls": "K", "corp_name": "예시전자", "corp_code": "00000001", "stock_code": "000001", "report_nm": "단일판매ㆍ공급계약체결", "rcept_no": "20260305000045", "flr_nm": "예시전자", "rcept_dt": "20260305", "rm": "코정", "pblntf_ty": "I"},
+    {"corp_cls": "K", "corp_name": "예시전자", "corp_code": "00000001", "stock_code": "000001", "report_nm": "[기재정정]단일판매ㆍ공급계약체결", "rcept_no": "20260312000123", "flr_nm": "예시전자", "rcept_dt": "20260312", "rm": "코", "pblntf_ty": "I"},
+    {"corp_cls": "K", "corp_name": "예시전자", "corp_code": "00000001", "stock_code": "000001", "report_nm": "임원ㆍ주요주주특정증권등소유상황보고서", "rcept_no": "20260415000090", "flr_nm": "가상투자자", "rcept_dt": "20260415", "rm": "", "pblntf_ty": "D"},
+
+    {"corp_cls": "Y", "corp_name": "가상화학", "corp_code": "00000002", "stock_code": "000002", "report_nm": "사업보고서 (2025.12)", "rcept_no": "20260320000008", "flr_nm": "가상화학", "rcept_dt": "20260320", "rm": "연", "pblntf_ty": "A"},
+    {"corp_cls": "Y", "corp_name": "가상화학", "corp_code": "00000002", "stock_code": "000002", "report_nm": "주요사항보고서(전환사채권발행결정)", "rcept_no": "20260401000210", "flr_nm": "가상화학", "rcept_dt": "20260401", "rm": "정", "pblntf_ty": "B"},
+    {"corp_cls": "Y", "corp_name": "가상화학", "corp_code": "00000002", "stock_code": "000002", "report_nm": "[기재정정]주요사항보고서(전환사채권발행결정)", "rcept_no": "20260408000155", "flr_nm": "가상화학", "rcept_dt": "20260408", "rm": "정", "pblntf_ty": "B"},
+    {"corp_cls": "Y", "corp_name": "가상화학", "corp_code": "00000002", "stock_code": "000002", "report_nm": "[기재정정]주요사항보고서(전환사채권발행결정)", "rcept_no": "20260415000301", "flr_nm": "가상화학", "rcept_dt": "20260415", "rm": "", "pblntf_ty": "B"},
+
+    {"corp_cls": "K", "corp_name": "가상바이오", "corp_code": "00000003", "stock_code": "000003", "report_nm": "단일판매ㆍ공급계약체결", "rcept_no": "20260610000101", "flr_nm": "가상바이오", "rcept_dt": "20260610", "rm": "코정", "pblntf_ty": "I"},
+    {"corp_cls": "K", "corp_name": "가상바이오", "corp_code": "00000003", "stock_code": "000003", "report_nm": "단일판매·공급계약체결", "rcept_no": "20260610000102", "flr_nm": "가상바이오", "rcept_dt": "20260610", "rm": "코정", "pblntf_ty": "I"},
+    {"corp_cls": "K", "corp_name": "가상바이오", "corp_code": "00000003", "stock_code": "000003", "report_nm": "[기재정정]단일판매ㆍ공급계약체결", "rcept_no": "20260617000088", "flr_nm": "가상바이오", "rcept_dt": "20260617", "rm": "코", "pblntf_ty": "I"}
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "_mock": "MOCK DATA - 가상 회사입니다. corpCode.xml의 <list> 행 형식(corp_code, corp_name, stock_code)을 따릅니다.",
+  "items": [
+    {"corp_code": "00000001", "corp_name": "예시전자", "stock_code": "000001"},
+    {"corp_code": "00000004", "corp_name": "예시전자서비스", "stock_code": null},
+    {"corp_code": "00000002", "corp_name": "가상화학", "stock_code": "000002"},
+    {"corp_code": "00000003", "corp_name": "가상바이오", "stock_code": "000003"},
+    {"corp_code": "00000005", "corp_name": "가상바이오로직스", "stock_code": "000005"}
+  ]
+}
