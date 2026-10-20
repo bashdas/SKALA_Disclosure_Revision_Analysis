@@ -1,0 +1,70 @@
+services:
+  business-api:
+    build:
+      context: .
+      dockerfile: business-api/Dockerfile
+    env_file: .env
+    ports:
+      - "127.0.0.1:${BUSINESS_API_PORT:-8080}:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  business-mcp:
+    build:
+      context: .
+      dockerfile: mcp/business-mcp/Dockerfile
+    environment:
+      ENVIRONMENT: ${ENVIRONMENT:-local}
+      BUSINESS_API_BASE_URL: http://business-api:8080
+    expose:
+      - "8081"
+    depends_on:
+      business-api:
+        condition: service_healthy
+
+  rag-mcp:
+    build:
+      context: .
+      dockerfile: mcp/rag-mcp/Dockerfile
+    environment:
+      ENVIRONMENT: ${ENVIRONMENT:-local}
+      DATABASE_URL: ${DATABASE_URL:?Copy .env.example to .env}
+    expose:
+      - "8082"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?Copy .env.example to .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Copy .env.example to .env}
+      POSTGRES_DB: ${POSTGRES_DB:?Copy .env.example to .env}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  rabbitmq:
+    image: rabbitmq:4-management
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:?Copy .env.example to .env}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:?Copy .env.example to .env}
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres-data:
+  rabbitmq-data:
