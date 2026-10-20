@@ -1,1 +1,2 @@
-업무 migration은 다음 단계에서 추가합니다. 현재 revision은 없습니다.
+초기 업무 schema revision은 `0001_initial_core_initial_core_schema.py`입니다.
+적용·롤백 전 `../README.md`와 Business API README를 확인하세요.

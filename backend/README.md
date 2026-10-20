@@ -94,7 +94,7 @@ MCP는 공식 Python SDK v1의 Streamable HTTP를 사용합니다. JSON 응답/s
 
 ## 다음 단계 / TODO
 
-- core/rag 모델, 스키마 소유권, pgvector extension 및 실제 migration 설계
+- RAG 모델·pgvector extension·checkpoint 영역의 별도 migration 설계
 - JWT 발급·검증, 조직/역할 접근 제어, 서비스 간 내부 인증
 - 업무 API, `/internal/**`, Business MCP HTTP client와 실제 Tool
 - RabbitMQ queue 선언, 메시지 계약, publish/consume, 재시도와 중복 처리
@@ -123,9 +123,8 @@ cd backend/business-api
 # DATABASE_URL 설정 후
 .venv/bin/alembic current
 .venv/bin/alembic check
-# 실제 모델을 추가하는 다음 단계부터 생성 및 검토
-# .venv/bin/alembic revision --autogenerate -m "initial domain models"
-# .venv/bin/alembic upgrade head
+.venv/bin/alembic upgrade head
+# 후속 schema 변경 시 revision 생성 및 검토
 ```
 
 Compose에서는 저장소의 backend 폴더에서:
@@ -137,7 +136,7 @@ docker compose exec business-api alembic check
 curl -f http://localhost:8080/health/db
 ```
 
-`env.py`가 앱과 동일한 설정으로 URL을 읽고 `app.models`를 import하여 `Base.metadata`에 연결합니다. 새 모델은 `app/models/__init__.py`에서 명시적으로 import해야 합니다. 현재 모델과 revision은 없으며 `versions/README.md`만 있습니다. `create_all`은 사용하지 않습니다. 현재 autogenerate는 기본 schema 기준입니다. core/rag/checkpoint의 schema 소유권과 다른 영역 테이블 제외 정책을 다음 모델 단계에서 결정한 후 공유 DB에 적용해야 합니다.
+`env.py`가 앱과 동일한 설정으로 URL을 읽고 `app.models`를 import하여 `Base.metadata`에 연결합니다. 새 모델은 `app/models/__init__.py`에서 명시적으로 import해야 합니다. 14개 업무 모델과 `0001_initial_core` revision이 있습니다. 업무 테이블은 `core` schema에 생성하며 autogenerate는 core만 비교합니다. RAG/checkpoint/public의 다른 테이블은 제외합니다. `create_all`은 사용하지 않습니다. 상세 nullable·unique·삭제 정책과 PostgreSQL 모델/migration 테스트는 [Business API README](business-api/README.md)를 참고하세요.
 
 ### PostgreSQL 테스트
 
@@ -149,6 +148,6 @@ cd backend/business-api
 TEST_DATABASE_URL="$DATABASE_URL" .venv/bin/python -m pytest -q
 ```
 
-통합 테스트는 일반 개발·운영 DB가 아닌 비어 있는 전용 테스트 DB를 사용하세요. `TEST_DATABASE_URL` 미설정 시 PostgreSQL 테스트 4개는 skip합니다. 잘못된 password가 거부되는 password 인증 DB여야 합니다. 테스트는 연결, health, 트랜잭션 정리, Alembic 비교를 확인하며 업무 테이블이나 빈 initial revision을 만들지 않습니다.
+통합 테스트는 일반 개발·운영 DB가 아닌 전용 테스트 DB를 사용하세요. migration을 적용하므로 공유 DB를 지정하지 마세요. `TEST_DATABASE_URL` 미설정 시 PostgreSQL 연결·모델 테스트는 skip합니다. downgrade 왕복 테스트는 추가로 `TEST_ALLOW_SCHEMA_RESET=1`이 필요합니다. 잘못된 password가 거부되는 password 인증 DB여야 합니다. 테스트는 연결, health, 트랜잭션 정리, 업무 제약조건, Alembic 비교를 확인합니다. 업무 테이블은 migration으로 생성하고 모델 테스트 데이터는 rollback합니다.
 
 구현 근거: [SQLAlchemy Session 관리](https://docs.sqlalchemy.org/en/20/orm/session_basics.html), [Alembic metadata 연결](https://alembic.sqlalchemy.org/en/latest/autogenerate.html).

@@ -91,7 +91,7 @@ def test_alembic_uses_application_metadata(monkeypatch):
     monkeypatch.setattr(context, "run_migrations", MagicMock())
     runpy.run_path(str(ROOT / "alembic/env.py"))
     assert configure.call_args.kwargs["target_metadata"] is Base.metadata
-    assert not Base.metadata.tables
+    assert "core.organizations" in Base.metadata.tables
 
 
 @pytest.fixture
@@ -146,5 +146,6 @@ def test_postgres_bad_credentials(postgres_url):
 @pytest.mark.postgres
 def test_alembic_online_check(postgres_url):
     config = Config(str(ROOT / "alembic.ini"))
+    command.upgrade(config, "head")
     command.current(config)
     command.check(config)
