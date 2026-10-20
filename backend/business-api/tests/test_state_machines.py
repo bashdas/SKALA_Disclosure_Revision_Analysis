@@ -17,7 +17,7 @@ from app.models.enums import AnalysisStage as G, AnalysisStatus as S, Perspectiv
 NOW = datetime(2026, 10, 20, 6, 0, tzinfo=timezone.utc)
 EARLIER = NOW - timedelta(minutes=10)
 ALLOWED = [
-    (S.CREATED, S.QUEUED), (S.QUEUED, S.RUNNING),
+    (S.CREATED, S.QUEUED), (S.QUEUED, S.RUNNING), (S.QUEUED, S.FAILED),
     (S.RUNNING, S.SAVING), (S.RUNNING, S.FAILED), (S.RUNNING, S.CANCELLED),
     (S.SAVING, S.COMPLETED), (S.SAVING, S.COMPLETED_WITH_WARNINGS),
     (S.SAVING, S.SAVE_FAILED), (S.SAVING, S.CANCELLED),

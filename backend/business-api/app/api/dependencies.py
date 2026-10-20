@@ -1,7 +1,7 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import Depends
+from fastapi import Depends, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
@@ -10,7 +10,9 @@ from app.core.database import get_db
 from app.core.security import decode_access_token
 from app.domain.auth_exceptions import Forbidden, InvalidToken, Unauthenticated, UserNotFound
 from app.models.enums import UserRole
-from app.repositories import FilingRepository, MemoRepository, UserRepository
+from app.infrastructure.analysis_queue import AnalysisQueueProducer
+from app.repositories import AnalysisRepository, FilingRepository, MemoRepository, UserRepository
+from app.services.analysis import AnalysisService
 from app.schemas.auth import CurrentUser, TokenPayload
 from app.services.auth import AuthService
 from app.services.filing import FilingService
@@ -72,3 +74,14 @@ def get_filing_service(session: Annotated[Session, Depends(get_db)]) -> FilingSe
 
 def get_memo_service(session: Annotated[Session, Depends(get_db)], settings: Annotated[Settings, Depends(get_settings)]) -> MemoService:
     return MemoService(MemoRepository(session), max_upload_bytes=settings.memo_upload_max_bytes)
+
+
+def get_analysis_producer(request: Request) -> AnalysisQueueProducer:
+    return request.app.state.analysis_producer
+
+
+def get_analysis_service(
+    session: Annotated[Session, Depends(get_db)],
+    producer: Annotated[AnalysisQueueProducer, Depends(get_analysis_producer)],
+) -> AnalysisService:
+    return AnalysisService(AnalysisRepository(session), MemoRepository(session), producer)

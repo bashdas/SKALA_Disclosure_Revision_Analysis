@@ -35,7 +35,7 @@ docker compose ps
 curl -f http://localhost:8080/health
 ```
 
-API만 호스트 loopback에 공개합니다. MCP, PostgreSQL, RabbitMQ는 Compose 기본 내부 네트워크를 사용하며 호스트 포트는 공개하지 않습니다. MCP 주소는 `http://business-mcp:8081/mcp`, `http://rag-mcp:8082/mcp`입니다. 향후 AI Agent가 같은 네트워크에 참여해야 합니다.
+API와 개발용 RabbitMQ AMQP/Management 포트를 호스트 loopback에 공개합니다. MCP와 PostgreSQL은 Compose 기본 내부 네트워크만 사용합니다. MCP 주소는 `http://business-mcp:8081/mcp`, `http://rag-mcp:8082/mcp`입니다. 향후 AI Agent가 같은 네트워크에 참여해야 합니다.
 
 ```bash
 docker compose exec business-mcp python -c "import urllib.request; print(urllib.request.urlopen('http://localhost:8081/health').read().decode())"
@@ -44,7 +44,7 @@ docker compose logs -f business-api business-mcp rag-mcp
 docker compose down
 ```
 
-`down`은 이름 있는 DB/큐 볼륨을 보존합니다. pgvector 이미지를 준비했고 core 업무 schema는 Alembic migration으로 관리합니다. pgvector extension 활성화와 큐 선언·연결 코드는 아직 없습니다. PostgreSQL 초기 자격 증명은 빈 볼륨을 처음 생성할 때 적용됩니다.
+`down`은 이름 있는 DB/큐 볼륨을 보존합니다. pgvector 이미지를 준비했고 core 업무 schema는 Alembic migration으로 관리합니다. pgvector extension 활성화는 아직 없으며 RabbitMQ 큐 선언·Producer 연결은 아래 Analysis 항목을 따릅니다. PostgreSQL 초기 자격 증명은 빈 볼륨을 처음 생성할 때 적용됩니다.
 
 ## 로컬 독립 실행
 
@@ -96,8 +96,8 @@ MCP는 공식 Python SDK v1의 Streamable HTTP를 사용합니다. JSON 응답/s
 
 - RAG 모델·pgvector extension·checkpoint 영역의 별도 migration 설계
 - 실제 업무 endpoint별 조직/역할 정책 적용 및 서비스 간 내부 인증 (JWT 로그인/current_user/RBAC 기반은 구현됨)
-- 분석 생성 API·나머지 업무 API, `/internal/**`, Business MCP HTTP client와 실제 Tool (Filing/Memo 조직 범위 조회는 구현됨)
-- RabbitMQ queue 선언, 메시지 계약, publish/consume, 재시도와 중복 처리
+- 분석 조회·이벤트·SSE·취소 API, 나머지 업무 API, `/internal/**`, Business MCP HTTP client와 실제 Tool (분석 생성과 Filing/Memo 조직 범위 조회는 구현됨)
+- RabbitMQ Consumer 업무 retry·DLQ 판단·task_id 중복 실행 보호 (queue topology·메시지 계약·Producer는 구현됨)
 - RAG read-only DB 계정, 검색·원문·claim source Tool, embedding 정책
 - 의존성 lock 파일, CI, 운영 비밀 관리와 readiness 정책
 - frontend, ai-agent, LangGraph checkpoint는 별도 영역에서 구현
@@ -153,3 +153,104 @@ TEST_DATABASE_URL="$DATABASE_URL" .venv/bin/python -m pytest -q
 구현 근거: [SQLAlchemy Session 관리](https://docs.sqlalchemy.org/en/20/orm/session_basics.html), [Alembic metadata 연결](https://alembic.sqlalchemy.org/en/latest/autogenerate.html).
 
 Memo 업로드는 POST /api/v1/memos의 multipart file/title로 제공하며 UTF-8 .txt/text/plain, 기본 5 MiB 한도를 사용합니다. 회사명은 추측하지 않고 NULL로 저장합니다. 적용 전에 Alembic upgrade head가 필요합니다. 상세 정책과 transaction/metadata는 [Business API README](business-api/README.md)를 참고하세요.
+
+## Analysis 생성 및 RabbitMQ Producer
+
+인증된 RA / ANALYST가 자기 조직의 업로드 Memo로 분석을 요청합니다.
+
+```http
+POST /api/v1/analyses
+Authorization: Bearer <access_token>
+Content-Type: application/json
+
+{"memo_id":"<memo UUID>","disclosure_receipt_no":"20261020000123"}
+```
+
+응답은 Broker publisher confirm 성공 후 `202 Accepted`이며
+`{"task_id":"<task UUID>","status":"QUEUED","created_at":"..."}`를 반환합니다.
+접수번호는 14자리 ASCII 숫자 형식만 검증하며, Filing 존재나 OpenDART 유효성을 확인하지 않습니다.
+`organization_id`와 `requested_by`는 JWT를 DB User와 검증한 context에서만 가져옵니다.
+`Memo.current_version`에 해당하는 원문 버전을 확인하고 `base_memo_version`으로 고정합니다.
+회사 코드·회사명은 Agent 조회 전까지 NULL이며 Filing cache와 결합하지 않습니다.
+
+중복 키는 `(organization_id, memo_id, base_memo_version, disclosure_receipt_no)`이고
+CREATED / QUEUED / RUNNING / SAVING / SAVE_FAILED는 `409 ANALYSIS_ALREADY_RUNNING`입니다.
+응답의 `error.existing_task_id`로 기존 작업을 식별합니다. Terminal 상태는 재실행 가능합니다.
+Service는 PostgreSQL 기본 READ COMMITTED에서 조직 범위 Memo를 `SELECT FOR UPDATE`로 잠그고,
+현재 버전 읽기·중복 확인·Task 생성·commit을 직렬화합니다. 이 경로를 우회하는 직접 insert까지
+차단하는 DB unique 제약은 없습니다. 향후 버전 변경/분석 생성 경로도 같은 Memo 잠금 규약을 따라야 합니다.
+
+### RabbitMQ 연결과 topology
+
+동기 SQLAlchemy/Service에 맞춰 Pika 1.3.x를 사용합니다. 프로세스별 lifespan Producer가 전용
+스레드에서 connection/channel을 소유하고 재사용하며, idle 중에도 heartbeat를 처리합니다.
+연결은 첫 publish 또는 `/health/rabbitmq`에서 준비하고 실패하면 다음 요청에서 재연결합니다.
+Broker 일시 장애가 `/health`, 로그인, Memo 조회를 막지 않습니다. 종료 시 연결을 닫습니다.
+`/health/db`와 `/health/rabbitmq`는 각각 독립 확인이며 Broker 장애는 후자에서 503입니다.
+
+기본 topology는 모두 durable이고 direct exchange `analysis.exchange`를 사용합니다.
+
+| Queue | Routing key | 동작 |
+| --- | --- | --- |
+| analysis.tasks | analysis.run | 정상 작업, reject(requeue=false)는 DLQ로 이동 |
+| analysis.tasks.retry | analysis.retry.1 | 5초 TTL 후 main queue로 DLX 전달 |
+| analysis.tasks.retry.2 | analysis.retry.2 | 15초 TTL 후 main queue로 DLX 전달 |
+| analysis.tasks.retry.3 | analysis.retry.3 | 45초 TTL 후 main queue로 DLX 전달 |
+| analysis.tasks.dlq | analysis.dead | 최종 실패 보관 |
+
+TTL/DLX는 [RabbitMQ 기본 기능](https://www.rabbitmq.com/docs/ttl)을 사용하며 plugin이 필요 없습니다.
+재시도마다 별도 queue를 사용해 긴 TTL 메시지가 짧은 TTL 메시지를 막지 않도록 합니다.
+`RABBITMQ_MAX_RETRIES=3`과 `RABBITMQ_RETRY_DELAY_SECONDS=5`가 위 topology를 결정합니다.
+Consumer는 미구현입니다. 향후 Consumer가 실패 시 retry_count를 증가시키고 1~3 단계로
+confirmed republish한 뒤 원본을 ack하며, 3회 재시도 이후에는 analysis.dead로 보내야 합니다.
+큐 구성만으로 retry_count 증가/최대 횟수 판단을 자동 실행하지 않습니다.
+Classic queue의 기본 dead-letter 전달은 장애 중 무손실 전달을 보장하지 않습니다.
+기존 큐의 TTL/DLX 설정 변경 시 RabbitMQ 정책 또는 계획된 큐 재구성이 필요합니다.
+
+메시지는 `message_id`(UUID), `task_id`, `type=RUN_ANALYSIS`, `retry_count=0`만 포함합니다.
+본문·JWT·조직 데이터는 복제하지 않습니다. AMQP properties에도 message_id/retry_count를 기록합니다.
+Persistent 메시지 + mandatory routing + publisher confirm으로 전송 성공을 확인합니다.
+같은 publish의 transport retry는 같은 message_id를 재사용합니다.
+
+### 실패와 transaction 경계
+
+Service가 CREATED → QUEUED, stage REQUEST_VALIDATION을 기록하고 DB commit한 뒤 publish합니다.
+Producer는 `RABBITMQ_PUBLISH_MAX_ATTEMPTS=3`번 **총 시도**하며, 간격은 0.2/0.4초입니다.
+이것은 Consumer의 5/15/45초 업무 retry와 별개입니다. 연결/blocked/RPC/confirm 대기를
+`RABBITMQ_PUBLISH_TIMEOUT_SECONDS` 기준으로 제한합니다. transport stack 수립에는 1초 여유를 둡니다.
+최종 실패 시 새 transaction에서 Task를 잠가 QUEUED → FAILED로 바꾸고 completed_at을 설정합니다.
+`error_stage=REQUEST_VALIDATION`, `error_code=RABBITMQ_PUBLISH_FAILED`와 고정 진단 문구를 저장하고
+503을 반환합니다. 연결 URL이나 원본 library exception은 응답/DB 오류 메시지에 포함하지 않습니다.
+FAILED는 다음 동일 요청을 차단하지 않습니다.
+
+Outbox는 구현하지 않습니다. DB commit 직후 프로세스가 중단되거나 실패 상태 기록 때 DB까지
+불능이면 QUEUED가 남을 수 있습니다. Broker가 수신했으나 confirm만 유실되면 중복 전달될 수 있으므로
+향후 Worker는 task_id 기준 중복 실행 보호가 필요합니다. 이미 Worker가 진행시킨 Task를
+publish 실패 정리에서 FAILED로 덮어쓰지 않으며, 이 경우에도 요청은 503을 반환합니다.
+이 구조는 DB/Broker 간 원자성이나 exactly-once를 보장하지 않습니다.
+
+### 실행 및 검증
+
+`.env.example`을 참고해 로컬 `.env`를 설정하고 기존 DB에는 먼저 migration을 적용합니다.
+
+```bash
+docker compose up -d --build postgres rabbitmq business-api
+docker compose exec business-api alembic upgrade head
+curl http://localhost:8080/health
+curl http://localhost:8080/health/rabbitmq
+```
+
+RabbitMQ AMQP 5672와 Management UI `http://localhost:15672`는 기본 loopback에만 노출됩니다.
+포트는 RABBITMQ_AMQP_PORT / RABBITMQ_MANAGEMENT_PORT로 변경합니다. 개발 계정은 로컬에서 교체합니다.
+Business API 컨테이너의 RABBITMQ_URL host는 `rabbitmq`를 사용합니다.
+0004_analysis_company는 AnalysisTask.company_name_snapshot을 nullable로 변경합니다.
+NULL이 남아 있으면 downgrade를 명시적으로 차단하며 회사명을 임의로 채우지 않습니다.
+
+```bash
+# business-api 디렉터리, 폐기 가능한 별도 테스트 DB/Broker만 지정
+TEST_DATABASE_URL='<test PostgreSQL URL>' TEST_ALLOW_SCHEMA_RESET=1 \
+TEST_RABBITMQ_URL='<test AMQP URL>' python -m pytest -q
+```
+
+실제 RabbitMQ integration probe는 고유 이름의 exchange/queue를 만들고 정리합니다.
+Consumer 서비스나 분석 조회/SSE/취소 기능은 이번 단계에 포함하지 않습니다.

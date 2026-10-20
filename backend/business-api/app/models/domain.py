@@ -138,7 +138,7 @@ class AnalysisTask(IdentityCreatedMixin, UpdatedMixin, Base):
     base_memo_version: Mapped[int] = mapped_column(Integer)
     disclosure_receipt_no: Mapped[str] = mapped_column(String(64))
     corp_code: Mapped[str | None] = mapped_column(String(8))
-    company_name_snapshot: Mapped[str] = mapped_column(String(255))
+    company_name_snapshot: Mapped[str | None] = mapped_column(String(255))
     thread_id: Mapped[str] = mapped_column(String(255))
     status: Mapped[AnalysisStatus] = mapped_column(
         enum_column(AnalysisStatus, "ck_analysis_tasks_status"),

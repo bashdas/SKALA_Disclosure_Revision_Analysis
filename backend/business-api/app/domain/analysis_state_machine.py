@@ -10,7 +10,7 @@ ACTIVE_ANALYSIS_STATUSES = frozenset({Status.CREATED, Status.QUEUED, Status.RUNN
 
 _STATUS_TRANSITIONS = {
     Status.CREATED: frozenset({Status.QUEUED, Status.CANCELLED}),
-    Status.QUEUED: frozenset({Status.RUNNING, Status.CANCELLED}),
+    Status.QUEUED: frozenset({Status.RUNNING, Status.FAILED, Status.CANCELLED}),
     Status.RUNNING: frozenset({Status.SAVING, Status.FAILED, Status.CANCELLED}),
     Status.SAVING: frozenset({Status.COMPLETED, Status.COMPLETED_WITH_WARNINGS, Status.SAVE_FAILED, Status.CANCELLED}),
     Status.SAVE_FAILED: frozenset({Status.SAVING, Status.CANCELLED}),
