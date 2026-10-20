@@ -1,6 +1,6 @@
 # Business API — Core Domain Schema
 
-구현 담당자: 박다솔. 기존 SQLAlchemy 2.x sync + psycopg 3, Base 및 세션 관리 방식을 유지합니다. 현재 Domain schema, 상태 머신, sync Repository와 JWT 인증/인가 기반을 제공합니다. AuthService/로그인 및 조직 범위 Filing/Memo 조회 API를 제공합니다. 분석 API와 Queue 연동은 아직 없습니다.
+구현 담당자: 박다솔. 기존 SQLAlchemy 2.x sync + psycopg 3, Base 및 세션 관리 방식을 유지합니다. 현재 Domain schema, 상태 머신, sync Repository와 JWT 인증/인가 기반을 제공합니다. AuthService/로그인, Memo 텍스트 업로드 및 조직 범위 Filing/Memo 조회 API를 제공합니다. 분석 API와 Queue 연동은 아직 없습니다.
 
 ## 모델과 관계
 
@@ -14,7 +14,7 @@
 | FilingVersion | 공시 FK, 버전과 원문·content_hash |
 | Contract | 공시 FK, 계약 금액과 날짜 |
 | Memo | 조직 FK, 현재 버전; memo_versions |
-| MemoVersion | 메모·작성자 FK, 버전별 본문 |
+| MemoVersion | 메모·작성자 FK, 버전별 본문과 업로드 provenance |
 | AnalysisTask | 조직·요청자·메모 FK, 선택적 공시 캐시 FK; revision_proposals, analysis_events, perspective_tasks, report |
 | RevisionProposal | 작업 FK, 주장 식별자, 영향·수정안·검증상태·근거 |
 | AnalysisPerspectiveTask | 선택된 관점·선택 근거·질문·상태·실행 한도·결과 |
@@ -53,7 +53,7 @@ relationship은 필요한 부모→자식 방향만 추가했습니다. 컬렉�
 
 ## Migration
 
-`alembic/README.md` 참고. revision chain은 `0001_initial_core` → `0002_align_report_flow`입니다. initial migration은 커밋된 이력을 그대로 보존했습니다.
+`alembic/README.md` 참고. revision chain은 `0001_initial_core` → `0002_align_report_flow` → `0003_memo_upload`입니다. initial migration은 커밋된 이력을 그대로 보존했습니다.
 
 ```bash
 # 이 폴더에서 DATABASE_URL 설정 후
@@ -256,3 +256,64 @@ curl -H "Authorization: Bearer $ACCESS_TOKEN" 'http://localhost:8080/api/v1/memo
 ```
 
 PostgreSQL 검증은 test_read_api.py에 있으며 기존 JWT·상태 머신·Repository·migration 회귀 테스트와 함께 실행합니다. 다음 단계의 Analysis 생성 API/RabbitMQ는 이번에 구현하지 않았습니다.
+
+## Memo 텍스트 업로드 및 최초 버전
+
+사용자 입력은 file과 선택적 title뿐입니다. organization_id/created_by는 검증된 current_user에서 가져오며, 회사명/corp_code/receipt_no/버전 번호는 입력 schema에 없습니다. 클라이언트가 추가 form 필드로 전달하더라도 사용하지 않습니다. 파일명은 표시 제목에만 사용하며 Memo.company_name은 항상 NULL로 생성합니다.
+
+```http
+POST /api/v1/memos
+Authorization: Bearer <access_token>
+Content-Type: multipart/form-data
+
+file=<UTF-8 .txt file>
+title=<optional display title>
+```
+
+RA/ANALYST 모두 업로드할 수 있으며 성공 시 HTTP 201입니다. 응답은 Memo 요약(id/title/company_name/current_version/created_at/updated_at)과 original_filename/content_type/size_bytes/content_hash이며 content와 조직 ID는 포함하지 않습니다.
+
+### 파일 정책과 parser 경계
+
+- 실제 지원은 `.txt`(확장자 대소문자 무관)와 `text/plain` MIME의 조합뿐입니다. PDF/DOCX/OCR/Markdown parser는 추가하지 않았습니다.
+- `MEMO_UPLOAD_MAX_BYTES` 기본값은 5242880(5 MiB), 양수 설정입니다. 전송 파일 bytes 기준이며 헤더의 크기를 신뢰하지 않고 Service에서 최대 limit+1 bytes만 읽어 초과를 판정합니다.
+- UTF-8 strict decode를 사용합니다. UTF-8 BOM은 텍스트에서 제거하되 bytes 기준 size/hash에는 포함합니다. UTF-8 외 charset 선언, 잘못된 UTF-8, 빈/공백 원문과 PostgreSQL Text에 저장할 수 없는 NUL 문자는 거부합니다. 나머지 원문의 공백/줄바꿈은 보존합니다.
+- 파일명은 클라이언트 경로를 제거한 basename만 보관하며 255자 이내의 유효한 이름이어야 합니다. 서버 파일 경로로 사용하지 않습니다. MIME은 검증 후 text/plain으로 정규화해 저장합니다.
+- 제목은 입력값의 앞뒤 공백을 제거하여 사용하고 1~500자를 요구합니다. 미입력은 basename의 마지막 확장자만 제거합니다. 회사 식별 값은 추론하지 않습니다.
+- MemoTextExtractor Protocol과 PlainTextMemoExtractor를 분리했습니다. 이후 parser 구현을 주입할 수 있지만 plugin framework나 PDF/DOCX 처리는 없습니다.
+- 원본 binary는 DB/Object Storage에 보존하지 않습니다. FastAPI의 요청 처리용 임시 UploadFile과 별개로 영구 보관하는 것은 추출 text와 metadata/hash뿐입니다. 이 설정은 app의 파일 payload 한도이며 ingress 전체 multipart 요청 제한과는 별개입니다.
+
+### Transaction과 보존
+
+MemoService.create_from_upload가 검증/추출 후 Memo(current_version=1, company_name=NULL)를 add_memo/flush하고 MemoVersion(version=1, created_by=current_user.id)를 add_version/flush한 뒤 한 번 commit합니다. 인증 DB 조회로 이미 autobegin된 요청 Session을 사용하며 다시 session.begin()을 열지 않습니다. 실패하면 Service가 rollback합니다. 이 쓰기 메서드는 요청 transaction을 소유하므로 다른 미커밋 작업과 혼합 호출하지 마세요. Repository는 flush만 수행하며 commit/rollback/close하지 않습니다.
+
+Metadata는 MemoVersion에 original_filename/content_type/size_bytes/content_hash로 보관합니다. SHA-256은 hashlib로 원본 bytes에서 계산하고 global unique를 두지 않아 동일 파일 재업로드를 허용합니다. 기존 버전의 원본 bytes는 없으므로 metadata는 NULL로 유지하고 text에서 raw hash를 추측해 채우지 않습니다.
+
+GET /api/v1/memos와 단건은 company_name=NULL을 반환할 수 있습니다. 버전 목록/상세에 metadata 4개를 추가했으며 오래된 기록은 NULL입니다. 목록에는 content가 없고 특정 버전 상세에만 있습니다. 기존 limit/offset·조직 격리·404 정책은 유지합니다. 새 버전을 기존 Memo에 추가하는 endpoint는 없습니다.
+
+### Migration 적용
+
+`0003_memo_upload`가 Memo.company_name nullable과 MemoVersion metadata 4개 nullable 컬럼, size_bytes>=0 CHECK를 추가합니다. 기존 migration은 수정하지 않았습니다.
+
+```bash
+# Business API 폴더 / DATABASE_URL 설정 후
+.venv/bin/alembic upgrade head
+.venv/bin/alembic check
+```
+
+NULL 회사명이 있거나 metadata가 하나라도 저장되어 있으면 downgrade를 시작 전에 차단합니다. 없는 회사명을 만들어 채우거나 provenance를 자동 삭제하지 않습니다. 필요한 데이터를 보관하고 구 schema로 돌아갈 수 있는 상태로 정리한 경우에만 downgrade할 수 있습니다. 기존 기록처럼 회사명 non-NULL/metadata NULL이면 downgrade 후 재-upgrade가 가능합니다.
+
+| Error code | HTTP |
+| --- | --- |
+| EMPTY_MEMO | 400 |
+| INVALID_MEMO_ENCODING | 400 |
+| INVALID_MEMO_TEXT / INVALID_MEMO_FILENAME / INVALID_MEMO_TITLE | 400 |
+| MEMO_FILE_TOO_LARGE | 413 |
+| UNSUPPORTED_MEMO_FORMAT | 415 |
+
+누락된 file이나 schema 길이 검증 등은 기존 422 응답입니다. MEMO_NOT_FOUND/MEMO_VERSION_NOT_FOUND는 기존 404를 유지합니다.
+
+검증은 test_memo_upload.py와 test_migrations.py에 있습니다. 실제로 독립된 Session에서 commit된 두 레코드의 가시성, 각 flush/commit 실패의 rollback, 조직 간 접근, legacy metadata 및 downgrade 보호를 확인합니다. 테스트 DB와 TEST_ALLOW_SCHEMA_RESET=1은 반드시 폐기 가능한 DB에만 지정하세요.
+
+다음 Analysis 입력은 memo_id와 disclosure_receipt_no입니다. 현재 AnalysisTask.company_name_snapshot은 아직 NOT NULL이므로 기업명을 Agent가 나중에 확정하는 새 플로우에 맞춘 처리는 다음 Analysis 생성 단계에서 별도로 검토해야 합니다. 이번에는 AnalysisTask/RabbitMQ/OpenDART를 변경하거나 구현하지 않았습니다.
+
+구현 참고: [FastAPI UploadFile](https://fastapi.tiangolo.com/tutorial/request-files/), [SQLAlchemy flush/rollback](https://docs.sqlalchemy.org/en/20/orm/session_basics.html#flushing).

@@ -187,7 +187,8 @@ def test_memo_details_and_version_content(read_client, graph, records):
     assert response.json()["current_version"] == 2
     response = read_client.get(base + "/versions")
     assert [row["version"] for row in response.json()] == [1, 2]
-    assert all(set(row) == {"version", "created_by", "created_at"} for row in response.json())
+    assert all(set(row) == {"version", "original_filename", "content_type", "size_bytes", "content_hash", "created_by", "created_at"} for row in response.json())
+    assert all(row["content_hash"] is None for row in response.json())
     assert [row["version"] for row in read_client.get(base + "/versions", params={"limit": 1, "offset": 1}).json()] == [2]
     detail = read_client.get(base + "/versions/1")
     assert detail.json()["content"] == "original"

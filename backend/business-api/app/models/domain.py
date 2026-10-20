@@ -6,7 +6,7 @@ from uuid import UUID
 from typing import Any
 
 from sqlalchemy import (
-    Boolean, CheckConstraint, Date, DateTime, ForeignKey, Index,
+    BigInteger, Boolean, CheckConstraint, Date, DateTime, ForeignKey, Index,
     Integer, Numeric, String, Text, UniqueConstraint, text,
 )
 from sqlalchemy.dialects.postgresql import JSONB
@@ -93,7 +93,7 @@ class Memo(IdentityCreatedMixin, UpdatedMixin, Base):
     )
 
     organization_id: Mapped[UUID] = mapped_column(ForeignKey("core.organizations.id", ondelete="RESTRICT"), index=True)
-    company_name: Mapped[str] = mapped_column(String(255))
+    company_name: Mapped[str | None] = mapped_column(String(255))
     title: Mapped[str] = mapped_column(String(500))
     current_version: Mapped[int] = mapped_column(Integer, default=1, server_default=text("1"))
     memo_versions: Mapped[list[MemoVersion]] = relationship(passive_deletes="all", order_by="MemoVersion.version")
@@ -104,12 +104,18 @@ class MemoVersion(IdentityCreatedMixin, Base):
     __table_args__ = (
         UniqueConstraint("memo_id", "version", name="uq_memo_versions_memo_version"),
         CheckConstraint("version >= 1", name="ck_memo_versions_version_positive"),
+        CheckConstraint("size_bytes >= 0", name="ck_memo_versions_size_nonnegative"),
         {"schema": CORE_SCHEMA},
     )
 
     memo_id: Mapped[UUID] = mapped_column(ForeignKey("core.memos.id", ondelete="RESTRICT"))
     version: Mapped[int] = mapped_column(Integer)
     content: Mapped[str] = mapped_column(Text)
+    # NULL preserves unknown provenance for pre-upload legacy versions.
+    original_filename: Mapped[str | None] = mapped_column(String(255))
+    content_type: Mapped[str | None] = mapped_column(String(255))
+    size_bytes: Mapped[int | None] = mapped_column(BigInteger)
+    content_hash: Mapped[str | None] = mapped_column(String(64))
     created_by: Mapped[UUID] = mapped_column(ForeignKey("core.users.id", ondelete="RESTRICT"))
 
 

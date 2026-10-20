@@ -37,3 +37,9 @@ Approval 테이블 데이터는 삭제되며 downgrade로 복구되지 않습니
 `alembic downgrade 0001_initial_core`는 새 보고서·관점 데이터가 있거나 filing_id가 NULL인 작업·새 전용 상태가 있으면 사전 guard로 중단합니다. 보호 대상 결과를 보관하고 호환성을 확보한 경우에만 되돌릴 수 있습니다. 성공해도 신규 snapshot/stage/warning 컬럼은 삭제되며 승인 테이블은 빈 상태로만 재생성됩니다. 완전한 데이터 복구를 제공하는 downgrade가 아닙니다.
 
 빈 DB에서는 `upgrade head → downgrade base → upgrade head`가 가능합니다. 테스트는 빈 DB 왕복 외에도 이전 승인 이력이 있는 DB의 upgrade/backfill, 실패 시 transaction rollback, 안전한 downgrade 거부 및 호환 데이터의 재-upgrade를 검증합니다.
+
+## 0003_memo_upload
+
+Memo.company_name을 nullable로 바꾸며 업로드 시 회사를 추측하지 않습니다. MemoVersion에 original_filename/content_type/size_bytes/content_hash nullable 컬럼을 추가하고 size_bytes>=0 CHECK를 둡니다. 과거 기록은 원본 bytes를 알 수 없어 metadata를 NULL로 유지합니다. content_hash에는 unique가 없습니다.
+
+기존 0001/0002를 수정하지 않습니다. 기존 회사명/본문은 그대로 보존합니다. NULL 회사명 또는 metadata가 있는 기록이 존재하면 downgrade는 DDL 전에 중단합니다. 임의 회사명 backfill과 파일 provenance의 조용한 삭제는 하지 않습니다. 호환 legacy 데이터와 빈 DB에서는 downgrade/re-upgrade를 검증했습니다.

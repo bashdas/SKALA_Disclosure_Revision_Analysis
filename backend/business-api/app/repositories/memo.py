@@ -48,3 +48,14 @@ class MemoRepository:
         if company_name is not None:
             query = query.where(Memo.company_name == company_name)
         return list(self.session.scalars(query.order_by(Memo.updated_at.desc(), Memo.id.desc()).limit(limit).offset(offset)))
+
+
+    def add_memo(self, memo: Memo) -> Memo:
+        self.session.add(memo)
+        self.session.flush()
+        return memo
+
+    def add_version(self, version: MemoVersion) -> MemoVersion:
+        self.session.add(version)
+        self.session.flush()
+        return version

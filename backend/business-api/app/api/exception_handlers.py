@@ -3,6 +3,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
 from app.domain.auth_exceptions import AuthError
+from app.domain.memo_upload_exceptions import MemoUploadError
 from app.domain.resource_exceptions import ResourceNotFound
 
 
@@ -25,7 +26,12 @@ async def resource_not_found_handler(request: Request, exc: ResourceNotFound) ->
     return JSONResponse(status_code=404, content={"error": {"code": exc.code, "message": exc.message}})
 
 
+async def memo_upload_error_handler(request: Request, exc: MemoUploadError) -> JSONResponse:
+    return JSONResponse(status_code=exc.status_code, content={"error": {"code": exc.code, "message": exc.message}})
+
+
 def install_exception_handlers(app: FastAPI) -> None:
     app.add_exception_handler(AuthError, auth_error_handler)
+    app.add_exception_handler(MemoUploadError, memo_upload_error_handler)
     app.add_exception_handler(ResourceNotFound, resource_not_found_handler)
     app.add_exception_handler(RequestValidationError, validation_error_handler)

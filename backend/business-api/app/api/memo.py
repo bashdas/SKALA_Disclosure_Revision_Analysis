@@ -1,13 +1,13 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Path, Query
+from fastapi import APIRouter, Depends, File, Form, Path, Query, UploadFile
 
 from app.api.dependencies import get_memo_service, require_roles
 from app.models.enums import UserRole
 from app.schemas.auth import CurrentUser
 from app.schemas.memo import (
-    MemoDetailResponse, MemoSummaryResponse,
+    MemoDetailResponse, MemoSummaryResponse, MemoUploadResponse,
     MemoVersionDetailResponse, MemoVersionSummaryResponse,
 )
 from app.services.memo import MemoService
@@ -37,3 +37,11 @@ def list_versions(memo_id: UUID, user: Reader, service: Service, limit: Limit = 
 @router.get("/{memo_id}/versions/{version}", response_model=MemoVersionDetailResponse)
 def get_version(memo_id: UUID, version: Annotated[int, Path(ge=1, le=2147483647)], user: Reader, service: Service) -> MemoVersionDetailResponse:
     return MemoVersionDetailResponse.model_validate(service.get_version(memo_id, version, user.organization_id))
+
+
+@router.post("", response_model=MemoUploadResponse, status_code=201)
+def upload_memo(user: Reader, service: Service, file: Annotated[UploadFile, File()], title: Annotated[str | None, Form(max_length=500)] = None) -> MemoUploadResponse:
+    return service.create_from_upload(
+        stream=file.file, filename=file.filename, content_type=file.content_type,
+        organization_id=user.organization_id, created_by=user.id, title=title,
+    )

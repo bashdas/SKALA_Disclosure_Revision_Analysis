@@ -136,7 +136,7 @@ docker compose exec business-api alembic check
 curl -f http://localhost:8080/health/db
 ```
 
-`env.py`가 앱과 동일한 설정으로 URL을 읽고 `app.models`를 import하여 `Base.metadata`에 연결합니다. 새 모델은 `app/models/__init__.py`에서 명시적으로 import해야 합니다. 13개 업무 모델과 `0001_initial_core` → `0002_align_report_flow` revision chain이 있습니다. 업무 테이블은 `core` schema에 생성하며 autogenerate는 core만 비교합니다. RAG/checkpoint/public의 다른 테이블은 제외합니다. `create_all`은 사용하지 않습니다. 상세 nullable·unique·삭제 정책과 PostgreSQL 모델/migration 테스트는 [Business API README](business-api/README.md)를 참고하세요.
+`env.py`가 앱과 동일한 설정으로 URL을 읽고 `app.models`를 import하여 `Base.metadata`에 연결합니다. 새 모델은 `app/models/__init__.py`에서 명시적으로 import해야 합니다. 13개 업무 모델과 `0001_initial_core` → `0002_align_report_flow` → `0003_memo_upload` revision chain이 있습니다. 업무 테이블은 `core` schema에 생성하며 autogenerate는 core만 비교합니다. RAG/checkpoint/public의 다른 테이블은 제외합니다. `create_all`은 사용하지 않습니다. 상세 nullable·unique·삭제 정책과 PostgreSQL 모델/migration 테스트는 [Business API README](business-api/README.md)를 참고하세요.
 
 ### PostgreSQL 테스트
 
@@ -151,3 +151,5 @@ TEST_DATABASE_URL="$DATABASE_URL" .venv/bin/python -m pytest -q
 통합 테스트는 일반 개발·운영 DB가 아닌 전용 테스트 DB를 사용하세요. migration을 적용하므로 공유 DB를 지정하지 마세요. `TEST_DATABASE_URL` 미설정 시 PostgreSQL 연결·모델 테스트는 skip합니다. downgrade 왕복 테스트는 추가로 `TEST_ALLOW_SCHEMA_RESET=1`이 필요합니다. 잘못된 password가 거부되는 password 인증 DB여야 합니다. 테스트는 연결, health, 트랜잭션 정리, 업무 제약조건, Alembic 비교를 확인합니다. 업무 테이블은 migration으로 생성하고 모델 테스트 데이터는 rollback합니다.
 
 구현 근거: [SQLAlchemy Session 관리](https://docs.sqlalchemy.org/en/20/orm/session_basics.html), [Alembic metadata 연결](https://alembic.sqlalchemy.org/en/latest/autogenerate.html).
+
+Memo 업로드는 POST /api/v1/memos의 multipart file/title로 제공하며 UTF-8 .txt/text/plain, 기본 5 MiB 한도를 사용합니다. 회사명은 추측하지 않고 NULL로 저장합니다. 적용 전에 Alembic upgrade head가 필요합니다. 상세 정책과 transaction/metadata는 [Business API README](business-api/README.md)를 참고하세요.

@@ -70,5 +70,5 @@ def get_filing_service(session: Annotated[Session, Depends(get_db)]) -> FilingSe
     return FilingService(FilingRepository(session))
 
 
-def get_memo_service(session: Annotated[Session, Depends(get_db)]) -> MemoService:
-    return MemoService(MemoRepository(session))
+def get_memo_service(session: Annotated[Session, Depends(get_db)], settings: Annotated[Settings, Depends(get_settings)]) -> MemoService:
+    return MemoService(MemoRepository(session), max_upload_bytes=settings.memo_upload_max_bytes)

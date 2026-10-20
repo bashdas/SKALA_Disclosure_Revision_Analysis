@@ -4,6 +4,7 @@ from pathlib import Path
 import pytest
 from alembic import command
 from alembic.config import Config
+from alembic.script import ScriptDirectory
 from sqlalchemy import create_engine, inspect, text
 
 from app.core.database import Base
@@ -160,8 +161,54 @@ def test_downgrade_guards_preserve_new_flow_data(legacy_database, incompatibilit
     with pytest.raises(DBAPIError, match="before downgrading"):
         command.downgrade(config, "0001_initial_core")
     with engine.connect() as connection:
-        assert connection.execute(text("SELECT version_num FROM public.alembic_version")).scalar_one() == "0002_align_report_flow"
+        assert connection.execute(text("SELECT version_num FROM public.alembic_version")).scalar_one() == ScriptDirectory.from_config(config).get_current_head()
         if incompatibility == "report":
             assert connection.execute(text("SELECT content FROM core.analysis_reports")).scalar_one() == "Keep generated output"
         if incompatibility == "perspective":
             assert connection.execute(text("SELECT selection_reason FROM core.analysis_perspective_tasks")).scalar_one() == "Keep reason"
+
+
+@pytest.mark.postgres
+def test_upload_metadata_migration_preserves_legacy_and_roundtrips(legacy_database):
+    engine, config, ids = legacy_database
+    command.upgrade(config, "0002_align_report_flow")
+    command.upgrade(config, "head")
+    command.check(config)
+    assert next(column for column in inspect(engine).get_columns("memos", schema="core") if column["name"] == "company_name")["nullable"]
+    with engine.connect() as connection:
+        row = connection.execute(text("SELECT content,original_filename,content_type,size_bytes,content_hash FROM core.memo_versions WHERE id=:version"), ids).mappings().one()
+        assert row["content"] == "Original content"
+        assert all(row[key] is None for key in ("original_filename", "content_type", "size_bytes", "content_hash"))
+        assert connection.execute(text("SELECT company_name FROM core.memos WHERE id=:memo"), ids).scalar_one() == "Legacy Company"
+    command.downgrade(config, "0002_align_report_flow")
+    assert "content_hash" not in {column["name"] for column in inspect(engine).get_columns("memo_versions", schema="core")}
+    assert not next(column for column in inspect(engine).get_columns("memos", schema="core") if column["name"] == "company_name")["nullable"]
+    command.upgrade(config, "head")
+    command.check(config)
+
+
+@pytest.mark.postgres
+@pytest.mark.parametrize("field,value", [("company_name", None), ("original_filename", "memo.txt"), ("content_type", "text/plain"), ("size_bytes", 4), ("content_hash", "a" * 64)])
+def test_upload_downgrade_cannot_fabricate_company_or_lose_metadata(legacy_database, field, value):
+    from sqlalchemy.exc import DBAPIError
+    engine, config, ids = legacy_database
+    command.upgrade(config, "head")
+    table, key = ("memos", "memo") if field == "company_name" else ("memo_versions", "version")
+    with engine.begin() as connection:
+        connection.execute(text(f"UPDATE core.{table} SET {field}=:value WHERE id=:id"), {"value": value, "id": ids[key]})
+    with pytest.raises(DBAPIError, match="Archive upload metadata"):
+        command.downgrade(config, "0002_align_report_flow")
+    with engine.connect() as connection:
+        assert connection.execute(text("SELECT version_num FROM public.alembic_version")).scalar_one() == "0003_memo_upload"
+        assert connection.execute(text(f"SELECT {field} FROM core.{table} WHERE id=:id"), {"id": ids[key]}).scalar_one() == value
+
+
+@pytest.mark.postgres
+def test_memo_metadata_size_constraint(legacy_database):
+    from sqlalchemy.exc import IntegrityError
+    engine, config, ids = legacy_database
+    command.upgrade(config, "head")
+    with pytest.raises(IntegrityError) as error:
+        with engine.begin() as connection:
+            connection.execute(text("UPDATE core.memo_versions SET size_bytes=-1 WHERE id=:version"), ids)
+    assert error.value.orig.diag.constraint_name == "ck_memo_versions_size_nonnegative"
