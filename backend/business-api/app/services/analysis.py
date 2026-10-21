@@ -37,9 +37,9 @@ class AnalysisService:
             if self.memos.get_version(memo.id, version, organization_id=organization_id) is None:
                 raise MemoVersionNotFound()
             filing = FilingRepository(self.session).get_by_receipt_no_and_organization(disclosure_receipt_no, organization_id)
-            # 분석 대상은 서버가 원문과 메타데이터를 확인한 등록 공시로 제한합니다.
-            if filing is None or not filing.is_registered:
-                raise DisclosureError("REGISTERED_FILING_REQUIRED", "원문을 확인해 등록한 공시만 분석할 수 있습니다.", 422)
+            # 분석 대상은 서버가 원문과 메타데이터를 확인한 등록 정정공시로 제한합니다.
+            if filing is None or not filing.is_registered or not filing.is_correction:
+                raise DisclosureError("CORRECTION_REQUIRED", "등록한 정정공시만 분석할 수 있습니다.", 422)
             duplicate = self.analyses.find_active_duplicate(organization_id, memo.id, version, disclosure_receipt_no)
             if duplicate is not None:
                 raise AnalysisAlreadyRunning(duplicate.id)

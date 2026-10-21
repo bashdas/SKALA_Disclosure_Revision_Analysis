@@ -426,11 +426,12 @@ export function createHttpServices(): Services {
       list: loadMemos,
       async get(id) { return loadMemo(await request<MemoRow>(`/memos/${id}`)) },
       async remove(id) { await request<void>(`/memos/${id}`, {method:'DELETE'}); memoLoad=undefined },
-      async upload(file, title) {
+      async upload(file, title, companyId) {
         await readMemoFile(file)
         const form = new FormData()
         form.append('file', file)
         if (title !== undefined) form.append('title', title)
+        if (companyId !== undefined) form.append('company_id', companyId)
         const row = await request<MemoRow>('/memos', { method: 'POST', body: form })
         const memo = await loadMemo(row)
         memoLoad = undefined
@@ -454,7 +455,7 @@ export function createHttpServices(): Services {
       },
       async start(input) {
         const filing = (await loadFilings()).find((f) => f.id === input.filingId)
-        if (!filing) throw new Error('등록한 공시를 선택하세요.')
+        if (!filing?.isCorrection) throw new Error('정정공시만 분석할 수 있습니다.')
         const receiptNo = filing.receiptNo
         if (!receiptNo || !/^(?:[0-9]{14}|SEC:[0-9]{1,10}:[0-9]{10}-[0-9]{2}-[0-9]{6})$/.test(receiptNo))
           throw new Error('유효한 공시 접수번호가 필요합니다.')

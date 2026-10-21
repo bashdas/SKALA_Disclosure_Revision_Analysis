@@ -1,7 +1,11 @@
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
+
+
+class MemoCompanyRequest(BaseModel):
+    company_id: str = Field(pattern=r"^(?:[0-9]{8}|SEC:[0-9]{1,10})$")
 
 
 class MemoSummaryResponse(BaseModel):

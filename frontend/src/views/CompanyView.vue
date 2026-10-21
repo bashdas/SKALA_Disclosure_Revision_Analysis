@@ -10,6 +10,7 @@ import {
   Check,
   Activity,
   Trash2,
+  Search,
 } from 'lucide-vue-next'
 import { useWorkspace } from '../stores/workspace'
 import { date, disclosureUrl } from '../lib/format'
@@ -136,7 +137,7 @@ async function selectFiling(filing: Filing, analyze = false) {
     const existing = store.filings.find((f) => f.receiptNo === filing.receiptNo)
     const registered = existing ?? (await registerDisclosure(filing.receiptNo))
     await store.refresh()
-    if (analyze) preferredFiling.value = registered.id
+    if (analyze && filing.isCorrection) preferredFiling.value = registered.id
     else store.openFiling(registered.id)
   } catch (e) {
     error.value = e instanceof Error ? e.message : '공시를 불러오지 못했습니다.'
@@ -144,10 +145,13 @@ async function selectFiling(filing: Filing, analyze = false) {
     busy.value = ''
   }
 }
-async function deleteMemo(id:string, title:string) {
-  if(!window.confirm(`‘${title}’ 메모를 삭제할까요? 기존 분석의 기준 원문은 보존됩니다.`))return
-  try { await store.deleteMemo(id) }
-  catch(e) { error.value=e instanceof Error?e.message:'메모 삭제 실패' }
+async function deleteMemo(id: string, title: string) {
+  if (!window.confirm(`‘${title}’ 메모를 삭제할까요? 기존 분석의 기준 원문은 보존됩니다.`)) return
+  try {
+    await store.deleteMemo(id)
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : '메모 삭제 실패'
+  }
 }
 async function remove(filing: Filing) {
   try {
@@ -191,9 +195,7 @@ onBeforeUnmount(() => {
   clearTimeout(debounce)
   clearInterval(timer)
 })
-const companyMemos = computed(() =>
-  store.memos.filter((m) => m.companyName === company.value?.name || m.companyName === null),
-)
+const companyMemos = computed(() => store.memosForCompany(String(route.params.companyId)))
 const filteredMemos = computed(() =>
   companyMemos.value.filter((m) => m.title.includes(memoSearch.value)),
 )
@@ -233,29 +235,36 @@ const tabs = computed(() => [
         }}<span>{{ item.count }}</span></RouterLink
       >
     </nav>
-    <p v-if="error && tab!=='filings'" class="inline-warning" role="alert">{{error}}</p>
+    <p v-if="error && tab !== 'filings'" class="inline-warning" role="alert">{{ error }}</p>
     <div class="detail-layout">
       <section class="document-section" aria-label="기업 자료">
         <template v-if="tab === 'filings'">
-          <div class="list-heading">
+          <div class="list-heading filing-heading">
             <h2>공시 업데이트</h2>
             <span class="small muted">최신순 , {{ companyFilings.length }}건</span>
           </div>
-          <form class="list-heading" @submit.prevent="load(true)">
-            <label class="sr-only" for="filing-search">공시 검색</label
-            ><input
-              id="filing-search"
-              v-model="search"
-              class="compact-search"
-              type="search"
-              placeholder="공시 검색"
-              maxlength="100"
-            />
-            <label>시작일<input v-model="start" type="date" :max="end" /></label
-            ><label
-              >종료일<input v-model="end" type="date" :min="start" :max="koreaDate()"
+          <form class="filing-filters" aria-label="공시 검색 필터" @submit.prevent="load(true)">
+            <label class="filing-search" for="filing-search">
+              <span>공시 검색</span>
+              <span class="filing-search-control">
+                <Search :size="16" aria-hidden="true" />
+                <input
+                  id="filing-search"
+                  v-model="search"
+                  type="search"
+                  placeholder="공시명으로 검색"
+                  maxlength="100"
+                />
+              </span>
+            </label>
+            <label
+              ><span>시작일</span><input v-model="start" type="date" :max="end" required
             /></label>
-            <button class="text-button" type="submit" :disabled="loading">검색</button>
+            <label
+              ><span>종료일</span
+              ><input v-model="end" type="date" :min="start" :max="koreaDate()" required
+            /></label>
+            <button class="button secondary" type="submit" :disabled="loading">검색</button>
           </form>
           <p v-if="error" class="inline-warning" role="alert">{{ error }}</p>
           <article v-for="filing in companyFilings" :key="filing.id" class="document-row">
@@ -274,7 +283,7 @@ const tabs = computed(() => [
               <button
                 class="document-title"
                 :disabled="!!busy"
-                @click="selectFiling(filing, true)"
+                @click="selectFiling(filing, filing.isCorrection)"
               >
                 {{ filing.title }}
               </button>
@@ -282,24 +291,25 @@ const tabs = computed(() => [
                 {{ date(filing.filedAt) }} <span class="dot-separator">,</span>
                 {{ filing.receiptNo ?? '접수번호 미확인' }}
               </p>
-              <div class="row-actions">
-                <button class="text-button" :disabled="!!busy" @click="selectFiling(filing)">
-                  내용 확인 <ArrowUpRight :size="13" /></button
-                ><button
-                  class="text-button"
-                  :disabled="!!busy"
-                  @click="selectFiling(filing, true)"
-                >
-                  분석에 사용 <Sparkles :size="13" />
-                </button>
-                <button
-                  v-if="store.filings.some((f) => f.id === filing.id)"
-                  class="text-button"
-                  @click="remove(filing)"
-                >
-                  등록 해제
-                </button>
-              </div>
+            </div>
+            <div class="document-actions">
+              <button class="text-button" :disabled="!!busy" @click="selectFiling(filing)">
+                내용 확인 <ArrowUpRight :size="13" /></button
+              ><button
+                v-if="filing.isCorrection"
+                class="text-button"
+                :disabled="!!busy"
+                @click="selectFiling(filing, filing.isCorrection)"
+              >
+                분석에 사용 <Sparkles :size="13" />
+              </button>
+              <button
+                v-if="store.filings.some((f) => f.id === filing.id)"
+                class="text-button"
+                @click="remove(filing)"
+              >
+                등록 해제
+              </button>
             </div>
           </article>
           <div ref="sentinel" class="loading-state" role="status">
@@ -328,8 +338,7 @@ const tabs = computed(() => [
             <span class="document-icon"><StickyNote :size="20" /></span>
             <div class="document-info">
               <div class="inline-meta">
-                <span class="tag">사내 메모</span
-                ><span
+                <span
                   v-if="store.unread({ kind: 'memo', id: memo.id, version: memo.currentVersion })"
                   class="new-dot"
                   >NEW</span
@@ -342,10 +351,18 @@ const tabs = computed(() => [
                 {{ date(memo.updatedAt) }} , v{{ memo.currentVersion }} ,
                 {{ memo.versions.length }}개 버전
               </p>
+            </div>
+            <div class="document-actions">
               <button class="text-button" @click="store.openMemo(memo.id)">
                 본문,버전 확인 <ArrowUpRight :size="13" />
               </button>
-              <button class="text-button" :aria-label="`${memo.title} 삭제`" @click="deleteMemo(memo.id,memo.title)"><Trash2 :size="13" />삭제</button>
+              <button
+                class="text-button"
+                :aria-label="`${memo.title} 삭제`"
+                @click="deleteMemo(memo.id, memo.title)"
+              >
+                <Trash2 :size="13" />삭제
+              </button>
             </div>
           </article>
           <EmptyState
@@ -362,7 +379,6 @@ const tabs = computed(() => [
         <template v-else>
           <div class="list-heading">
             <h2>저장된 분석 보고서</h2>
-            <span class="small muted">서버에 저장된 분석 결과</span>
           </div>
           <article v-for="report in companyReports" :key="report.id" class="document-row">
             <span class="document-icon mint"><Sparkles :size="20" /></span>
@@ -379,6 +395,8 @@ const tabs = computed(() => [
                 report.title
               }}</RouterLink>
               <p class="small muted">{{ date(report.savedAt) }} , 원본 메모 보존</p>
+            </div>
+            <div class="document-actions">
               <RouterLink class="text-button" :to="`/analyses/${report.taskId}`"
                 >결과 확인 <ArrowUpRight :size="13"
               /></RouterLink>

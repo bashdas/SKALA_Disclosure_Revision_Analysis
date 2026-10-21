@@ -1,9 +1,14 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onUnmounted, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 import { Star, FileText, Sparkles } from 'lucide-vue-next'
 import { useWorkspace } from '../stores/workspace'
-import { favoriteCompany, removeFavorite } from '../services/catalog'
+import {
+  favoriteCompany,
+  removeFavorite,
+  getCompanyUpdates,
+  type CompanyUpdate,
+} from '../services/catalog'
 import { getWatchlistQuotes, type WatchlistQuote } from '../services/market'
 import type { Company } from '../types/domain'
 import { date } from '../lib/format'
@@ -28,6 +33,50 @@ async function toggleFavorite(company: Company) {
   } finally {
     busy.value = ''
   }
+}
+const updates = ref<Record<string, CompanyUpdate>>({})
+let updateGeneration = 0
+async function refreshUpdates() {
+  const generation = ++updateGeneration
+  await getCompanyUpdates(props.companies, (id, value) => {
+    if (generation === updateGeneration) updates.value[id] = value
+  })
+}
+watch(() => props.companies.map((c) => c.id + ':' + c.code).join(','), refreshUpdates, {
+  immediate: true,
+})
+const updateTimer = setInterval(refreshUpdates, 300_000)
+onUnmounted(() => {
+  clearInterval(updateTimer)
+  updateGeneration++
+})
+function updateCount(id: string, kind: 'filing' | 'memo' | 'report') {
+  if (kind === 'filing')
+    return (
+      updates.value[id]?.filingCount ??
+      (updates.value[id]?.filingStatus === 'error'
+        ? '조회 실패'
+        : updates.value[id]
+          ? '확인 불가'
+          : '조회 중')
+    )
+  if (kind === 'memo') return store.memosForCompany(id).length
+  return store.savedReports.filter(
+    (r) => store.tasks.find((t) => t.id === r.taskId)?.companyId === id,
+  ).length
+}
+function latestUpdate(id: string) {
+  const latest = [companyDetails.value[id]?.latest, updates.value[id]?.latest]
+    .filter(Boolean)
+    .sort()
+    .at(-1)
+  if (latest) return '최근 업데이트 ' + date(latest)
+  const update = updates.value[id]
+  return !update
+    ? '공시 조회 중'
+    : update.filingStatus === 'error'
+      ? '공시 조회 실패'
+      : '최근 90일 공시 없음'
 }
 const categories = [
   { kind: 'filing', tab: 'filings', label: '공시' },
@@ -54,30 +103,52 @@ const companyDetails = computed(() =>
   ),
 )
 const quotes = ref<Record<string, WatchlistQuote>>({})
-onMounted(async () => {
+const quoteError = ref(false)
+const quoteLoading = ref(false)
+let generation = 0
+async function refreshQuotes() {
+  const current = ++generation
+  quoteLoading.value = true
+  quoteError.value = false
   try {
-    quotes.value = await getWatchlistQuotes()
+    const result = await getWatchlistQuotes(props.companies)
+    if (current === generation) quotes.value = result
   } catch {
-    // Unavailable quotes stay empty; never turn missing market data into zero.
-    quotes.value = {}
+    if (current === generation) quoteError.value = true
+  } finally {
+    if (current === generation) quoteLoading.value = false
   }
-})
-const number = new Intl.NumberFormat('ko-KR', { maximumFractionDigits: 1 })
-function price(value?: number) {
-  return value == null ? '미제공' : `${number.format(value)}원`
 }
-function amount(value?: number) {
-  if (value == null) return '미제공'
+watch(() => props.companies.map((c) => c.id + ':' + c.code).join(','), refreshQuotes, {
+  immediate: true,
+})
+const refreshTimer = setInterval(refreshQuotes, 60_000)
+onUnmounted(() => {
+  clearInterval(refreshTimer)
+  generation++
+})
+const missingQuote = computed(() =>
+  quoteLoading.value ? '조회 중' : quoteError.value ? '조회 실패' : '시세 없음',
+)
+const number = new Intl.NumberFormat('ko-KR', { maximumFractionDigits: 1 })
+function price(value?: number | null) {
+  return value == null ? missingQuote.value : `${number.format(value)}원`
+}
+function amount(value?: number | null) {
+  if (value == null) return missingQuote.value
   return value >= 1_000_000_000_000
     ? `${number.format(value / 1_000_000_000_000)}조원`
     : `${number.format(value / 100_000_000)}억원`
 }
-function change(value?: number) {
-  return value == null ? '미제공' : `${value > 0 ? '+' : ''}${value.toFixed(2)}%`
+function change(value?: number | null) {
+  return value == null ? missingQuote.value : `${value > 0 ? '+' : ''}${value.toFixed(2)}%`
 }
 </script>
 <template>
   <p v-if="error" class="field-error" role="alert">{{ error }}</p>
+  <p v-if="quoteError" class="field-error" role="alert">
+    시세 갱신에 실패했습니다. 기존 수신 값이 있으면 유지하며 1분 후 재시도합니다.
+  </p>
   <div
     v-if="companies.length"
     class="watchlist-table-scroll"
@@ -149,17 +220,9 @@ function change(value?: number) {
                 <span
                   v-if="directory"
                   class="directory-last-update"
-                  :title="
-                    companyDetails[company.id]?.latest
-                      ? '최근 업데이트 ' + date(companyDetails[company.id]?.latest)
-                      : '등록된 자료 없음'
-                  "
+                  :title="latestUpdate(company.id)"
                 >
-                  {{
-                    companyDetails[company.id]?.latest
-                      ? date(companyDetails[company.id]?.latest)
-                      : '등록된 자료 없음'
-                  }}
+                  {{ latestUpdate(company.id) }}
                 </span>
                 <div
                   v-if="
@@ -206,10 +269,10 @@ function change(value?: number) {
                 :to="{ path: `/companies/${company.id}`, query: { tab: category.tab } }"
                 class="directory-update"
                 :class="{ unread: store.countUnread(company.id, category.kind) > 0 }"
-                :aria-label="`${company.name} ${category.label} 업데이트 ${store.countUnread(company.id, category.kind)}건`"
+                :aria-label="`${company.name} ${category.label} ${updateCount(company.id, category.kind)}건`"
                 :data-testid="`${company.id}-${category.kind}-badge`"
                 >{{ category.label }}
-                <span>{{ store.countUnread(company.id, category.kind) }}</span></RouterLink
+                <span>{{ updateCount(company.id, category.kind) }}</span></RouterLink
               >
             </div>
             <StatusPill
@@ -218,7 +281,15 @@ function change(value?: number) {
             />
           </td>
           <td>
-            <span class="watchlist-sector">{{ company.sector }}</span>
+            <span class="watchlist-sector">{{
+              updates[company.id]?.sector ||
+              company.sector ||
+              (!updates[company.id]
+                ? '조회 중'
+                : updates[company.id]?.sectorStatus === 'error'
+                  ? '조회 실패'
+                  : '분류 없음')
+            }}</span>
           </td>
         </tr>
       </tbody>

@@ -14,6 +14,7 @@ from app.api.user import router as user_router
 from app.api.filing import router as filing_router
 from app.api.disclosure import router as disclosure_router
 from app.api.memo import router as memo_router
+from app.api.market import router as market_router
 from app.api.exception_handlers import install_exception_handlers
 from app.core.config import get_settings
 from app.core.database import DatabaseConfigurationError, get_db
@@ -40,6 +41,7 @@ app.include_router(user_router)
 app.include_router(filing_router)
 app.include_router(disclosure_router)
 app.include_router(memo_router)
+app.include_router(market_router)
 
 
 @app.get("/health", response_model=HealthResponse)

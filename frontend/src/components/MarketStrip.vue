@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
+import MarketSparkline from './MarketSparkline.vue'
+import { getMarketIndices, type MarketSnapshot } from '../services/market'
 
 const groups = [
   { id: 'all', label: '전체' },
@@ -8,7 +10,7 @@ const groups = [
   { id: 'fx-rates', label: '환율, 금리' },
   { id: 'commodities', label: '원자재' },
 ]
-const quotes = [
+const instruments = [
   ['KOSPI', '코스피', 'domestic', 'pt'],
   ['KOSDAQ', '코스닥', 'domestic', 'pt'],
   ['KOSPI 200', '코스피 200', 'domestic', 'pt'],
@@ -18,22 +20,83 @@ const quotes = [
   ['USD/KRW', '달러 환율', 'fx-rates', 'KRW'],
   ['DXY', 'DXY', 'fx-rates', 'pt'],
   ['미국채 10Y', '미국채 10년', 'fx-rates', '금리'],
-  ['WTI', 'WTI', 'commodities', 'USD/bbl'],
-  ['GOLD', '금', 'commodities', 'USD/oz'],
-  ['COPPER', '구리', 'commodities', 'USD/t'],
-].map(([name, label, group, unit]) => ({
-  name: name!,
-  label: label!,
-  group: group!,
-  unit: unit!,
-  value: '미제공',
-  change: '',
-  up: false,
-}))
+  ['WTI', 'WTI 선물', 'commodities', 'USD/bbl'],
+  ['GOLD', '금 선물', 'commodities', 'USD/oz'],
+  ['COPPER', '구리 선물', 'commodities', 'USD/t'],
+]
+const snapshot = shallowRef<MarketSnapshot | null>(null)
+const loading = ref(true),
+  error = ref('')
+let timer: ReturnType<typeof setInterval> | undefined
+let stopped = false
+const pending = ref(false)
+async function refresh() {
+  if (pending.value) return
+  pending.value = true
+  try {
+    const data = await getMarketIndices()
+    if (!stopped) {
+      snapshot.value = data
+      error.value = ''
+    }
+  } catch {
+    if (!stopped)
+      error.value = snapshot.value
+        ? '갱신 실패, 이전 수신 값을 표시합니다.'
+        : '시장 지표를 불러오지 못했습니다.'
+  } finally {
+    pending.value = false
+    if (!stopped) loading.value = false
+  }
+}
+onMounted(() => {
+  void refresh()
+  timer = setInterval(() => {
+    void refresh()
+  }, 60000)
+})
+onUnmounted(() => {
+  stopped = true
+  clearInterval(timer)
+})
+const quotes = computed(() =>
+  instruments.map(([name, label, group, unit]) => {
+    const quote = snapshot.value?.items.find((item) => item.name === name)
+    const change = name === '미국채 10Y' ? quote?.change_bp : quote?.change_percent
+    return {
+      name: name!,
+      label: label!,
+      group: group!,
+      unit: unit!,
+      value:
+        quote?.value == null
+          ? loading.value
+            ? '조회 중'
+            : '미제공'
+          : quote.value.toLocaleString('ko-KR', {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            }) + (name === '미국채 10Y' ? '%' : ''),
+      change:
+        change == null
+          ? ''
+          : `${change > 0 ? '+' : ''}${change.toFixed(2)}${name === '미국채 10Y' ? 'bp' : '%'}`,
+      direction: change == null || change === 0 ? '' : change > 0 ? 'up' : 'down',
+      series: quote?.series ?? [],
+      baseline: quote?.previous_close ?? 0,
+      description: quote?.as_of
+        ? `일별 자료 기준 ${new Date(quote.as_of).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })} KST`
+        : '수신한 시세 자료가 없습니다.',
+    }
+  }),
+)
+const unavailable = computed(
+  () => snapshot.value?.items.filter((q) => q.status === 'unavailable').length ?? 0,
+)
 const selected = ref<string>('all'),
   rail = ref<HTMLElement | null>(null)
 const filtered = computed(() =>
-  quotes.filter((item) => selected.value === 'all' || item.group === selected.value),
+  quotes.value.filter((item) => selected.value === 'all' || item.group === selected.value),
 )
 const featured = computed(() => (selected.value === 'all' ? filtered.value[0] : undefined))
 const secondary = computed(() => (featured.value ? filtered.value.slice(1) : filtered.value))
@@ -53,7 +116,7 @@ function onWheel(event: WheelEvent) {
 watch(selected, () => rail.value?.scrollTo({ left: 0 }))
 </script>
 <template>
-  <section class="market-strip" aria-label="시장 지표">
+  <section class="market-strip" aria-label="시장 지표" :aria-busy="loading">
     <div class="market-toolbar">
       <div class="market-filters" role="group" aria-label="시장 지표 분류">
         <button
@@ -75,7 +138,12 @@ watch(selected, () => rail.value?.scrollTo({ left: 0 }))
       @wheel="onWheel"
     >
       <div class="market-board" :class="{ 'has-featured': featured }">
-        <article v-if="featured" class="market-item market-featured">
+        <article
+          v-if="featured"
+          class="market-item market-featured"
+          :class="featured.direction"
+          :title="featured.description"
+        >
           <div class="market-label">
             <h2 :aria-label="featured.name">{{ featured.label }}</h2>
             <span>{{ featured.unit }}</span>
@@ -84,11 +152,26 @@ watch(selected, () => rail.value?.scrollTo({ left: 0 }))
             <strong>{{ featured.value }}</strong
             ><span class="market-delta">{{ featured.change }}</span>
           </div>
-          <div class="market-sparkline" aria-label="시계열 데이터 미제공"></div>
+          <MarketSparkline
+            :values="featured.series"
+            :baseline="featured.baseline"
+            :label="`${featured.label} 최근 한 달 일별 추이`"
+            large
+          />
         </article>
         <div class="market-grid">
-          <article v-for="item in secondary" :key="item.name" class="market-item market-small">
-            <div class="market-sparkline" aria-label="시계열 데이터 미제공"></div>
+          <article
+            v-for="item in secondary"
+            :key="item.name"
+            class="market-item market-small"
+            :class="item.direction"
+            :title="item.description"
+          >
+            <MarketSparkline
+              :values="item.series"
+              :baseline="item.baseline"
+              :label="`${item.label} 최근 한 달 일별 추이`"
+            />
             <div class="market-copy">
               <div class="market-label">
                 <h2 :aria-label="item.name">{{ item.label }}</h2>
@@ -103,9 +186,29 @@ watch(selected, () => rail.value?.scrollTo({ left: 0 }))
         </div>
       </div>
     </div>
+    <div v-if="error || unavailable" class="market-status" role="status">
+      <span v-if="error">{{ error }}</span>
+      <span v-if="unavailable && !error">{{ unavailable }}개 지표 미수신</span>
+      <button v-if="error || unavailable" :disabled="pending" @click="refresh">다시 조회</button>
+    </div>
   </section>
 </template>
 <style scoped>
+.market-status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+  color: var(--muted);
+  font-size: 11px;
+}
+.market-status button {
+  color: var(--primary);
+}
+.market-small :deep(.market-chart-empty) {
+  width: 64px;
+  flex-shrink: 0;
+}
 .market-strip {
   margin-bottom: 28px;
   min-width: 0;

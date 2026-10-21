@@ -4,12 +4,11 @@ from uuid import UUID
 
 from app.core.config import get_settings
 from app.domain.memo_upload_exceptions import InvalidMemoTitle
-from app.schemas.memo import MemoSummaryResponse, MemoUploadResponse
-from app.services.memo_text_extractor import MemoTextExtractor, PlainTextMemoExtractor
-
 from app.domain.resource_exceptions import MemoNotFound, MemoVersionNotFound
 from app.models import Memo, MemoVersion
 from app.repositories import MemoRepository
+from app.schemas.memo import MemoSummaryResponse, MemoUploadResponse
+from app.services.memo_text_extractor import MemoTextExtractor, PlainTextMemoExtractor
 
 
 class MemoService:
@@ -58,7 +57,22 @@ class MemoService:
         return result
 
 
-    def create_from_upload(self, *, stream: BinaryIO, filename: str | None, content_type: str | None, organization_id: UUID, created_by: UUID, title: str | None = None) -> MemoUploadResponse:
+    def assign_company(self, memo_id: UUID, organization_id: UUID, company_name: str) -> MemoSummaryResponse:
+        session = self.memos.session
+        try:
+            memo = self.memos.get_by_id_and_organization(memo_id, organization_id, for_update=True)
+            if memo is None or memo.is_deleted:
+                raise MemoNotFound()
+            memo.company_name = company_name
+            session.flush()
+            response = MemoSummaryResponse.model_validate(memo)
+            session.commit()
+            return response
+        except Exception:
+            session.rollback()
+            raise
+
+    def create_from_upload(self, *, stream: BinaryIO, filename: str | None, content_type: str | None, organization_id: UUID, created_by: UUID, title: str | None = None, company_name: str | None = None) -> MemoUploadResponse:
         limit = self.max_upload_bytes if self.max_upload_bytes is not None else get_settings().memo_upload_max_bytes
         extracted = self.extractor.extract(stream, filename=filename, content_type=content_type, max_bytes=limit)
         display_title = title.strip() if title is not None else PurePosixPath(extracted.original_filename).stem
@@ -68,7 +82,7 @@ class MemoService:
         # Authentication has already autobegun this request Session. This write service
         # owns its transaction; do not open a second session.begin() or commit in Repository.
         try:
-            memo = self.memos.add_memo(Memo(organization_id=organization_id, company_name=None, title=display_title, current_version=1))
+            memo = self.memos.add_memo(Memo(organization_id=organization_id, company_name=company_name, title=display_title, current_version=1))
             self.memos.add_version(MemoVersion(
                 memo_id=memo.id, version=1, content=extracted.content, created_by=created_by,
                 original_filename=extracted.original_filename, content_type=extracted.content_type,

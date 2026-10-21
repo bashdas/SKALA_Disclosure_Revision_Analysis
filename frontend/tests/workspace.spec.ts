@@ -67,7 +67,7 @@ test('메인 UI에서 기업 검색, 즐겨찾기, 정정공시 분석을 연결
   await expect(filings.first()).toBeVisible({ timeout: 60000 })
   const ordinary = filings.filter({ has: page.locator('.tag', { hasText: '신규공시' }) }).first()
   if (await ordinary.count())
-    await expect(ordinary.getByRole('button', { name: '분석에 사용' })).toBeEnabled()
+    await expect(ordinary.getByRole('button', { name: '분석에 사용' })).toHaveCount(0)
   await page.getByRole('link', { name: /^메모 관리/ }).click()
   const title = `실제 연동 검사 ${Date.now()}`
   await page.getByLabel('메모 파일').setInputFiles({
@@ -123,7 +123,7 @@ test('메인 UI에서 기업 검색, 즐겨찾기, 정정공시 분석을 연결
   await correction
     .getByRole('button', { name: process.env.E2E_CORRECTION_TITLE!, exact: true })
     .click()
-  await expect(page.getByLabel('대상 공시')).not.toHaveValue('', { timeout: 60000 })
+  await expect(page.getByLabel('대상 정정공시')).not.toHaveValue('', { timeout: 60000 })
   await page
     .getByLabel('기준 메모', { exact: true })
     .selectOption({ label: `${writtenTitle} , 기업 미확정` })

@@ -100,15 +100,19 @@ export const useWorkspace = defineStore('workspace', () => {
   function unread(ref: ReadReference) {
     return !readKeys.value.includes(readKey(ref))
   }
+  function memosForCompany(companyId: string) {
+    const company = companies.value.find((c) => c.id === companyId)
+    if (!company) return []
+    return memos.value.filter((m) => m.companyName?.normalize('NFC') === company.name.normalize('NFC'))
+  }
   function countUnread(companyId: string, kind: 'filing' | 'memo' | 'report') {
     if (kind === 'filing')
       return filings.value.filter(
         (f) => f.companyId === companyId && unread({ kind, id: f.id, version: f.currentVersion }),
       ).length
     if (kind === 'memo')
-      return memos.value.filter(
+      return memosForCompany(companyId).filter(
         (m) =>
-          m.companyName === companyName(companyId) &&
           unread({ kind, id: m.id, version: m.currentVersion }),
       ).length
     return savedReports.value.filter(
@@ -226,6 +230,7 @@ export const useWorkspace = defineStore('workspace', () => {
     initialize,
     refresh,
     companyName,
+    memosForCompany,
     unread,
     countUnread,
     markRead,

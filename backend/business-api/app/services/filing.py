@@ -65,7 +65,9 @@ class FilingService:
         except (KeyError, ValueError, TypeError):
             raise DisclosureError("DISCLOSURE_METADATA_UNCONFIRMED", "공시의 회사 정보와 원문을 확인하지 못했습니다.") from None
         try:
-            is_correction = bool(re.match(r"^\[(?:기재|첨부)?정정\]", title))
+            is_correction = bool(re.match(r"^\[(?:기재|첨부)?정정\]", title)) or (
+                receipt_no.startswith("SEC:") and title.startswith("8-K/A ")
+            )
             values = dict(organization_id=organization_id, receipt_no=receipt_no,
                 company_name=name, corp_code=corp, title=title,
                 filing_type="정정공시" if is_correction else "신규공시",

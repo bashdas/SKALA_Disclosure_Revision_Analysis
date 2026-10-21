@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { RouterLink } from 'vue-router'
-import { ArrowRight } from 'lucide-vue-next'
 import { useWorkspace } from '../stores/workspace'
 import { currentUser } from '../services/http'
 import EmptyState from '../components/EmptyState.vue'
@@ -13,7 +12,6 @@ const favorites = computed(() => store.companies.filter((c) => c.favorite))
 <template>
   <section class="home-heading">
     <div>
-      <p class="eyebrow">MY RESEARCH</p>
       <h1>{{ currentUser?.email.split('@')[0] }}님의 리서치 홈</h1>
     </div>
   </section>
@@ -24,9 +22,6 @@ const favorites = computed(() => store.companies.filter((c) => c.favorite))
         <h2 id="watchlist-heading">
           내 관심종목 <span class="count">{{ favorites.length }}</span>
         </h2>
-        <RouterLink to="/companies" class="text-button"
-          >종목 관리 <ArrowRight :size="14"
-        /></RouterLink>
       </div>
       <CompanyQuotesTable :companies="favorites" />
       <EmptyState

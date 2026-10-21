@@ -33,7 +33,7 @@ async function upload() {
       title.value.trim() ? title.value : writing.value ? `${props.companyName} 메모` : undefined,
       props.companyId,
     )
-    success.value = `‘${memo.title}’ 메모를 추가했습니다. 기업 미확정, v1`
+    success.value = `‘${memo.title}’ 메모를 ${memo.companyName ?? props.companyName}에 추가했습니다. v1`
     file.value = null
     title.value = ''
     content.value = ''
@@ -112,8 +112,8 @@ async function upload() {
       </button>
     </form>
     <p class="tiny muted">
-      서버에 메모를 저장합니다. 기업이 지정되지 않은 메모는 모든 기업의 기준 메모 선택 목록에서
-      확인할 수 있습니다.
+      {{ companyName }}의 메모로 서버에 저장합니다. 이 기업의 메모 목록과 분석 선택란에서 확인할 수
+      있습니다.
     </p>
   </aside>
 </template>

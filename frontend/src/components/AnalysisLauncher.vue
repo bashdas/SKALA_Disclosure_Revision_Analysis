@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { Sparkles, ArrowRight, LockKeyhole } from 'lucide-vue-next'
+import { Sparkles, ArrowRight } from 'lucide-vue-next'
 import { useWorkspace } from '../stores/workspace'
 const props = defineProps<{ companyId: string; preferredFiling?: string }>()
 const store = useWorkspace(),
@@ -11,14 +11,10 @@ const filingId = ref(''),
   memoVersion = ref(1),
   error = ref('')
 const availableFilings = computed(() =>
-  store.filings.filter((f) => f.companyId === props.companyId),
+  store.filings.filter((f) => f.companyId === props.companyId && f.isCorrection),
 )
-const availableMemos = computed(() =>
-  store.memos.filter(
-    (m) => m.companyName === store.companyName(props.companyId) || m.companyName === null,
-  ),
-)
-const memo = computed(() => store.memos.find((m) => m.id === memoId.value))
+const availableMemos = computed(() => store.memosForCompany(props.companyId))
+const memo = computed(() => availableMemos.value.find((m) => m.id === memoId.value))
 watch(
   () => props.preferredFiling,
   (id) => {
@@ -38,7 +34,7 @@ watch(
   },
 )
 async function start() {
-  if (!filingId.value || !memoId.value || store.busy) return
+  if (!filingId.value || !memo.value || store.busy) return
   error.value = ''
   try {
     const task = await store.start({
@@ -59,8 +55,8 @@ async function start() {
     <p class="muted small">공시와 기준 메모를 선택하면 재검토가 필요한 논리를 살펴봅니다.</p>
     <form @submit.prevent="start">
       <label
-        >대상 공시<select v-model="filingId" aria-label="대상 공시" required>
-          <option value="" disabled>공시를 선택하세요</option>
+        >대상 정정공시<select v-model="filingId" aria-label="대상 정정공시" required>
+          <option value="" disabled>정정공시를 선택하세요</option>
           <option v-for="filing in availableFilings" :key="filing.id" :value="filing.id">
             {{ filing.title }}
           </option>
@@ -70,7 +66,7 @@ async function start() {
         >기준 메모<select v-model="memoId" aria-label="기준 메모" required>
           <option value="" disabled>메모를 선택하세요</option>
           <option v-for="item in availableMemos" :key="item.id" :value="item.id">
-            {{ item.title }}{{ item.companyName ? '' : ' , 기업 미확정' }}
+            {{ item.title }}
           </option>
         </select></label
       >
@@ -81,21 +77,15 @@ async function start() {
           </option>
         </select></label
       >
-      <p v-if="memo?.companyName === null" class="inline-warning">
-        기업 미확정 메모입니다. 선택한 공시와 관련 있는지 확인하세요.
-      </p>
       <p v-if="error" role="alert" class="field-error">{{ error }}</p>
       <button
         class="button primary full-width"
-        :disabled="!filingId || !memoId || store.busy"
+        :disabled="!filingId || !memo || store.busy"
         type="submit"
       >
         <Sparkles :size="16" />{{ store.busy ? '분석 접수 중…' : '영향 분석 시작'
         }}<ArrowRight :size="16" />
       </button>
     </form>
-    <div class="preserve-note">
-      <LockKeyhole :size="14" /><span>원본 메모는 변경되지 않습니다.</span>
-    </div>
   </aside>
 </template>

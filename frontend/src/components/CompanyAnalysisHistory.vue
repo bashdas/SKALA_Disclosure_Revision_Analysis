@@ -30,27 +30,31 @@ const tasks = computed(() =>
     >
   </div>
   <div class="analysis-list">
-    <RouterLink
-      v-for="task in tasks"
-      :key="task.id"
-      :to="`/analyses/${task.id}`"
-      class="analysis-row"
-    >
+    <article v-for="task in tasks" :key="task.id" class="analysis-row">
       <span class="document-icon"><Activity :size="20" /></span>
       <div class="document-info">
         <div class="inline-meta">
           <strong>{{ store.companyName(task.companyId) }}</strong
           ><span class="small muted">{{ date(task.createdAt, true) }}</span>
+          <StatusPill :status="task.status" />
         </div>
-        <h3>{{ store.filings.find((f) => f.id === task.filingId)?.title }}</h3>
+        <h3>
+          <RouterLink :to="`/analyses/${task.id}`" class="document-title">{{
+            store.filings.find((f) => f.id === task.filingId)?.title
+          }}</RouterLink>
+        </h3>
         <p class="small muted">
           {{ store.memos.find((m) => m.id === task.memoId)?.title }} , 기준 v{{
             task.baseMemoVersion
           }}
         </p>
       </div>
-      <StatusPill :status="task.status" /><ArrowUpRight :size="18" class="muted" />
-    </RouterLink>
+      <div class="document-actions">
+        <RouterLink :to="`/analyses/${task.id}`" class="text-button"
+          >상세 보기 <ArrowUpRight :size="13"
+        /></RouterLink>
+      </div>
+    </article>
   </div>
   <EmptyState
     v-if="!tasks.length"

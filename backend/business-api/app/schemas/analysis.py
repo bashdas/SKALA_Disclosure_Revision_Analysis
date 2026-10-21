@@ -11,7 +11,7 @@ class AnalysisCreateRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     memo_id: UUID
     memo_version: int | None = Field(default=None, ge=1, le=2147483647)
-    # OpenDART receipt identifiers are exactly 14 ASCII digits; no remote lookup here.
+    # OpenDART 접수번호와 SEC 식별자의 형식을 검사하며 정정 여부는 등록 원문으로 확인합니다.
     disclosure_receipt_no: str = Field(pattern=r"^(?:[0-9]{14}|SEC:[0-9]{1,10}:[0-9]{10}-[0-9]{2}-[0-9]{6})$", min_length=14, max_length=64)
 
 
