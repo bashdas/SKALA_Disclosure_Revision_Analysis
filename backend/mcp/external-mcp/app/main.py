@@ -2,7 +2,8 @@ from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 import json
 import re
-from typing import Any
+from typing import Annotated, Any
+from pydantic import Field
 
 from fastapi import FastAPI
 import httpx
@@ -16,6 +17,7 @@ from app.client import OpenDartClient
 from app.config import Settings
 from app.errors import OpenDartError
 from app.parser import OpenDartDocumentParser
+from app.scholar import GoogleScholarClient, ScholarError
 
 
 def _value(row, name):
@@ -36,6 +38,7 @@ def _redact(value, key):
 def create_app(settings: Settings | None = None, *, transport: httpx.AsyncBaseTransport | None = None) -> FastAPI:
     settings = settings or Settings()
     client = OpenDartClient(settings, transport=transport)
+    scholar = GoogleScholarClient(settings, transport=transport)
     parser = OpenDartDocumentParser()
     mcp = FastMCP("external-mcp", stateless_http=True, json_response=True,
         host=settings.external_mcp_host, port=settings.external_mcp_port, streamable_http_path="/mcp",
@@ -72,11 +75,28 @@ def create_app(settings: Settings | None = None, *, transport: httpx.AsyncBaseTr
         except OpenDartError as error:
             raise ToolError(json.dumps(error.as_dict(), ensure_ascii=False)) from None
 
+    @mcp.tool()
+    async def search_academic_papers(
+        query: Annotated[str, Field(min_length=1, max_length=500, pattern=r"\S")],
+        limit: Annotated[int, Field(ge=1, le=20)] = 5,
+        year_from: Annotated[int, Field(ge=1800, le=2100)] | None = None,
+        year_to: Annotated[int, Field(ge=1800, le=2100)] | None = None,
+    ) -> dict[str, Any]:
+        """Search Google Scholar via SerpApi. Returns bibliographic search snippets, not full papers."""
+        if year_from is not None and year_to is not None and year_from > year_to:
+            raise ToolError('{"code":"INVALID_SCHOLAR_QUERY","message":"Invalid year range"}')
+        try:
+            result = await scholar.search(query, limit, year_from, year_to)
+            return _redact(_redact(result, settings.serpapi_api_key.get_secret_value()),
+                settings.opendart_api_key.get_secret_value())
+        except ScholarError as error:
+            raise ToolError(json.dumps({"code": error.code, "message": str(error)})) from None
+
     mcp_app = mcp.streamable_http_app()
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
-        async with client:
+        async with client, scholar:
             async with mcp.session_manager.run():
                 yield
 

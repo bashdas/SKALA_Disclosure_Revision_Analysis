@@ -5,7 +5,7 @@ LLM·정정 영향 판단·Report 생성·DB·RAG·Worker 코드를 포함하지
 
 MCP Python SDK v1/FastMCP (`mcp>=1.12,<2`, 테스트 1.30.0), Streamable HTTP `/mcp`,
 stateless/JSON 응답을 사용합니다. `/health`는 process liveness이며 외부 API readiness가 아닙니다.
-Tool은 **get_disclosure(receipt_no)** 하나입니다.
+Tool은 **get_disclosure(receipt_no)**와 **search_academic_papers(...)**입니다.
 
 ## 공식 명세와 조회 흐름
 
@@ -126,3 +126,25 @@ Mock HTTP + MCP JSON-RPC 테스트이므로 외부 네트워크나 실제 Key를
 실제 OpenDART smoke test는 유효 Key·네트워크가 있을 때만 별도로 수행하며,
 접수번호/성공 여부/metadata만 출력하고 원문과 Key를 출력하지 않습니다.
 이 작업 환경에는 Key가 없어 **실제 OpenDART smoke test 미실행**입니다.
+
+## Google Scholar 논문 검색
+
+추가 Tool: `search_academic_papers(query, limit=5, year_from=null, year_to=null)`.
+`limit`은 1~20이며 연도 범위를 선택적으로 지정할 수 있습니다.
+[SerpApi Google Scholar API](https://serpapi.com/google-scholar-api)의
+`GET https://serpapi.com/search.json?engine=google_scholar`를 사용합니다.
+이는 Google의 직접 API가 아니라 SerpApi 서비스 연동이며 별도 SerpApi 키가 필요합니다.
+
+`backend/.env`에 `SERPAPI_API_KEY`를 설정하고 External MCP를 재생성합니다.
+Key를 Tool argument로 받지 않으며 API query의 api_key는 httpx/httpcore 로그에서 가립니다.
+Client는 lifespan 동안 재사용하고 shutdown에 종료합니다.
+
+결과는 제목, 검색 snippet, 저자(제공된 경우), 서지정보, 논문 링크, 출처 metadata입니다.
+검색 snippet을 논문 전체 초록/본문으로 표현하지 않으며 PDF 다운로드나 논문 분석은 하지 않습니다.
+출판 연도/날짜는 서지 문자열에서 추정하지 않고 source.published_at은 null로 둡니다.
+정상 검색 결과가 없으면 results=[]이며 provider 오류는 SCHOLAR_AUTH_FAILED,
+SCHOLAR_RATE_LIMITED, SCHOLAR_TIMEOUT, SCHOLAR_UNAVAILABLE, SCHOLAR_INVALID_RESPONSE Tool Error입니다.
+
+현재 ai/disclosure_ai/services/tools.py의 academic은 TOOL_NOT_AVAILABLE로 고정되어 있습니다.
+MCP Tool 추가만으로 그 Agent 분기가 자동 연결되지는 않습니다. Agent 코드는 이번 변경에서 수정하지 않았습니다.
+기존 get_disclosure는 유지합니다. 이번 변경의 테스트 및 실제 API 호출은 사용자 지시에 따라 미실행입니다.

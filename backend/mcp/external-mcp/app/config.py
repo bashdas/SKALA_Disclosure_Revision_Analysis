@@ -6,6 +6,7 @@ from disclosure_shared.config import ServiceSettings
 
 class Settings(ServiceSettings):
     opendart_api_key: SecretStr = Field(default="", repr=False)
+    serpapi_api_key: SecretStr = Field(default="", repr=False)
     opendart_base_url: str = "https://opendart.fss.or.kr/api"
     external_mcp_host: str = "0.0.0.0"
     external_mcp_port: int = Field(default=8083, ge=1, le=65535)

@@ -63,7 +63,8 @@ def test_server_initialize_health_and_single_tool():
         assert initialized.status_code == 200 and "serverInfo" in initialized.json()["result"]
         listing = client.post("/mcp", headers=HEADERS, json={"jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {}})
         tools = listing.json()["result"]["tools"]
-        assert len(tools) == 1 and tools[0]["name"] == "get_disclosure"
+        assert {tool["name"] for tool in tools} == {"get_disclosure", "search_academic_papers"}
+        tools = [tool for tool in tools if tool["name"] == "get_disclosure"]
         assert set(tools[0]["inputSchema"]["properties"]) == {"receipt_no"}
 
 
