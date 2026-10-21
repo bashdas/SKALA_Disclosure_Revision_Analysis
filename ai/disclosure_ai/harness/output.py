@@ -11,17 +11,24 @@ def mask(text: str) -> str:
     return re.sub(r"(?<!\d)01[016789][- ]?\d{3,4}[- ]?\d{4}(?!\d)", "[전화번호]", text)
 
 
+def sentences(text):
+    # 항목 번호와 날짜의 마침표는 문장 경계로 나누지 않습니다.
+    return re.split(r"(?<=[!?。])\s+|(?<=[가-힣A-Za-z]\.)\s+|\n", text)
+
+
 def safe_text(text: str) -> str:
     # 투자 행동이나 가격 목표를 포함한 문장은 불명확한 경우까지 제외합니다.
-    parts = re.split(r"(?<=[.!?。])\s+|\n", mask(text))
+    parts = sentences(mask(text))
     risk = re.compile(
-        r"(?:검증|검사|시스템|관리자|개발자).{0,20}(?:지시|명령)|매수|매도|보유|추천|목표\s*주가|매매|매집|포트폴리오|주식.{0,20}(사세요|사두|담아|구매)|비중.{0,10}(늘|줄)|투자\s*비중|수익.{0,10}보장|buy|sell|hold|target\s*price|should\s+invest",
+        r"(?:검증|검사|시스템|관리자|개발자).{0,20}(?:지시|명령)|(?:판정|승인|검사|검증).{0,12}(?:하세요|하라|무시)|(?:매수|매도|보유).{0,12}(?:추천|권고|권장|하세요|해야)|목표\s*주가|주식.{0,20}(사세요|사두|담아|구매)|비중.{0,10}(?:늘리세요|줄이세요)|수익.{0,10}보장|(?:should|must)\s+(?:buy|sell|hold|invest)|target\s*price",
         re.I,
     )
     return "\n".join(s for s in parts if not risk.search(s)).strip()
 
 
-async def review_output(harness, payload: dict, *, grounding=False) -> tuple[dict, list[str]]:
+async def review_output(
+    harness, payload: dict, *, grounding=False, corrections=()
+) -> tuple[dict, list[str]]:
     # 식별 정보와 대조된 원문 인용은 서술 판별 대상에서 분리합니다.
     fixed = {
         "request",
@@ -36,6 +43,7 @@ async def review_output(harness, payload: dict, *, grounding=False) -> tuple[dic
         "status",
         "evidence_ids",
         "before_text",
+        "question",
     }
     candidates = []
     contexts = []
@@ -46,6 +54,8 @@ async def review_output(harness, payload: dict, *, grounding=False) -> tuple[dic
             text,
             "selection"
             if key in {"selection_reason", "no_additional_analysis_reason"}
+            else "scenario"
+            if key == "scenario"
             else "analysis",
             tuple((s.get("document_id"), s.get("quote")) for s in evidence) if grounding else (),
         )
@@ -57,7 +67,7 @@ async def review_output(harness, payload: dict, *, grounding=False) -> tuple[dic
         if key in fixed:
             return
         if isinstance(value, str):
-            for sentence in re.split(r"(?<=[.!?。])\s+|\n", value):
+            for sentence in [value] if key == "scenario" else sentences(value):
                 if not sentence.strip():
                     continue
                 checked = safe_text(sentence)
@@ -76,6 +86,26 @@ async def review_output(harness, payload: dict, *, grounding=False) -> tuple[dic
                 collect(item, name, evidence)
 
     collect(payload)
+    # 같은 출처를 문장마다 반복하면 검사 예산이 소진되므로 원문은 한 번만 보냅니다.
+    pool, reference_ids = {}, {}
+    changes = {(c["source"]["document_id"], c["source"]["location"]): c for c in corrections}
+    for context in contexts:
+        refs = []
+        for source in context.pop("evidence"):
+            token = (source.get("document_id"), source.get("quote"))
+            if token not in reference_ids:
+                reference_ids[token] = "E" + str(len(pool) + 1)
+                pool[reference_ids[token]] = {
+                    **source,
+                    "quote": " ".join(source.get("quote", "").split()),
+                }
+            change = changes.get((source.get("document_id"), source.get("location")))
+            if change:
+                pool[reference_ids[token]]["correction"] = {
+                    key: " ".join(change[key].split()) for key in ("label", "before", "after")
+                }
+            refs.append(reference_ids[token])
+        context["evidence_ids"] = refs
     accepted = set()
     warnings = []
     if candidates:
@@ -86,6 +116,7 @@ async def review_output(harness, payload: dict, *, grounding=False) -> tuple[dic
                 "output_check",
                 {
                     "require_grounding": grounding,
+                    "evidence": pool if grounding else {},
                     "sentences": [
                         {"index": i, "text": text, **(contexts[i] if grounding else {})}
                         for i, text in enumerate(candidates)
@@ -116,7 +147,7 @@ async def review_output(harness, payload: dict, *, grounding=False) -> tuple[dic
         if isinstance(value, str):
             return "\n".join(
                 checked
-                for sentence in re.split(r"(?<=[.!?。])\s+|\n", value)
+                for sentence in ([value] if key == "scenario" else sentences(value))
                 if (checked := safe_text(sentence)) and identity(checked, key, evidence) in accepted
             )
         if isinstance(value, list):

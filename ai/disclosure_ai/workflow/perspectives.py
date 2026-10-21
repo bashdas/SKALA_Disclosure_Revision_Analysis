@@ -4,7 +4,7 @@ from langgraph.types import Send
 from disclosure_ai.errors import LimitReached
 from disclosure_ai.schemas import PerspectiveAnswer
 from disclosure_ai.services.business import RunCancelled
-from disclosure_ai.services.documents import validated_sources
+from disclosure_ai.services.documents import analysis_context, validated_sources
 
 
 def selected(state):
@@ -36,8 +36,10 @@ async def perspective(run, state):
             "perspective",
             {
                 "selection": selection,
+                "request": state["request"],
+                "memo": state.get("memo", {}),
                 "base": state["base"],
-                "context": state["context"],
+                "context": analysis_context(state.get("filing", {}), state["context"]),
                 "observations": observations,
             },
             PerspectiveAnswer,

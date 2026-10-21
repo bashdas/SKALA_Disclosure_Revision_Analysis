@@ -10,6 +10,72 @@ from bs4 import BeautifulSoup
 from defusedxml import ElementTree
 
 
+def correction_rows(rows):
+    """병합된 항목명을 다음 행에 이어 붙여 정정 전후의 열 위치를 복원합니다."""
+    if not any(
+        {"정정전", "정정후"} <= {re.sub(r"\s", "", c["text"]) for c in row["cells"]} for row in rows
+    ):
+        return [], True
+    changes, spans = [], {}
+    before = after = None
+    complete = True
+    try:
+        for index, row in enumerate(rows):
+            grid = {column: cell for column, (cell, _) in spans.items()}
+            spans = {
+                column: (cell, remaining - 1)
+                for column, (cell, remaining) in spans.items()
+                if remaining > 1
+            }
+            column = 0
+            for cell in row["cells"]:
+                while column in grid:
+                    column += 1
+                width, height = int(cell.get("colspan", 1)), int(cell.get("rowspan", 1))
+                # 외부 표의 비정상적인 병합 크기가 메모리를 과도하게 쓰지 않도록 제한합니다.
+                if (
+                    not 1 <= width <= 64
+                    or not 1 <= height <= len(rows) - index
+                    or column + width > 64
+                ):
+                    raise ValueError()
+                for offset in range(width):
+                    position = column + offset
+                    if position in grid:
+                        raise ValueError()
+                    grid[position] = cell
+                    if height > 1:
+                        spans[position] = (cell, height - 1)
+                column += width
+            values = [grid.get(i, {}).get("text", "") for i in range(max(grid, default=-1) + 1)]
+            headers = [re.sub(r"\s", "", value) for value in values]
+            if "정정전" in headers and "정정후" in headers:
+                if headers.count("정정전") != 1 or headers.count("정정후") != 1:
+                    raise ValueError()
+                before, after = headers.index("정정전"), headers.index("정정후")
+                continue
+            if before is None:
+                continue
+            if before not in grid or after not in grid or grid[before] is grid[after]:
+                complete = False
+                continue
+            if values[before] != values[after]:
+                changes.append(
+                    (
+                        index,
+                        {
+                            "label": values[0],
+                            "before": values[before],
+                            "after": values[after],
+                            "quote": "\t".join(values),
+                        },
+                    )
+                )
+    except (TypeError, ValueError, KeyError):
+        complete = False
+    return changes, complete
+
+
 def parse_filing(data: bytes, receipt: str) -> dict:
     """ZIP을 디스크에 풀지 않고 크기를 제한해 정정표와 위치를 보존합니다."""
     if len(data) > 20 * 1024 * 1024:
@@ -55,33 +121,30 @@ def parse_filing(data: bytes, receipt: str) -> dict:
                 }
             )
             for ti, table in enumerate(soup.find_all("table")):
-                before_i = after_i = None
-                if table.find(attrs={"rowspan": True}) or table.find(attrs={"colspan": True}):
-                    complete = False
-                for ri, row in enumerate(table.find_all("tr")):
-                    cells = [
-                        c.get_text(" ", strip=True)
-                        for c in row.find_all(["td", "th"], recursive=False)
-                    ]
-                    normalized = [re.sub(r"\s", "", c) for c in cells]
-                    if "정정전" in normalized and "정정후" in normalized:
-                        before_i, after_i = normalized.index("정정전"), normalized.index("정정후")
-                        continue
-                    if before_i is None or max(before_i, after_i) >= len(cells):
-                        continue
-                    if cells[before_i] == cells[after_i]:
-                        continue
-                    changes.append(
-                        {
-                            "label": cells[0],
-                            "before": cells[before_i],
-                            "after": cells[after_i],
-                            "document_id": doc_id,
-                            "location": f"table:{ti}:row:{ri}",
-                            "quote": " | ".join(cells),
-                            "url": documents[-1]["url"],
-                        }
-                    )
+                rows = [
+                    {
+                        "cells": [
+                            {
+                                "text": c.get_text(" ", strip=True),
+                                "rowspan": c.get("rowspan", 1),
+                                "colspan": c.get("colspan", 1),
+                            }
+                            for c in row.find_all(["td", "th"], recursive=False)
+                        ]
+                    }
+                    for row in table.find_all("tr")
+                ]
+                extracted, valid = correction_rows(rows)
+                complete &= valid
+                changes.extend(
+                    {
+                        **change,
+                        "document_id": doc_id,
+                        "location": f"table:{ti}:row:{index}",
+                        "url": documents[-1]["url"],
+                    }
+                    for index, change in extracted
+                )
     if not documents or not any(d["text"].strip() for d in documents):
         raise ValueError("공시 본문이 없습니다.")
     return {
@@ -149,32 +212,17 @@ def normalize_disclosure(result: dict, receipt: str) -> dict:
         }
         changes, complete = [], True
         for table in raw["tables"]:
-            before_i = after_i = None
-            for index, row in enumerate(table["rows"]):
-                cells = row["cells"]
-                if any(c["rowspan"] != 1 or c["colspan"] != 1 for c in cells):
-                    complete = False
-                values = [c["text"] for c in cells]
-                if not all(isinstance(v, str) for v in values):
-                    raise ValueError()
-                headers = [re.sub(r"\s", "", value) for value in values]
-                if "정정전" in headers and "정정후" in headers:
-                    before_i, after_i = headers.index("정정전"), headers.index("정정후")
-                    continue
-                if before_i is None or max(before_i, after_i) >= len(values):
-                    continue
-                if values[before_i] != values[after_i]:
-                    changes.append(
-                        {
-                            "label": values[0],
-                            "before": values[before_i],
-                            "after": values[after_i],
-                            "document_id": doc_id,
-                            "location": f"{table['file']}:{table['table_id']}:row:{index}",
-                            "quote": "\t".join(values),
-                            "url": url,
-                        }
-                    )
+            extracted, valid = correction_rows(table["rows"])
+            complete &= valid
+            changes.extend(
+                {
+                    **change,
+                    "document_id": doc_id,
+                    "location": f"{table['file']}:{table['table_id']}:row:{index}",
+                    "url": url,
+                }
+                for index, change in extracted
+            )
         return {
             "documents": [document],
             "changes": changes,
@@ -191,6 +239,25 @@ def normalize_disclosure(result: dict, receipt: str) -> dict:
         return {"error": "INVALID_DISCLOSURE_RESPONSE"}
 
 
+def analysis_context(filing, fragments):
+    """모델에는 정정 전후를 구분해 전달하고 검증용 원문은 그대로 보존합니다."""
+    changes = {(c["document_id"], c["location"]): c for c in filing.get("changes", [])}
+    result = []
+    for source in fragments:
+        change = changes.get((source["document_id"], source["location"]))
+        if change:
+            result.append(
+                {
+                    "document_id": source["document_id"],
+                    "location": source["location"],
+                    **{key: " ".join(change[key].split()) for key in ("label", "before", "after")},
+                }
+            )
+        else:
+            result.append({**source, "quote": " ".join(source["quote"].split())})
+    return result
+
+
 def validated_sources(sources: list[dict], documents: list[dict], fragments=()) -> list[dict]:
     known = {d["document_id"]: d for d in documents}
     accepted = []
@@ -199,14 +266,34 @@ def validated_sources(sources: list[dict], documents: list[dict], fragments=()) 
             continue
         doc = known.get(source.get("document_id"))
         quote = source["quote"]
-        fragment = next(
-            (
+        if not quote:
+            located = [
                 f
                 for f in fragments
-                if f.get("document_id") == source.get("document_id") and f.get("quote") == quote
-            ),
-            None,
-        )
+                if f.get("document_id") == source.get("document_id")
+                and f.get("location") == source.get("location")
+                and f.get("quote")
+            ]
+            if len({f["quote"] for f in located}) != 1:
+                continue
+            quote = located[0]["quote"]
+        normalized = re.sub(r"\s+", "", quote)
+        matches = [
+            f
+            for f in fragments
+            if f.get("document_id") == source.get("document_id")
+            and normalized
+            and normalized in re.sub(r"\s+", "", f.get("quote", ""))
+        ]
+        # 줄바꿈만 바뀐 인용은 검증된 원문 조각으로 복원하고 원문 위치를 유지합니다.
+        fragment = next((f for f in matches if f.get("location") == source.get("location")), None)
+        if fragment is None:
+            fragment = next(
+                (f for f in matches if f.get("quote") == quote),
+                matches[0] if len(matches) == 1 else None,
+            )
+        if fragment:
+            quote = fragment["quote"]
         if doc and quote and (quote in doc["text"] or fragment):
             location = (
                 fragment["location"]
@@ -222,7 +309,7 @@ def validated_sources(sources: list[dict], documents: list[dict], fragments=()) 
                     "published_at": doc.get("published_at"),
                 }
             )
-    return accepted
+    return list({(s["document_id"], s["location"], s["quote"]): s for s in accepted}.values())
 
 
 def normalize_evidence(result, kind, args):

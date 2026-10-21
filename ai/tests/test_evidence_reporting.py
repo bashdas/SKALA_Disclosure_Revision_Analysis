@@ -52,7 +52,7 @@ def test_unfounded_proposals_and_findings_never_reach_report(ledger):  # noqa: F
         state = await graph.ainvoke(initial(), {"configurable": {"thread_id": "gate"}})
         body = state["report"]
         assert "UNSUPPORTED" not in json.dumps(body)
-        assert "report" not in calls
+        assert "report" in calls
         assert body["report_json"]["base"]["proposals"] == []
         assert body["report_json"]["sections"]["perspectives"] == ""
         assert "계약금액 변경의 재무 영향을 확인합니다." in body["content"]
@@ -69,7 +69,11 @@ def test_same_sentence_is_checked_against_its_own_evidence(ledger):  # noqa: F81
         rows = context["sentences"]
         assert len(rows) == 2
         return {
-            "safe_indices": [i for i, row in enumerate(rows) if row["evidence"][0]["quote"] == fact]
+            "safe_indices": [
+                i
+                for i, row in enumerate(rows)
+                if context["evidence"][row["evidence_ids"][0]]["quote"] == fact
+            ]
         }
 
     async def check():
@@ -165,3 +169,111 @@ def test_emergency_preserves_selected_perspective_without_unchecked_findings(led
     assert "UNSUPPORTED" not in json.dumps(body)
     assert "재무 수치와 메모의 연결 여부" in body["content"]
     assert body["report_json"]["results"]["FINANCE"]["findings"] == ""
+
+
+def test_merged_correction_cells_preserve_all_rows():
+    from disclosure_ai.services.documents import correction_rows
+
+    def cell(text, rowspan=1, colspan=1):
+        return {"text": text, "rowspan": rowspan, "colspan": colspan}
+
+    rows = [
+        {"cells": [cell("항목"), cell("정정사유"), cell("정정 전"), cell("정정 후")]},
+        {"cells": [cell("ESG", 2), cell("연례갱신", 2), cell("97.32%"), cell("98.36%")]},
+        {"cells": [cell("Microsoft"), cell("Siemens")]},
+    ]
+    changes, complete = correction_rows(rows)
+    assert complete and len(changes) == 2
+    assert changes[1][1]["label"] == "ESG" and changes[1][1]["after"] == "Siemens"
+    assert correction_rows([{"cells": [cell("본문 제목", colspan=3)]}]) == ([], True)
+    rows[1]["cells"][0]["rowspan"] = 1000000
+    assert correction_rows(rows)[1] is False
+
+
+def test_future_impact_keeps_conditions_and_uses_deduplicated_evidence(ledger):  # noqa: F811
+    from disclosure_ai.harness.output import safe_text
+
+    assert safe_text("보유 자산의 ESG 비율은 98.36%입니다.")
+    scenario = "계약금액 감소가 매출에 반영되는 경우 해당 계약의 매출 기여가 줄어들 수 있습니다."
+    source = {"document_id": "a", "quote": "계약금액이 100에서 80으로 정정됐습니다."}
+
+    async def model(role, context, schema):
+        assert len(context["evidence"]) == 1
+        rows = context["sentences"]
+        assert any(row["kind"] == "scenario" and row["text"] == scenario for row in rows)
+        return {"safe_indices": [row["index"] for row in rows if row["kind"] == "scenario"]}
+
+    async def check():
+        payload = {
+            "future_impacts": [{"scenario": scenario, "evidence": [source]}],
+            "summary_claims": [{"text": "이익은 반드시 늘어납니다.", "evidence": [source]}],
+        }
+        checked, _ = await Harness("task", ledger, model).review_output(payload, grounding=True)
+        assert checked["future_impacts"][0]["scenario"] == scenario
+        assert checked["summary_claims"][0]["text"] == ""
+
+    asyncio.run(check())
+
+
+def test_quote_whitespace_is_restored_without_changing_numbers():
+    quote = "ESG\n\n비율은\n98.36%입니다."
+    source = {"document_id": "doc", "location": "row:4", "quote": quote}
+    docs = [{"document_id": "doc", "text": quote}]
+    candidate = {**source, "quote": "ESG 비율은 98.36%입니다."}
+    assert validated_sources([candidate], docs, [source])[0]["quote"] == quote
+    assert not validated_sources(
+        [{**candidate, "quote": "ESG 비율은 99.36%입니다."}], docs, [source]
+    )
+
+
+def test_source_reference_resolves_only_one_known_location():
+    source = {"document_id": "doc", "location": "row:4", "quote": "금액은 80입니다."}
+    docs = [{"document_id": "doc", "text": source["quote"]}]
+    reference = {**source, "quote": ""}
+    assert validated_sources([reference], docs, [source])[0]["quote"] == source["quote"]
+    assert not validated_sources([{**reference, "location": "row:5"}], docs, [source])
+    assert not validated_sources(
+        [reference], docs, [source, {**source, "quote": "금액은 90입니다."}]
+    )
+
+
+def test_model_context_preserves_explicit_before_and_after():
+    from disclosure_ai.services.documents import analysis_context
+
+    data = filing()
+    original = data["changes"][0].copy()
+    context = analysis_context(data, data["changes"])
+    assert context[0]["before"] == "100" and context[0]["after"] == "80"
+    assert "quote" not in context[0] and data["changes"][0] == original
+
+
+def test_review_preserves_numbered_headings_and_correction_columns(ledger):  # noqa: F811
+    source = {
+        "document_id": "doc",
+        "location": "row:6",
+        "quote": "제 4 부 1. 재무내용 2024.12.31 2025.12.31",
+    }
+    claim = "제 4 부 1. 재무내용의 기준일이 2025년으로 변경되었습니다."
+
+    async def model(role, context, schema):
+        assert len(context["sentences"]) == 1
+        assert context["sentences"][0]["text"] == claim
+        assert context["evidence"]["E1"]["correction"]["after"] == "2025.12.31"
+        return {"safe_indices": [0]}
+
+    async def check():
+        checked, warnings = await Harness("task", ledger, model).review_output(
+            {"reason": claim, "evidence": [source]},
+            grounding=True,
+            corrections=[
+                {
+                    "label": "재무내용",
+                    "before": "2024.12.31",
+                    "after": "2025.12.31",
+                    "source": source,
+                }
+            ],
+        )
+        assert checked["reason"] == claim and not warnings
+
+    asyncio.run(check())

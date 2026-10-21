@@ -81,10 +81,16 @@ class ReportText(Model):
     memo_impact: str
     suggestions: str
     perspectives: str
+    future_impacts: str = ""
     limitations: str
 
 
 class OutputReview(Model):
+    evidence_check: str = Field(
+        default="",
+        max_length=2400,
+        description="문장 번호별 근거 일치 여부와 조건부 인과관계, 투자 권유 여부를 짧게 확인한 뒤 허용 목록을 작성합니다.",
+    )
     safe_indices: list[int] = Field(max_length=128)
 
 
@@ -101,5 +107,12 @@ class CitedSummary(Model):
     evidence_ids: list[str] = Field(min_length=1, max_length=5)
 
 
+class FutureImpact(Model):
+    condition: str = Field(min_length=1, max_length=250)
+    effect: str = Field(min_length=1, max_length=350)
+    evidence_ids: list[str] = Field(min_length=1, max_length=5)
+
+
 class ReportSummary(Model):
     summary: list[CitedSummary] = Field(max_length=3)
+    future_impacts: list[FutureImpact] = Field(default_factory=list, max_length=3)

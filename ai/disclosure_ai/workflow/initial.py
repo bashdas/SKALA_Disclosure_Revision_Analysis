@@ -2,7 +2,12 @@ import asyncio
 
 from disclosure_ai.schemas import BaseAnalysis
 from disclosure_ai.services.business import RunCancelled
-from disclosure_ai.services.documents import search_documents, typo_only, validated_sources
+from disclosure_ai.services.documents import (
+    analysis_context,
+    search_documents,
+    typo_only,
+    validated_sources,
+)
 
 
 async def collect(run, state):
@@ -84,7 +89,12 @@ async def prepare(run, state):
         warnings.append("RAG 색인 미완료: " + str(index.get("error", "INDEX_NOT_READY")))
     return {
         "documents": documents,
-        "context": context,
+        "context": list(
+            {
+                (source["document_id"], source["location"], source["quote"]): source
+                for source in validated_sources(context, documents, context)
+            }.values()
+        ),
         "rag_ready": ready,
         "warnings": warnings,
     }
@@ -105,7 +115,11 @@ async def impact(run, state):
     try:
         base = await run.h.model(
             "base",
-            {"request": state["request"], "memo": state["memo"], "context": state["context"]},
+            {
+                "request": state["request"],
+                "memo": state["memo"],
+                "context": analysis_context(state["filing"], state["context"]),
+            },
             BaseAnalysis,
         )
         data = base.model_dump()

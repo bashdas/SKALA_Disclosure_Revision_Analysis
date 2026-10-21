@@ -125,7 +125,7 @@ def test_graph_normal_and_failure_report(ledger):
         graph = AnalysisGraph(h, tools, InMemorySaver()).graph
         output = await graph.ainvoke(initial(), {"configurable": {"thread_id": "thread"}})
         assert output["output"]["report_id"] == "report"
-        assert ledger.row("task")["turns"] == 2
+        assert ledger.row("task")["turns"] == 3
         assert tools.calls.count("business_save_report") == 1
         assert json.loads(ledger.row("task")["report"])["content"]
 
@@ -165,7 +165,7 @@ def test_parallel_perspectives(ledger):
         graph = AnalysisGraph(Harness("task", ledger, model), FakeTools(), InMemorySaver()).graph
         result = await graph.ainvoke(initial(), {"configurable": {"thread_id": "thread"}})
         assert set(result["results"]) == {"FINANCE", "INDUSTRY_CONTRACT", "FX_HEDGE"}
-        assert ledger.row("task")["turns"] == 5
+        assert ledger.row("task")["turns"] == 6
 
     asyncio.run(check())
 
@@ -261,7 +261,7 @@ def test_checkpoint_resume_preserves_budget_and_inputs(ledger, tmp_path):
             result = await graph.ainvoke(None, config)
             assert result["output"]["report_id"] == "report"
         assert tools.calls.count("disclosure_get_document") == 1
-        assert ledger.row("task")["turns"] == 2
+        assert ledger.row("task")["turns"] == 3
 
     asyncio.run(check())
 

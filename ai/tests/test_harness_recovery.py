@@ -209,7 +209,7 @@ def test_expired_run_preserves_nested_checkpoint_sources_without_network(ledger)
         report = result["output"]["report"]
         assert result["output"]["status"] == "SAVE_FAILED"
         assert report["report_json"]["sources"][0]["quote"] == source["quote"]
-        assert len(report["report_json"]["sections"]) == 6
+        assert len(report["report_json"]["sections"]) == 7
         assert ledger.row("task")["turns"] == 0
         assert ledger.row("task")["report"]
 
@@ -275,7 +275,7 @@ def test_report_checks_generated_text_without_rechecking_raw_tables(ledger):
 
     async def model(role, context, schema):
         if role == "report":
-            raise AssertionError("no supported analysis must not generate a summary")
+            assert context["facts"]["corrections"] and not context["facts"]["proposals"]
         if role == "output_check":
             assert all(not row["text"].startswith("원문 항목") for row in context["sentences"])
         return await fake_model(role, context, schema)
@@ -295,8 +295,8 @@ def test_report_checks_generated_text_without_rechecking_raw_tables(ledger):
         }
         result = await report(graph, state)
         assert result["report"]["report_json"]["sections"]["correction"]
-        assert not result["report"]["report_json"]["sections"]["summary"]
-        assert ledger.row("task")["turns"] == 1
+        assert result["report"]["report_json"]["sections"]["summary"]
+        assert ledger.row("task")["turns"] == 2
 
     asyncio.run(check())
 

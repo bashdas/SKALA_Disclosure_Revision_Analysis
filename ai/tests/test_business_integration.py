@@ -159,11 +159,11 @@ def test_worker_backend_report_retry_and_cancellation(
             asyncio.run(process_task(str(task_id), state, model))
         with analysis_context.factory() as db:
             assert db.get(AnalysisTask, task_id).status == AnalysisStatus.SAVE_FAILED
-        assert calls == ["base", "perspective", "output_check"]
+        assert calls == ["base", "perspective", "report", "output_check"]
         monkeypatch.setattr(AnalysisReportRepository, "add", original_add)
         result = asyncio.run(process_task(str(task_id), state, model))
         assert result["status"] == "COMPLETED_WITH_WARNINGS"
-        assert calls == ["base", "perspective", "output_check"]
+        assert calls == ["base", "perspective", "report", "output_check"]
         assert asyncio.run(process_task(str(task_id), state, model))["status"] == result["status"]
         with analysis_context.factory() as db:
             reports = list(
@@ -183,7 +183,7 @@ def test_worker_backend_report_retry_and_cancellation(
             assert UUID(result["report_id"]) == reports[0].id
         cancelled = task(analysis_context, AnalysisStatus.CANCELLED)
         assert asyncio.run(process_task(str(cancelled), state, model))["status"] == "CANCELLED"
-        assert calls == ["base", "perspective", "output_check"]
+        assert calls == ["base", "perspective", "report", "output_check"]
 
         # 시간 초과 후 초기 단계에 남은 작업도 모델 재호출 없이 저장 단계로 진행합니다.
         import json

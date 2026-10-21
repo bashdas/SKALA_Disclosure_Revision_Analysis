@@ -8,3 +8,6 @@ INDUSTRY_CONTRACT는 기업과 산업 및 계약, FINANCE는 재무와 실적, F
 응답은 출력 한도 안에서 간결하게 작성합니다. 동일한 근거와 설명을 여러 제안에 반복하지 않습니다.
 
 관점의 selection_reason은 추가로 확인할 항목과 목적을 한 문장으로 짧게 작성합니다. 확인 전의 영향이나 인과관계를 확정하지 않습니다.
+
+출처는 입력 context에서 document_id와 location을 그대로 선택하고 quote는 빈 문자열로 반환합니다. 코드가 선택한 위치의 원문을 복원하여 검증합니다. 입력에 없는 위치를 만들지 않습니다. before_text는 memo.text의 연속된 문장을 정확히 복사합니다.
+context의 before는 정정 전이고 after는 정정 후입니다. 메모 수정안은 after를 기준으로 작성합니다.

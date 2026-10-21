@@ -133,7 +133,7 @@ class Harness:
                         if self.client is None:
                             self.client = AsyncOpenAI(max_retries=0)
                         response = await self.client.chat.completions.parse(
-                            model=os.environ.get("OPENAI_MODEL", "gpt-4.1-mini"),
+                            model=os.environ.get("OPENAI_MODEL", "gpt-5.4-mini"),
                             messages=messages,
                             max_completion_tokens=output_limit,
                             response_format=schema,
@@ -181,8 +181,10 @@ class Harness:
                 retries += 1
                 await asyncio.sleep(min(0.2 * retries, max(0, self.remaining(report))))
 
-    async def review_output(self, payload: dict, *, grounding=False) -> tuple[dict, list[str]]:
-        return await review_output(self, payload, grounding=grounding)
+    async def review_output(
+        self, payload: dict, *, grounding=False, corrections=()
+    ) -> tuple[dict, list[str]]:
+        return await review_output(self, payload, grounding=grounding, corrections=corrections)
 
     async def tool(self, name, args, invoke, *, report=False, scope=""):
         return await lookup.call(self, name, args, invoke, report=report, scope=scope)

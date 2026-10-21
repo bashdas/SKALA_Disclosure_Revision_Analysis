@@ -10,11 +10,12 @@ from pathlib import Path
 from uuid import UUID
 
 import pytest
+from app.core.security import create_access_token
 from app.infrastructure.analysis_queue import RabbitMQAnalysisProducer
-from app.models import AnalysisReport, AnalysisTask, MemoVersion
+from app.models import AnalysisReport, AnalysisTask, Filing, FilingVersion, MemoVersion
 from app.models.enums import AnalysisStatus
 from pydantic import SecretStr
-from sqlalchemy import select, text
+from sqlalchemy import delete, select, text, update
 from test_analysis_api import request
 from test_business_integration import (
     KEY,
@@ -30,11 +31,22 @@ from test_business_integration import (
 
 from disclosure_ai.services.business import mcp_call
 
+MEMO = "미로바 글로벌 지속가능 주식형 펀드는 2024년 12월 31일 기준 순자산의 97.32%가 지속가능한 투자목표와 부합합니다.\n기업 관여 활동 사례는 2024년 Microsoft와의 소통입니다.\n요약 재무내용과 운용자산 규모의 기준일은 2024년 12월 31일입니다."
+
 
 @pytest.mark.skipif(os.environ.get("AI_LIVE_RUNTIME") != "1", reason="실제 서비스 명시 실행 필요")
 def test_live_queue_to_report(internal_client, analysis_context, tmp_path):
     settings = analysis_context.settings
     settings.rabbitmq_url = SecretStr(os.environ["RABBITMQ_URL"])
+    # 분석할 기존 주장이 있어야 수정 제안의 품질을 검증할 수 있습니다.
+    with analysis_context.factory() as db:
+        memo = db.scalar(
+            select(MemoVersion).where(
+                MemoVersion.memo_id == analysis_context.memos[0].id, MemoVersion.version == 3
+            )
+        )
+        memo.content = MEMO
+        db.commit()
     producer = RabbitMQAnalysisProducer(settings)
     analysis_context.producer = producer
     try:
@@ -50,6 +62,17 @@ def test_live_queue_to_report(internal_client, analysis_context, tmp_path):
             ) as rag,
             (tmp_path / "worker.log").open("w") as log,
         ):
+            settings.external_mcp_url = external
+            registered = internal_client.post(
+                "/api/v1/filings",
+                json={"receipt_no": "20261020000245"},
+                headers={
+                    "Authorization": "Bearer "
+                    + create_access_token(analysis_context.users[0], settings=settings)
+                },
+            )
+            assert registered.status_code == 200, registered.text
+            assert registered.json()["is_correction"] is True
             environment = dict(
                 os.environ, BUSINESS_MCP_URL=business, EXTERNAL_MCP_URL=external, RAG_MCP_URL=rag
             )
@@ -99,9 +122,15 @@ def test_live_queue_to_report(internal_client, analysis_context, tmp_path):
                     assert report["request"]["company_name_snapshot"] == "미로바펀즈"
                     assert report["base"] is not None
                     assert report["sections"]["correction"]
-                    assert not report["base"]["proposals"]
-                    assert not report["sections"]["memo_impact"]
-                    assert not report["sections"]["suggestions"]
+                    assert report["base"]["proposals"]
+                    assert report["sections"]["memo_impact"]
+                    assert report["sections"]["suggestions"]
+                    assert report["sections"]["summary"]
+                    assert report["sections"]["future_impacts"]
+                    assert len(report["corrections"]) == 10
+                    assert all(p["before_text"] in MEMO for p in report["base"]["proposals"])
+                    covered = "\n".join(p["before_text"] for p in report["base"]["proposals"])
+                    assert all(sentence in covered for sentence in MEMO.splitlines())
                     assert all(
                         r["status"] == "COMPLETED" or not r["findings"]
                         for r in report["results"].values()
@@ -113,7 +142,7 @@ def test_live_queue_to_report(internal_client, analysis_context, tmp_path):
                             MemoVersion.version == 3,
                         )
                     )
-                    assert memo.content == "private memo body"
+                    assert memo.content == MEMO
                     manifest = (
                         db.execute(
                             text("SELECT * FROM rag.analysis_indexes WHERE task_id=:id"),
@@ -156,3 +185,14 @@ def test_live_queue_to_report(internal_client, analysis_context, tmp_path):
                     worker.wait(timeout=5)
     finally:
         producer.close()
+        with analysis_context.factory() as db:
+            organization = analysis_context.users[0].organization_id
+            db.execute(
+                update(AnalysisTask)
+                .where(AnalysisTask.organization_id == organization)
+                .values(filing_id=None)
+            )
+            filing_ids = select(Filing.id).where(Filing.organization_id == organization)
+            db.execute(delete(FilingVersion).where(FilingVersion.filing_id.in_(filing_ids)))
+            db.execute(delete(Filing).where(Filing.organization_id == organization))
+            db.commit()

@@ -24,7 +24,8 @@ SECTION_TITLES = {
     "memo_impact": "메모 영향",
     "suggestions": "메모 수정 제안",
     "perspectives": "관점별 분석",
-    "limitations": "작성하지 않은 항목",
+    "future_impacts": "향후 영향과 조건",
+    "limitations": "확인 범위와 남은 질문",
 }
 
 
@@ -93,12 +94,43 @@ async def report(run, state):
         }
         if item.get("status") == "COMPLETED" and not completed:
             results[kind]["status"] = "INSUFFICIENT_EVIDENCE"
-    facts = {"proposals": proposals, "results": {k: v for k, v in results.items() if v["findings"]}}
-    evidence = [s for item in proposals for s in item["evidence"]]
+    corrections = []
+    for item in state.get("filing", {}).get("changes", []):
+        verified = validated_sources([item], documents, fragments)
+        if verified:
+            corrections.append(
+                {
+                    "label": item["label"],
+                    "before": item["before"],
+                    "after": item["after"],
+                    "source": verified[0],
+                }
+            )
+    evidence = [item["source"] for item in corrections]
+    evidence += [s for item in proposals for s in item["evidence"]]
     evidence += [s for item in results.values() for s in item["sources"]]
     evidence = list({source_key(s): s for s in evidence}.values())
     numbered = {f"S{i + 1}": source for i, source in enumerate(evidence)}
-    claims, warnings = [], []
+    identifiers = {source_key(source): ref for ref, source in numbered.items()}
+
+    def cited(item, sources):
+        return {
+            **{k: v for k, v in item.items() if k not in {"source", "sources", "evidence"}},
+            "evidence_ids": [identifiers[source_key(source)] for source in sources],
+        }
+
+    facts = {
+        "corrections": [
+            cited(
+                {key: " ".join(item[key].split()) for key in ("label", "before", "after")},
+                [item["source"]],
+            )
+            for item in corrections
+        ],
+        "proposals": [cited(item, item["evidence"]) for item in proposals],
+        "results": {k: cited(v, v["sources"]) for k, v in results.items() if v["findings"]},
+    }
+    claims, scenarios, warnings = [], [], []
     for name, label in (("filing", "공시"), ("memo", "메모")):
         if state.get(name, {}).get("error"):
             warnings.append(label + " 조회를 완료하지 못했습니다.")
@@ -106,20 +138,33 @@ async def report(run, state):
         try:
             summary = await run.h.model(
                 "report",
-                {"request": state["request"], "facts": facts, "evidence": numbered},
+                {
+                    "request": state["request"],
+                    "facts": facts,
+                    "evidence": {
+                        ref: {**source, "quote": " ".join(source["quote"].split())}
+                        for ref, source in numbered.items()
+                    },
+                },
                 ReportSummary,
                 report=True,
             )
-            for claim in summary.summary:
-                if all(key in numbered for key in claim.evidence_ids):
-                    claims.append(
-                        {
-                            "text": claim.text,
-                            "evidence": [numbered[key] for key in claim.evidence_ids],
-                        }
-                    )
-                else:
-                    warnings.append("출처가 연결되지 않은 요약을 제외했습니다.")
+            for entries, target, key in (
+                (summary.summary, claims, "text"),
+                (summary.future_impacts, scenarios, "scenario"),
+            ):
+                for claim in entries:
+                    if all(ref in numbered for ref in claim.evidence_ids):
+                        target.append(
+                            {
+                                key: claim.text
+                                if key == "text"
+                                else f"조건: {claim.condition} 예상 영향: {claim.effect}",
+                                "evidence": [numbered[ref] for ref in claim.evidence_ids],
+                            }
+                        )
+                    else:
+                        warnings.append("출처가 연결되지 않은 요약을 제외했습니다.")
         except RunCancelled:
             raise
         except Exception:
@@ -141,8 +186,11 @@ async def report(run, state):
         },
         "results": results,
         "summary_claims": claims,
+        "future_impacts": scenarios,
     }
-    checked, check_warnings = await run.h.review_output(payload, grounding=True)
+    checked, check_warnings = await run.h.review_output(
+        payload, grounding=True, corrections=corrections
+    )
     warnings.extend(check_warnings)
     # 검사에서 이유나 수정문이 제거된 제안은 승인된 제안처럼 표시하지 않습니다.
     checked["base"]["proposals"] = [
@@ -153,18 +201,6 @@ async def report(run, state):
     for item in checked["results"].values():
         if item["status"] == "COMPLETED" and not item["findings"]:
             item["status"], item["sources"] = "INSUFFICIENT_EVIDENCE", []
-    corrections = []
-    for item in state.get("filing", {}).get("changes", []):
-        verified = validated_sources([item], documents, fragments)
-        if verified:
-            corrections.append(
-                {
-                    "label": item["label"],
-                    "before": item["before"],
-                    "after": item["after"],
-                    "source": verified[0],
-                }
-            )
     checked["corrections"] = corrections
     omitted = len(original.get("proposals", [])) - len(checked["base"]["proposals"])
     if omitted:
@@ -192,6 +228,9 @@ def compose(data):
     all_sources += [
         s for item in data.get("summary_claims", []) if item["text"] for s in item["evidence"]
     ]
+    all_sources += [
+        s for item in data.get("future_impacts", []) if item["scenario"] for s in item["evidence"]
+    ]
     sources = list({source_key(s): s for s in all_sources}.values())
     numbers = {source_key(s): i + 1 for i, s in enumerate(sources)}
 
@@ -203,6 +242,11 @@ def compose(data):
         "- " + escape(item["text"]) + " " + refs(item["evidence"])
         for item in data.get("summary_claims", [])
         if item["text"]
+    )
+    sections["future_impacts"] = "\n\n".join(
+        "- " + escape(item["scenario"]) + " " + refs(item["evidence"])
+        for item in data.get("future_impacts", [])
+        if item["scenario"]
     )
     changes = data.get("corrections", [])
     if changes:
