@@ -7,7 +7,7 @@ from uuid import uuid4
 import pytest
 from test_analysis import fake_model
 
-from disclosure_ai.local import Snapshot, analyze
+from disclosure_ai.entrypoints.local import Snapshot, analyze
 
 
 def test_local_graph_preserves_snapshot_and_reuses_report(tmp_path):

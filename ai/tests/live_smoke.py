@@ -6,8 +6,8 @@ import os
 from pathlib import Path
 from uuid import uuid4
 
-from disclosure_ai.harness import Harness
-from disclosure_ai.ledger import Ledger
+from disclosure_ai.harness.ledger import Ledger
+from disclosure_ai.harness.runtime import Harness
 from disclosure_ai.schemas import BaseAnalysis, ReportText
 
 

@@ -5,7 +5,7 @@ import zipfile
 from bs4 import BeautifulSoup
 from defusedxml import ElementTree
 
-from disclosure_ai.output import safe_text
+from disclosure_ai.harness.output import safe_text
 
 
 def parse_filing(data: bytes, receipt: str) -> dict:

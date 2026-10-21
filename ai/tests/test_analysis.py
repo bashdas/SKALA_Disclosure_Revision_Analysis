@@ -9,14 +9,15 @@ import pytest
 from defusedxml.common import DefusedXmlException
 from langgraph.checkpoint.memory import InMemorySaver
 
-from disclosure_ai.documents import parse_filing, typo_only
 from disclosure_ai.errors import LimitReached
-from disclosure_ai.graph import AnalysisGraph
-from disclosure_ai.harness import Harness
-from disclosure_ai.ledger import Ledger
-from disclosure_ai.output import mask, safe_text
-from disclosure_ai.perspectives import perspective
-from disclosure_ai.reporting import report as generate_report
+from disclosure_ai.harness.ledger import Ledger
+from disclosure_ai.harness.output import mask, safe_text
+from disclosure_ai.harness.runtime import Harness
+from disclosure_ai.services.documents import parse_filing, typo_only
+from disclosure_ai.workflow import shared
+from disclosure_ai.workflow.graph import AnalysisGraph
+from disclosure_ai.workflow.perspectives import perspective
+from disclosure_ai.workflow.reporting import report as generate_report
 
 
 @pytest.fixture
@@ -386,6 +387,10 @@ def test_perspective_retains_rag_source_location(ledger):
             "rag_ready": True,
         }
         graph = AnalysisGraph(Harness("task", ledger, model), RagTools(), InMemorySaver())
+        state.update(await perspective(graph, state))
+        state.update(await shared.requests(graph, state))
+        state.update(await shared.lookup(graph, state))
+        state.update(await shared.publish(graph, state))
         result = await perspective(graph, state)
         assert result["results"]["FINANCE"]["sources"][0]["location"] == source["location"]
 

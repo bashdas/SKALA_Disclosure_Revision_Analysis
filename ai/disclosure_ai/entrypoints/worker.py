@@ -18,12 +18,18 @@ import pika
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 from pydantic import Field
 
-from disclosure_ai.business import BusinessError, RunCancelled, fixed_request, internal_request
-from disclosure_ai.graph import AnalysisGraph
-from disclosure_ai.harness import Harness
-from disclosure_ai.ledger import Ledger
+from disclosure_ai.harness.ledger import Ledger
+from disclosure_ai.harness.runtime import Harness
 from disclosure_ai.schemas import AnalysisRequest, Model
-from disclosure_ai.tools import Tools
+from disclosure_ai.services.business import (
+    BusinessError,
+    RunCancelled,
+    fixed_request,
+    internal_request,
+)
+from disclosure_ai.services.tools import Tools
+from disclosure_ai.workflow.execution import execute, retry_save
+from disclosure_ai.workflow.graph import AnalysisGraph
 
 
 class Message(Model):
@@ -34,6 +40,7 @@ class Message(Model):
 
 
 async def process_task(task_id: str, state: Path, call_model=None) -> dict:
+    started = time.time()
     task_id = str(UUID(task_id))
     context = await internal_request(task_id, "GET", "context")
     if context["status"] in {"COMPLETED", "COMPLETED_WITH_WARNINGS", "CANCELLED", "FAILED"}:
@@ -56,16 +63,18 @@ async def process_task(task_id: str, state: Path, call_model=None) -> dict:
                     ensure_ascii=False,
                 ).encode()
             ).hexdigest()
-            ledger.begin(task_id, fingerprint, scope + ":" + request["disclosure_receipt_no"])
+            ledger.begin(
+                task_id,
+                fingerprint,
+                scope + ":" + request["disclosure_receipt_no"],
+                started=started,
+            )
             row = ledger.row(task_id)
             if row["report"]:
-                result = await tools.call(
-                    "business_save_report",
-                    {"task_id": task_id, "report": json.loads(row["report"])},
-                )
+                harness = Harness(task_id, ledger, call_model)
+                result = await retry_save(harness, tools, json.loads(row["report"]))
                 if result.get("error"):
                     raise BusinessError(result["error"], result.get("retryable", False))
-                ledger.keep(task_id, "result", result)
                 return result
             if context["status"] in {"SAVING", "SAVE_FAILED"}:
                 raise BusinessError("LOCAL_REPORT_MISSING")
@@ -82,8 +91,7 @@ async def process_task(task_id: str, state: Path, call_model=None) -> dict:
                     if checkpoint.next
                     else {"request": request, "scope": scope, "warnings": [], "results": {}}
                 )
-                async with asyncio.timeout(max(0.01, harness.remaining(True))):
-                    result = await graph.ainvoke(initial, config)
+                result = await execute(graph, harness, tools, config, initial, request, scope)
                 output = result["output"]
                 if output.get("status") == "SAVE_FAILED":
                     raise BusinessError(output["error"], True)
@@ -107,7 +115,7 @@ async def process_message(message: Message, state: Path, max_retries: int) -> di
         task_id = str(message.task_id)
         status = await internal_request(task_id, "GET", "status")
         # 저장 전 통신이 실패했어도 확보한 보고서의 재저장 경로를 보존합니다.
-        if status["status"] == "RUNNING" and status.get("current_stage") == "REPORT_GENERATION":
+        if status["status"] == "RUNNING":
 
             def has_report():
                 if not state.exists():
@@ -117,6 +125,11 @@ async def process_message(message: Message, state: Path, max_retries: int) -> di
                 return bool(row and row[0])
 
             if await asyncio.to_thread(has_report):
+                if status.get("current_stage") != "REPORT_GENERATION":
+                    tools = Tools("")
+                    if status.get("current_stage") in {None, "REQUEST_VALIDATION"}:
+                        await tools.stage(task_id, "INPUT_COLLECTION")
+                    await tools.stage(task_id, "REPORT_GENERATION")
                 await internal_request(task_id, "POST", "state", {"status": "SAVING"})
                 status = {"status": "SAVING"}
         # 저장 중 실패는 재저장 가능한 상태로 남기고 종료된 작업은 보존합니다.

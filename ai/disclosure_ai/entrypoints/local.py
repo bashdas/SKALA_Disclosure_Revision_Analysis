@@ -11,11 +11,12 @@ from pathlib import Path
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 from pydantic import Field
 
-from disclosure_ai.documents import parse_filing
-from disclosure_ai.graph import AnalysisGraph
-from disclosure_ai.harness import Harness
-from disclosure_ai.ledger import Ledger
+from disclosure_ai.harness.ledger import Ledger
+from disclosure_ai.harness.runtime import Harness
 from disclosure_ai.schemas import AnalysisRequest, Model
+from disclosure_ai.services.documents import parse_filing
+from disclosure_ai.workflow.execution import execute
+from disclosure_ai.workflow.graph import AnalysisGraph
 
 
 class Snapshot(Model):
@@ -82,7 +83,8 @@ async def analyze(snapshot: Snapshot, state: Path, filing: bytes, call_model=Non
                 return json.loads(row["result"])
             harness = Harness(task_id, ledger, call_model)
             async with AsyncSqliteSaver.from_conn_string(str(state) + ".checkpoints") as saver:
-                graph = AnalysisGraph(harness, LocalTools(snapshot, filing), saver).graph
+                tools = LocalTools(snapshot, filing)
+                graph = AnalysisGraph(harness, tools, saver).graph
                 config = {
                     "configurable": {"thread_id": task_id + ":" + fingerprint},
                     "recursion_limit": 40,
@@ -99,8 +101,7 @@ async def analyze(snapshot: Snapshot, state: Path, filing: bytes, call_model=Non
                     }
                 )
                 # 재개 시에도 최초 실행부터 누적된 시간과 호출 예산을 사용합니다.
-                async with asyncio.timeout(max(0.01, harness.remaining(True))):
-                    result = await graph.ainvoke(initial, config)
+                result = await execute(graph, harness, tools, config, initial, request, scope)
                 return result["output"]
         finally:
             if harness:

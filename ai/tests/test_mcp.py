@@ -8,8 +8,8 @@ import time
 import uvicorn
 from mcp.server.fastmcp import Context, FastMCP
 
-from disclosure_ai.business import mcp_call
-from disclosure_ai.tools import Tools
+from disclosure_ai.services.business import mcp_call
+from disclosure_ai.services.tools import Tools
 
 
 def test_mcp_client_contract_and_error_redaction(monkeypatch):

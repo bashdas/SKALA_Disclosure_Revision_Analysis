@@ -11,6 +11,8 @@ import httpx
 from mcp import ClientSession
 from mcp.client.streamable_http import streamable_http_client
 
+from disclosure_ai.harness.transport import invoke
+
 
 class BusinessError(RuntimeError):
     def __init__(self, code: str, retryable: bool = False):
@@ -101,7 +103,7 @@ async def internal_request(task_id: str, method: str, suffix: str, body=None) ->
         name = routes.get((method, suffix))
     if name is None:
         raise BusinessError("INVALID_INTERNAL_PATH")
-    result = await mcp_call("BUSINESS", name, args)
+    result = await invoke(name, lambda: mcp_call("BUSINESS", name, args))
     if result.get("error"):
         raise BusinessError(result["error"], result.get("retryable", False))
     return result

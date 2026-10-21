@@ -28,7 +28,7 @@ from test_business_integration import (
     serving,
 )
 
-from disclosure_ai.business import mcp_call
+from disclosure_ai.services.business import mcp_call
 
 
 @pytest.mark.skipif(os.environ.get("AI_LIVE_RUNTIME") != "1", reason="실제 서비스 명시 실행 필요")
@@ -58,7 +58,7 @@ def test_live_queue_to_report(internal_client, analysis_context, tmp_path):
                     sys.executable,
                     "-B",
                     "-m",
-                    "disclosure_ai.worker",
+                    "disclosure_ai.entrypoints.worker",
                     "--state",
                     str(tmp_path / "worker.sqlite"),
                 ],

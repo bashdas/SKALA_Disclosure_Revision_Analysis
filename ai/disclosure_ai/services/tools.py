@@ -2,8 +2,8 @@ import os
 
 import httpx
 
-from disclosure_ai.business import BusinessError, RunCancelled, internal_request, mcp_call
-from disclosure_ai.documents import normalize_disclosure
+from disclosure_ai.services.business import BusinessError, RunCancelled, internal_request, mcp_call
+from disclosure_ai.services.documents import normalize_disclosure
 
 
 class Tools:
@@ -35,6 +35,18 @@ class Tools:
                 return result
             return normalize_disclosure(result, args["receipt_no"])
         if name == "business_save_report":
+            status = await mcp_call("BUSINESS", "get_analysis_status", {"task_id": args["task_id"]})
+            if status.get("error"):
+                return status
+            if status["status"] in {"QUEUED", "RUNNING"}:
+                try:
+                    if status.get("current_stage") in {None, "REQUEST_VALIDATION"}:
+                        await self.stage(args["task_id"], "INPUT_COLLECTION")
+                    await self.stage(args["task_id"], "REPORT_GENERATION")
+                except RunCancelled:
+                    raise
+                except BusinessError as error:
+                    return {"error": error.code, "retryable": error.retryable}
             report = args["report"]
             return await mcp_call(
                 "BUSINESS",

@@ -1,18 +1,17 @@
 import asyncio
-import hashlib
 import json
 import os
 import time
 from pathlib import Path
 
-import httpx
 import tiktoken
 from openai import APIConnectionError, APIStatusError, AsyncOpenAI, LengthFinishReasonError
 from pydantic import ValidationError
 
 from disclosure_ai.errors import LimitReached
-from disclosure_ai.ledger import Ledger
-from disclosure_ai.output import mask, review_output
+from disclosure_ai.harness import lookup
+from disclosure_ai.harness.ledger import Ledger
+from disclosure_ai.harness.output import mask, review_output
 
 
 class Harness:
@@ -59,7 +58,7 @@ class Harness:
             self.ledger.db.commit()
 
     async def model(self, role: str, context: dict, schema, report: bool = False):
-        prompts = Path(__file__).parent / "prompts"
+        prompts = Path(__file__).parents[1] / "prompts"
         system = (prompts / "common.md").read_text() + (prompts / f"{role}.md").read_text()
         input_limit, output_limit = (6000, 1500) if role == "perspective" else (10000, 2000)
         if role == "base":
@@ -156,70 +155,8 @@ class Harness:
     async def review_output(self, payload: dict) -> tuple[dict, list[str]]:
         return await review_output(self, payload)
 
-    async def tool(self, name: str, args: dict, invoke, *, report=False, scope="") -> dict:
-        if self.guard and name != "business_save_report":
-            await self.guard(self.task_id)
-        # 실행권 등록을 await 전에 끝내 같은 요청의 병렬 호출을 하나로 합칩니다.
-        key = hashlib.sha256(
-            json.dumps([scope, name, args], sort_keys=True, ensure_ascii=False).encode()
-        ).hexdigest()
-        cached = self.ledger.db.execute(
-            "SELECT result FROM lookups WHERE run_id=? AND cache_key=?", (self.task_id, key)
-        ).fetchone()
-        if cached:
-            return json.loads(cached[0])
-        if key in self.inflight:
-            try:
-                return await asyncio.wait_for(
-                    asyncio.shield(self.inflight[key]), max(0.01, min(10, self.remaining(report)))
-                )
-            except TimeoutError:
-                return {"error": "WAIT_LIMIT"}
-        future = asyncio.get_running_loop().create_future()
-        self.inflight[key] = future
-        result = {"error": "TOOL_FAILED"}
-        try:
-            for attempt in range(3):
-                async with self.ledger.lock:
-                    row = self.ledger.row(self.task_id)
-                    counts = json.loads(row["tools"])
-                    if counts.get(name, 0) >= 3 or self.remaining(report) <= 0:
-                        result = {"error": "LIMIT_REACHED"}
-                        break
-                    counts[name] = counts.get(name, 0) + 1
-                    self.ledger.db.execute(
-                        "UPDATE runs SET tools=? WHERE id=?", (json.dumps(counts), self.task_id)
-                    )
-                    self.ledger.db.commit()
-                try:
-                    async with asyncio.timeout(min(10, self.remaining(report))):
-                        result = await invoke(name, args)
-                    if not isinstance(result, dict):
-                        result = {"error": "INVALID_TOOL_OUTPUT"}
-                    if result.get("error") and result.get("retryable") and attempt < 2:
-                        continue
-                    break
-                except (httpx.TransportError, httpx.HTTPStatusError, TimeoutError) as error:
-                    result = {"error": type(error).__name__}
-                    retryable = not isinstance(
-                        error, httpx.HTTPStatusError
-                    ) or error.response.status_code in {429, 500, 502, 503, 504}
-                    if not retryable or attempt == 2:
-                        break
-                except Exception as error:
-                    result = {"error": type(error).__name__}
-                    break
-            self.ledger.db.execute(
-                "INSERT OR REPLACE INTO lookups(run_id,cache_key,result) VALUES(?,?,?)",
-                (self.task_id, key, json.dumps(result, ensure_ascii=False)),
-            )
-            self.ledger.db.commit()
-            self.ledger.event(self.task_id, "TOOL_END", tool=name, error=result.get("error"))
-            return result
-        finally:
-            if not future.done():
-                future.set_result(result)
-            self.inflight.pop(key, None)
+    async def tool(self, name, args, invoke, *, report=False, scope=""):
+        return await lookup.call(self, name, args, invoke, report=report, scope=scope)
 
     async def close(self):
         if self.client:

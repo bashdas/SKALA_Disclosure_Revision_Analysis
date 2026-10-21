@@ -12,12 +12,14 @@ from fastapi import Depends, FastAPI, Header, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 
-from disclosure_ai.business import RunCancelled, internal_request
-from disclosure_ai.graph import AnalysisGraph
-from disclosure_ai.harness import Harness
-from disclosure_ai.ledger import Ledger
+from disclosure_ai.harness.ledger import Ledger
+from disclosure_ai.harness.runtime import Harness
 from disclosure_ai.schemas import AnalysisRequest
-from disclosure_ai.tools import Tools
+from disclosure_ai.services.business import RunCancelled, internal_request
+from disclosure_ai.services.tools import Tools
+from disclosure_ai.workflow.execution import execute
+from disclosure_ai.workflow.execution import retry_save as save_again
+from disclosure_ai.workflow.graph import AnalysisGraph
 
 
 @asynccontextmanager
@@ -104,8 +106,9 @@ async def run(body: AnalysisRequest, tools: Tools, scope: dict):
             }
         )
         # ponytail: 단일 프로세스의 SQLite 체크포인트를 사용하며 다중 worker 배포에는 공유 실행 잠금이 필요합니다.
-        async with asyncio.timeout(max(0.01, harness.remaining(True))):
-            await graph.ainvoke(initial, config)
+        await execute(
+            graph, harness, tools, config, initial, body.model_dump(mode="json"), scope["scope"]
+        )
     except RunCancelled:
         ledger.keep(task_id, "result", {"status": "CANCELLED"})
     except Exception as error:
@@ -171,18 +174,11 @@ async def retry_save(
         raise HTTPException(404, "보존한 보고서가 없습니다.") from error
     if not row["report"]:
         raise HTTPException(409, "생성된 보고서가 없습니다.")
-    # 사용자가 요청한 재저장은 별도 10초 실행이며 모델 호출은 수행하지 않습니다.
+    harness = Harness(str(task_id), app.state.ledger)
     try:
-        async with asyncio.timeout(10):
-            result = await tools.call(
-                "business_save_report",
-                {"task_id": str(task_id), "report": json.loads(row["report"])},
-            )
-    except Exception as error:
-        result = {"status": "SAVE_FAILED", "error": type(error).__name__}
-    if result.get("error"):
-        result["status"] = "SAVE_FAILED"
-    app.state.ledger.keep(str(task_id), "result", result)
+        result = await save_again(harness, tools, json.loads(row["report"]))
+    finally:
+        await harness.close()
     return {**result, "report": json.loads(row["report"])}
 
 

@@ -31,8 +31,8 @@ from test_auth_security import auth_settings
 from test_domain import migrated_engine
 from test_internal_api import KEY, internal_client, task
 
-from disclosure_ai.business import BusinessError
-from disclosure_ai.worker import process_task
+from disclosure_ai.entrypoints.worker import process_task
+from disclosure_ai.services.business import BusinessError
 
 
 @contextmanager
@@ -185,3 +185,28 @@ def test_worker_backend_report_retry_and_cancellation(
         cancelled = task(analysis_context, AnalysisStatus.CANCELLED)
         assert asyncio.run(process_task(str(cancelled), state, model))["status"] == "CANCELLED"
         assert calls == ["base", "perspective", "report", "output_check"]
+
+        # 시간 초과 후 초기 단계에 남은 작업도 모델 재호출 없이 저장 단계로 진행합니다.
+        import json
+        import time
+
+        from disclosure_ai.harness.ledger import Ledger
+        from disclosure_ai.harness.runtime import Harness
+        from disclosure_ai.services.tools import Tools
+        from disclosure_ai.workflow.execution import retry_save
+
+        early = task(analysis_context)
+        ledger = Ledger(str(state))
+        try:
+            ledger.begin(str(early), "early", started=time.time() - 121)
+            body = json.loads(ledger.row(str(task_id))["report"])
+            body["report_json"]["request"]["analysis_task_id"] = str(early)
+            ledger.keep(str(early), "report", body)
+            h = Harness(str(early), ledger)
+            saved = asyncio.run(retry_save(h, Tools(""), body))
+            assert saved["status"] == "COMPLETED_WITH_WARNINGS"
+            repeated = asyncio.run(retry_save(h, Tools(""), body))
+            assert repeated["report_id"] == saved["report_id"]
+            assert ledger.row(str(early))["turns"] == 0
+        finally:
+            ledger.db.close()

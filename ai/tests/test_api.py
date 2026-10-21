@@ -3,7 +3,7 @@ from uuid import UUID
 
 from fastapi.testclient import TestClient
 
-from disclosure_ai import api
+from disclosure_ai.entrypoints import api
 from disclosure_ai.schemas import AnalysisRequest
 
 
@@ -99,7 +99,9 @@ def test_api_resume_uses_original_deadline(monkeypatch, tmp_path):
             ledger.db.commit()
             await asyncio.wait_for(api.run(body, object(), {"scope": "org"}), 0.5)
             result = json.loads(ledger.row(task_id)["result"])
-            assert result["status"] == "FAILED"
-            assert result["error"] == "TimeoutError"
+            assert result["status"] == "SAVE_FAILED"
+            assert result["error"] == "TIME_LIMIT"
+            assert result["report"]["content"]
+            assert ledger.row(task_id)["report"]
 
         client.portal.call(check)

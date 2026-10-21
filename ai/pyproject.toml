@@ -12,6 +12,10 @@ dependencies = [
   "langgraph-checkpoint-sqlite>=3,<4", "tiktoken>=0.9,<1",
   "defusedxml>=0.7,<1", "beautifulsoup4>=4.13,<5"
 ]
+[project.scripts]
+disclosure-ai-worker = "disclosure_ai.entrypoints.worker:main"
+disclosure-ai-local = "disclosure_ai.entrypoints.local:main"
+
 [project.optional-dependencies]
 dev = ["pytest>=8,<10", "ruff>=0.12,<1"]
 [tool.setuptools.packages.find]

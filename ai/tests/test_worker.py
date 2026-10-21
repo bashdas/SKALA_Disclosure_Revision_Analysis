@@ -5,8 +5,8 @@ from uuid import uuid4
 
 import pytest
 
-from disclosure_ai import worker
-from disclosure_ai.business import BusinessError
+from disclosure_ai.entrypoints import worker
+from disclosure_ai.services.business import BusinessError
 
 
 @pytest.mark.parametrize("failed_publish", [False, True])
@@ -115,8 +115,9 @@ def test_final_failure_updates_only_active_state(monkeypatch, status, target):
         assert calls[1][2]["error_code"] == "AI_RETRIES_EXHAUSTED"
 
 
-def test_final_retry_preserves_report_before_remote_save(monkeypatch, tmp_path):
-    from disclosure_ai.ledger import Ledger
+@pytest.mark.parametrize("stage", ["REQUEST_VALIDATION", "REPORT_GENERATION"])
+def test_final_retry_preserves_report_before_remote_save(monkeypatch, tmp_path, stage):
+    from disclosure_ai.harness.ledger import Ledger
 
     message = worker.Message(
         message_id=uuid4(), task_id=uuid4(), type="RUN_ANALYSIS", retry_count=3
@@ -134,10 +135,19 @@ def test_final_retry_preserves_report_before_remote_save(monkeypatch, tmp_path):
     async def internal(task_id, method, suffix, body=None):
         if method == "POST":
             posted.append(body["status"])
-        return {"status": "RUNNING", "current_stage": "REPORT_GENERATION"}
+        return {"status": "RUNNING", "current_stage": stage}
 
+    stages = []
+
+    async def advance(self, task_id, target):
+        stages.append(target)
+
+    monkeypatch.setattr(worker.Tools, "stage", advance)
     monkeypatch.setattr(worker, "process_task", fail)
     monkeypatch.setattr(worker, "internal_request", internal)
     with pytest.raises(BusinessError):
         asyncio.run(worker.process_message(message, state, 3))
     assert posted == ["SAVING", "SAVE_FAILED"]
+    assert stages == (
+        ["INPUT_COLLECTION", "REPORT_GENERATION"] if stage == "REQUEST_VALIDATION" else []
+    )

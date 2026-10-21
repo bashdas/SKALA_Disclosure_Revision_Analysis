@@ -1,17 +1,47 @@
 from datetime import datetime, timezone
 
-from disclosure_ai.business import RunCancelled
-from disclosure_ai.documents import validated_sources
 from disclosure_ai.schemas import ReportText
+from disclosure_ai.services.business import RunCancelled
+from disclosure_ai.services.documents import validated_sources
+from disclosure_ai.workflow.perspectives import finish_perspective
+
+SECTION_TITLES = {
+    "summary": "처리 결과 요약",
+    "correction": "정정 내용",
+    "memo_impact": "메모 영향",
+    "suggestions": "수정 제안",
+    "perspectives": "관점별 분석",
+    "limitations": "제한 사유",
+}
 
 
 async def join(run, state):
     warnings = list(state.get("base", {}).get("limitations", []))
-    if not state["filing"].get("complete_correction_table"):
+    if not state.get("filing", {}).get("complete_correction_table"):
         warnings.append("정정표 전체 추출을 확인하지 못했습니다. 본문 근거를 추가 확인해야 합니다.")
     for result in state.get("results", {}).values():
         warnings.extend(result.get("limitations", []))
-    return {"warnings": warnings}
+    updates = {"warnings": warnings, "results": {}, "jobs": {}}
+    if state.get("stage_failed"):
+        for selection in state.get("base", {}).get("selected", []):
+            kind = selection["perspective_type"]
+            if kind in state.get("results", {}):
+                continue
+            completed = await finish_perspective(
+                run,
+                kind,
+                selection,
+                {
+                    "status": "FAILED",
+                    "findings": "공유 조회 단계에서 분석이 중단됐습니다.",
+                    "sources": [],
+                    "limitations": list(state.get("warnings", [])),
+                },
+            )
+            updates["results"].update(completed["results"])
+            updates["jobs"].update(completed["jobs"])
+            updates["warnings"].extend(completed["warnings"])
+    return updates
 
 
 async def report(run, state):
@@ -24,7 +54,14 @@ async def report(run, state):
     }
     warnings = []
     try:
-        report = (await run.h.model("report", context, ReportText, report=True)).model_dump()
+        report = (
+            await run.h.model(
+                "report",
+                {**context, "corrections": state.get("filing", {}).get("changes", [])},
+                ReportText,
+                report=True,
+            )
+        ).model_dump()
     except RunCancelled:
         raise
     except Exception as error:
@@ -68,16 +105,8 @@ async def report(run, state):
         "기업: " + state["request"]["company_name_snapshot"],
         "접수번호: " + state["request"]["disclosure_receipt_no"],
     ]
-    titles = {
-        "summary": "처리 결과 요약",
-        "correction": "정정 내용",
-        "memo_impact": "메모 영향",
-        "suggestions": "수정 제안",
-        "perspectives": "관점별 분석",
-        "limitations": "제한 사유",
-    }
     for title, text in checked["sections"].items():
-        lines.extend([titles[title], text or "검사에서 제외된 서술입니다."])
+        lines.extend([SECTION_TITLES[title], text or "검사에서 제외된 서술입니다."])
     for proposal in base.get("proposals", []):
         lines.extend(
             ["메모 수정 제안", proposal["reason"], proposal.get("after_text") or "수정문 없음"]
@@ -125,3 +154,50 @@ async def save(run, state):
         result["report"] = state["report"]
     run.h.ledger.keep(run.h.task_id, "result", result)
     return {"output": result}
+
+
+def emergency(run, state, error):
+    sources = validated_sources(
+        state.get("context", []), state.get("documents", []), state.get("context", [])
+    )
+    # 검사를 실행할 예산이 없으면 모델 서술을 다시 사용하지 않고 검증된 원문과 상태만 보존합니다.
+    reason = "분석 처리 중단: " + type(error).__name__
+    sections = {
+        "summary": "실행이 중단돼 확보된 원문과 처리 상태를 보존했습니다.",
+        "correction": "정정 내용은 출처의 원문 인용에서 확인할 수 있습니다.",
+        "memo_impact": "영향 분석 서술은 출력 검사를 완료하지 못해 제외했습니다.",
+        "suggestions": "확정된 수정 제안을 표시하지 않았습니다.",
+        "perspectives": "\n".join(
+            kind + ": " + result.get("status", "FAILED")
+            for kind, result in state.get("results", {}).items()
+        )
+        or "추가 분석 미수행",
+        "limitations": reason,
+    }
+    request = state["request"]
+    payload = {
+        "request": request,
+        "base": None,
+        "results": {},
+        "sections": sections,
+        "sources": sources,
+        "warnings": [reason],
+    }
+    content = "\n".join(
+        [
+            "정정공시 분석 보고서",
+            "기업: " + request["company_name_snapshot"],
+            "접수번호: " + request["disclosure_receipt_no"],
+            *[part for name, value in sections.items() for part in (SECTION_TITLES[name], value)],
+            *[f"{s['document_id']} {s['location']} {s['quote']}" for s in sources],
+        ]
+    )
+    body = {
+        "content": content,
+        "report_json": payload,
+        "has_warnings": True,
+        "no_additional_analysis_reason": reason,
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+    }
+    run.h.ledger.keep(run.h.task_id, "report", body)
+    return body
