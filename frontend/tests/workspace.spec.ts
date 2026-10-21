@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test'
 
-test('기업 배너·배지 이동과 문서·버전별 읽음 상태', async ({ page }, testInfo) => {
+test('기업 목록 표·배지 이동과 문서·버전별 읽음 상태', async ({ page }, testInfo) => {
   await page.goto('/companies')
   await expect(page.getByTestId('company-lnf')).toBeVisible()
   await expect(page.getByTestId('company-shi')).toBeVisible()
@@ -199,7 +199,7 @@ test('메모와 분석 이력은 종목 상세에서만 관리하고 이력의 �
   await expect(
     page.locator('.topnav').getByRole('link', { name: '분석 이력', exact: true }),
   ).toHaveCount(0)
-  await page.getByRole('link', { name: '엘앤에프 자료 확인' }).click()
+  await page.getByRole('link', { name: '엘앤에프', exact: true }).click()
   await page
     .getByRole('navigation', { name: '기업 자료 종류' })
     .getByRole('link', { name: /분석 이력/ })
@@ -212,7 +212,7 @@ test('메모와 분석 이력은 종목 상세에서만 관리하고 이력의 �
   await page.locator('.analysis-row').click()
   await expect(page.getByText('분석을 완료하지 못했습니다', { exact: true })).toBeVisible()
   await page.getByRole('link', { name: '기업 목록', exact: true }).first().click()
-  await page.getByRole('link', { name: '삼성중공업 자료 확인' }).click()
+  await page.getByRole('link', { name: '삼성중공업', exact: true }).click()
   await page
     .getByRole('navigation', { name: '기업 자료 종류' })
     .getByRole('link', { name: /분석 이력/ })
@@ -252,12 +252,37 @@ test('데모 로그인 후 개인 홈에서 관심종목과 예시 시장 정보
   await expect(page.locator('.brand-mark')).toHaveCount(0)
   expect((await page.locator('.topbar').boundingBox())!.height).toBeLessThanOrEqual(52)
   await expect(page.getByTestId('favorite-shi')).toBeVisible()
+  const watchlist = page.getByRole('table', { name: '관심종목 시세 예시' })
+  for (const name of ['현재가', '등락률', '거래대금', '시가총액', '산업군']) {
+    await expect(watchlist.getByRole('columnheader', { name, exact: true })).toBeVisible()
+  }
+  const row = page.getByTestId('favorite-shi')
+  await expect(row).toContainText('24,500원')
+  await expect(row).toContainText('-0.81%')
+  await expect(row).toContainText('427억원')
+  await expect(row).toContainText('21.5조원')
+  await expect(row).toContainText('조선·해양')
+  await expect(row.locator('.quote-change')).toHaveClass(/down/)
+  expect((await row.boundingBox())!.height).toBeLessThanOrEqual(56)
+  if ((page.viewportSize()?.width ?? 1440) < 650) {
+    const tableScroll = page.getByRole('region', { name: '관심종목 시세 목록' })
+    await tableScroll.evaluate((el) => {
+      el.scrollLeft = el.scrollWidth
+    })
+    const industry = (await row.locator('.watchlist-sector').boundingBox())!
+    const name = (await row.getByRole('rowheader').boundingBox())!
+    const bounds = (await tableScroll.boundingBox())!
+    expect(industry.x).toBeGreaterThanOrEqual(name.x + name.width)
+    expect(industry.x + industry.width).toBeLessThanOrEqual(bounds.x + bounds.width)
+    await tableScroll.evaluate((el) => {
+      el.scrollLeft = 0
+    })
+  }
   await expect(page.getByTestId('favorite-lnf')).toHaveCount(0)
-  await expect(
-    page.getByText('표시값은 시세 연동 전 예시 데이터입니다.', { exact: true }),
-  ).toBeVisible()
   await expect(page.locator('.market-item')).toHaveCount(12)
-  expect((await page.locator('.market-rail').boundingBox())!.height).toBeLessThan(100)
+  expect((await page.locator('.market-rail').boundingBox())!.height).toBeLessThan(320)
+  await expect(page.locator('.market-sparkline')).toHaveCount(12)
+  await expect(page.locator('.market-featured')).toContainText('코스피')
   await expect(
     page
       .getByRole('navigation', { name: '주 메뉴' })
@@ -276,15 +301,16 @@ test('데모 로그인 후 개인 홈에서 관심종목과 예시 시장 정보
   await expect(strip.getByRole('button', { name: '다음 지표', exact: true })).toHaveCount(0)
   const rail = strip.locator('.market-rail')
   expect(await rail.evaluate((el) => getComputedStyle(el).scrollbarWidth)).toBe('none')
-  await rail.hover()
-  const pageScroll = await page.evaluate(() => window.scrollY)
-  await page.mouse.wheel(0, 320)
-  await expect
-    .poll(() => strip.locator('.market-rail').evaluate((el) => el.scrollLeft))
-    .toBeGreaterThan(0)
-  expect(await page.evaluate(() => window.scrollY)).toBe(pageScroll)
-  await page.mouse.wheel(0, -320)
-  await expect.poll(() => rail.evaluate((el) => el.scrollLeft)).toBe(0)
+  const overflows = await rail.evaluate((el) => el.scrollWidth > el.clientWidth)
+  if (overflows) {
+    await rail.hover()
+    const pageScroll = await page.evaluate(() => window.scrollY)
+    await page.mouse.wheel(0, 320)
+    await expect.poll(() => rail.evaluate((el) => el.scrollLeft)).toBeGreaterThan(0)
+    expect(await page.evaluate(() => window.scrollY)).toBe(pageScroll)
+    await page.mouse.wheel(0, -320)
+    await expect.poll(() => rail.evaluate((el) => el.scrollLeft)).toBe(0)
+  }
   await page
     .getByTestId('favorite-shi')
     .getByRole('link', { name: '삼성중공업', exact: false })
@@ -359,10 +385,20 @@ test('코스피 샘플 기업을 12개 표시하고 새 기업의 빈 자료와 
   page,
 }) => {
   await page.goto('/companies')
-  await expect(page.locator('.company-banner')).toHaveCount(12)
+  await expect(page.locator('.company-row')).toHaveCount(12)
+  const directory = page.getByRole('table', { name: '기업 목록 시세 예시' })
+  for (const name of ['현재가', '등락률', '거래대금', '시가총액', '업데이트', '산업군']) {
+    await expect(directory.getByRole('columnheader', { name, exact: true })).toBeVisible()
+  }
+  const heights = await page
+    .locator('.company-row')
+    .evaluateAll((rows) => rows.map((row) => row.getBoundingClientRect().height))
+  expect(heights.every((height) => height <= 56)).toBe(true)
   const company = page.getByTestId('company-samsung-electronics')
   await expect(company.getByRole('heading', { name: '삼성전자', exact: true })).toBeVisible()
   await expect(company).toContainText('005930')
+  await expect(company).toContainText('78,500원')
+  await expect(company).toContainText('+1.42%')
   await expect(company).toContainText('등록된 자료 없음')
   await expect(page.getByTestId('samsung-electronics-filing-badge')).toHaveAccessibleName(
     '삼성전자 공시 업데이트 0건',

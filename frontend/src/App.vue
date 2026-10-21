@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { onMounted } from 'vue'
 import { RouterLink, RouterView, useRoute } from 'vue-router'
-import { LoaderCircle, RefreshCw } from 'lucide-vue-next'
+import { LoaderCircle, RefreshCw, Sun, Moon } from 'lucide-vue-next'
 import { useWorkspace } from './stores/workspace'
+import { useTheme } from './stores/theme'
 import DocumentDrawer from './components/DocumentDrawer.vue'
 const store = useWorkspace(),
-  route = useRoute()
+  route = useRoute(),
+  theme = useTheme()
 onMounted(() => store.initialize())
 </script>
 <template>
@@ -20,11 +22,24 @@ onMounted(() => store.initialize())
             >기업 목록</RouterLink
           >
         </nav>
+        <button
+          class="icon-button theme-toggle"
+          :aria-label="theme.theme === 'dark' ? '라이트 모드로 전환' : '다크 모드로 전환'"
+          :aria-pressed="theme.theme === 'dark'"
+          :title="theme.theme === 'dark' ? '라이트 모드로 전환' : '다크 모드로 전환'"
+          @click="theme.toggle"
+        >
+          <Sun v-if="theme.theme === 'dark'" :size="18" />
+          <Moon v-else :size="18" />
+        </button>
       </header>
       <main
         id="main-content"
         tabindex="-1"
-        :class="{ 'companies-main': route.path === '/companies' }"
+        :class="{
+          'companies-main': route.path === '/companies',
+          'company-main': typeof route.params.companyId === 'string',
+        }"
       >
         <div v-if="store.loading" class="loading-state" role="status">
           <LoaderCircle :size="28" class="spin" />
@@ -40,10 +55,6 @@ onMounted(() => store.initialize())
         </div>
         <RouterView v-else-if="store.ready" />
       </main>
-      <footer class="app-footer">
-        <span>공시체크 · 리서치 의사결정 지원</span
-        ><span>시연용 데이터 · 최종 판단은 리서처가 수행합니다.</span>
-      </footer>
     </div>
   </div>
   <DocumentDrawer />

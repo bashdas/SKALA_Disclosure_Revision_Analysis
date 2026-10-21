@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { ArrowUpRight, ArrowDownRight } from 'lucide-vue-next'
+import MarketSparkline from './MarketSparkline.vue'
 
 // All values are fictional UI examples, not historical/current quotes.
 const groups = [
@@ -66,27 +66,59 @@ const market = [
     up: false,
   },
 ]
+
+// Normalized, deterministic illustrative paths; these are not intraday observations.
+const profiles = [
+  [100, 100.08, 100.21, 100.45, 100.74, 100.88, 100.77, 100.55, 100.32, 100.27, 100.35, 100.42],
+  [100, 100.24, 100.18, 99.92, 99.83, 99.91, 99.78, 99.86, 99.74, 99.69, 99.77, 99.72],
+  [100, 100.04, 100.12, 100.08, 100.26, 100.34, 100.28, 100.39, 100.32, 100.28, 100.41, 100.36],
+  [100, 100.14, 100.48, 100.67, 100.55, 100.73, 100.62, 100.56, 100.64, 100.51, 100.58, 100.51],
+  [100, 100.26, 100.65, 100.96, 100.85, 101.04, 100.89, 100.96, 100.81, 100.88, 100.79, 100.74],
+  [100, 100.21, 100.14, 99.92, 99.81, 99.95, 99.86, 99.75, 99.83, 99.69, 99.73, 99.68],
+  [100, 100.06, 100.12, 100.09, 100.18, 100.14, 100.22, 100.17, 100.12, 100.19, 100.13, 100.15],
+  [100, 100.11, 100.23, 100.18, 100.06, 99.99, 100.07, 99.94, 99.99, 99.92, 99.95, 99.88],
+  [100, 100.08, 100.04, 100.16, 100.12, 100.25, 100.21, 100.33, 100.25, 100.29, 100.27, 100.3],
+  [100, 100.15, 100.42, 100.33, 100.51, 100.68, 100.57, 100.73, 100.63, 100.82, 100.75, 100.8],
+  [100, 100.03, 100.11, 100.06, 100.16, 100.19, 100.13, 100.22, 100.17, 100.28, 100.22, 100.25],
+  [100, 99.91, 99.97, 99.79, 99.83, 99.71, 99.76, 99.63, 99.69, 99.57, 99.62, 99.55],
+]
+const labels: Record<string, string> = {
+  KOSPI: '코스피',
+  KOSDAQ: '코스닥',
+  'KOSPI 200': '코스피 200',
+  NASDAQ: '나스닥',
+  'NIKKEI 225': '닛케이 225',
+  'USD/KRW': '달러 환율',
+  '미국채 10Y': '미국채 10년',
+  GOLD: '금',
+  COPPER: '구리',
+}
+const quotes = market.map((item, index) => ({
+  ...item,
+  label: labels[item.name] ?? item.name,
+  series: profiles[index]!,
+}))
 const selected = ref<string>('all'),
   rail = ref<HTMLElement | null>(null)
 const filtered = computed(() =>
-  market.filter((item) => selected.value === 'all' || item.group === selected.value),
+  quotes.filter((item) => selected.value === 'all' || item.group === selected.value),
 )
+const featured = computed(() => (selected.value === 'all' ? filtered.value[0] : undefined))
+const secondary = computed(() => (featured.value ? filtered.value.slice(1) : filtered.value))
 function onWheel(event: WheelEvent) {
   const element = rail.value
-  if (!element || event.ctrlKey) return // Preserve browser zoom/pinch gestures.
+  if (!element || event.ctrlKey) return
   const rawDelta = Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.deltaY
   const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? element.clientWidth : 1
   const next = Math.max(
     0,
     Math.min(element.scrollWidth - element.clientWidth, element.scrollLeft + rawDelta * unit),
   )
-  if (next === element.scrollLeft) return // Let the page scroll when the strip reaches an edge.
+  if (next === element.scrollLeft) return
   event.preventDefault()
   element.scrollLeft = next
 }
-watch(selected, () => {
-  rail.value?.scrollTo({ left: 0 })
-})
+watch(selected, () => rail.value?.scrollTo({ left: 0 }))
 </script>
 <template>
   <section class="market-strip" aria-label="시장 지표">
@@ -102,7 +134,6 @@ watch(selected, () => {
           {{ group.label }}
         </button>
       </div>
-      <span class="market-sample">UI 예시</span>
     </div>
     <div
       ref="rail"
@@ -111,166 +142,218 @@ watch(selected, () => {
       aria-label="시장 지표 가로 목록"
       @wheel="onWheel"
     >
-      <article v-for="item in filtered" :key="item.name" class="market-item">
-        <div class="market-label">
-          <h2>{{ item.name }}</h2>
-          <span>{{ item.unit }}</span>
-        </div>
-        <div class="market-quote">
-          <strong>{{ item.value }}</strong
-          ><span class="market-delta" :class="item.up ? 'up' : 'down'"
-            ><component :is="item.up ? ArrowUpRight : ArrowDownRight" :size="11" />{{
-              item.change
-            }}</span
+      <div class="market-board" :class="{ 'has-featured': featured }">
+        <article
+          v-if="featured"
+          class="market-item market-featured"
+          :class="featured.up ? 'up' : 'down'"
+        >
+          <div class="market-label">
+            <h2 :aria-label="featured.name">{{ featured.label }}</h2>
+            <span>{{ featured.unit }}</span>
+          </div>
+          <div class="market-quote">
+            <strong>{{ featured.value }}</strong
+            ><span class="market-delta">{{ featured.change }}</span>
+          </div>
+          <MarketSparkline
+            :values="featured.series"
+            :baseline="100"
+            :label="`${featured.label} 추이 그래프`"
+            large
+          />
+        </article>
+        <div class="market-grid">
+          <article
+            v-for="item in secondary"
+            :key="item.name"
+            class="market-item market-small"
+            :class="item.up ? 'up' : 'down'"
           >
+            <MarketSparkline
+              :values="item.series"
+              :baseline="100"
+              :label="`${item.label} 추이 그래프`"
+            />
+            <div class="market-copy">
+              <div class="market-label">
+                <h2 :aria-label="item.name">{{ item.label }}</h2>
+                <span>{{ item.unit }}</span>
+              </div>
+              <div class="market-quote">
+                <strong>{{ item.value }}</strong
+                ><span class="market-delta">{{ item.change }}</span>
+              </div>
+            </div>
+          </article>
         </div>
-      </article>
+      </div>
     </div>
-    <p class="market-footnote">표시값은 시세 연동 전 예시 데이터입니다.</p>
   </section>
 </template>
 <style scoped>
 .market-strip {
-  margin-bottom: 24px;
+  margin-bottom: 28px;
   min-width: 0;
 }
 .market-toolbar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 7px;
+  margin-bottom: 14px;
 }
 .market-filters {
   display: flex;
   align-items: center;
-  gap: 3px;
-  min-width: 0;
   flex-wrap: wrap;
+  gap: 3px;
 }
 .market-filters button {
-  font-size: 11px;
-  color: #8290a0;
+  font-size: 12px;
+  color: var(--muted);
   padding: 4px 9px;
-  border-radius: 4px;
+  border-radius: 8px;
   white-space: nowrap;
 }
 .market-filters button.selected {
-  background: #e8eef5;
-  color: #2c4b68;
+  background: var(--primary-soft);
+  color: var(--primary);
   font-weight: 650;
 }
 .market-filters button:hover {
-  background: #edf2f7;
-}
-.market-sample {
-  font-size: 9px;
-  letter-spacing: 0.4px;
-  color: #98a4b2;
-  margin-right: 0;
+  background: var(--surface-strong);
 }
 .market-rail {
-  display: flex;
   overflow-x: auto;
   overscroll-behavior-x: contain;
-  background: #fff;
-  border: 1px solid #e0e6ee;
-  border-radius: 7px;
   scrollbar-width: none;
   -ms-overflow-style: none;
 }
 .market-rail::-webkit-scrollbar {
   display: none;
-  width: 0;
-  height: 0;
+}
+.market-rail:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 4px;
+  border-radius: 6px;
+}
+.market-board {
+  min-width: 900px;
+  background: var(--background);
+  padding: 12px 0;
+}
+.market-board.has-featured {
+  display: grid;
+  grid-template-columns: 250px minmax(0, 1fr);
+  min-width: 1120px;
+}
+.market-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  row-gap: 16px;
 }
 .market-item {
-  flex: 0 0 185px;
-  padding: 11px 15px 10px;
-  border-right: 1px solid #edf0f4;
   min-width: 0;
 }
-.market-item:last-child {
-  border-right: 0;
+.market-item.up {
+  color: var(--up);
+}
+.market-item.down {
+  color: var(--down);
+}
+.market-featured {
+  padding: 2px 24px 0 0;
+  border-right: 1px solid var(--line);
 }
 .market-label {
   display: flex;
   align-items: baseline;
-  justify-content: space-between;
   gap: 8px;
-  margin-bottom: 5px;
+  margin-bottom: 4px;
 }
 .market-label h2 {
-  font-size: 10px;
+  color: var(--secondary);
+  font-size: 14px;
+  line-height: 1.4;
   font-weight: 600;
-  color: #6e8093;
-  letter-spacing: 0.15px;
+  letter-spacing: -0.02em;
   white-space: nowrap;
 }
 .market-label > span {
-  font-size: 8px;
-  color: #abb4bf;
-  letter-spacing: 0.2px;
+  color: var(--muted);
+  font-size: 12px;
 }
 .market-quote {
   display: flex;
-  justify-content: space-between;
+  flex-wrap: wrap;
   align-items: baseline;
-  gap: 6px;
+  gap: 5px 8px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.35;
 }
 .market-quote strong {
-  font-size: 17px;
-  font-weight: 650;
-  letter-spacing: -0.4px;
-  line-height: 1.4;
-  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+  font-size: 19px;
+  font-weight: 550;
+  letter-spacing: -0.025em;
   white-space: nowrap;
 }
 .market-delta {
-  display: inline-flex;
-  align-items: center;
-  gap: 1px;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 550;
-  font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
-.market-delta.up {
-  color: #b45353;
+.market-featured .market-label h2 {
+  font-size: 16px;
 }
-.market-delta.down {
-  color: #4e78aa;
+.market-featured .market-quote strong {
+  font-size: 26px;
 }
-.market-footnote {
-  text-align: right;
-  font-size: 9px;
-  color: #a0aab7;
-  margin-top: 4px;
+.market-featured .market-delta {
+  font-size: 14px;
+}
+.market-featured :deep(.market-sparkline) {
+  width: 100%;
+  height: 134px;
+  margin-top: 18px;
+}
+.market-small {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 18px;
+  min-height: 44px;
+  border-right: 1px solid var(--line);
+}
+.market-small:nth-child(3n) {
+  border-right: 0;
+}
+.market-small :deep(.market-sparkline) {
+  width: 64px;
+  height: 42px;
+  flex-shrink: 0;
+}
+.market-copy {
+  min-width: 0;
 }
 @media (max-width: 650px) {
-  .market-toolbar {
-    gap: 7px;
-    align-items: flex-start;
-  }
   .market-filters {
     gap: 2px;
   }
   .market-filters button {
-    font-size: 10px;
     padding: 4px 7px;
   }
-  .market-sample {
-    display: none;
+  .market-board.has-featured {
+    grid-template-columns: 220px minmax(0, 1fr);
+    min-width: 1080px;
   }
-  .market-item {
-    flex-basis: 170px;
-    padding: 10px 12px;
+  .market-featured {
+    padding-right: 20px;
   }
-  .market-quote strong {
-    font-size: 16px;
+  .market-small {
+    padding: 0 16px;
   }
-  .market-footnote {
-    text-align: left;
+  .market-featured .market-quote strong {
+    font-size: 24px;
   }
 }
 </style>
