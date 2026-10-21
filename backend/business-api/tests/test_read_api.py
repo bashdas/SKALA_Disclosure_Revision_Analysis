@@ -133,7 +133,7 @@ def test_simple_filters_never_cross_organization(read_client, graph):
 def test_filing_details_and_receipt_are_organization_scoped(read_client, graph, records):
     response = read_client.get(f"/api/v1/filings/{graph.filing.id}")
     assert response.status_code == 200
-    expected_keys = {"id", "company_name", "receipt_no", "filing_type", "filed_at", "created_at"}
+    expected_keys = {"id", "company_name", "receipt_no", "filing_type", "filed_at", "created_at", "corp_code", "title", "is_correction", "is_registered", "origin_receipt_no"}
     assert set(response.json()) == expected_keys
     # Same receipt exists in both tenants; only the authenticated tenant is selected.
     response = read_client.get(f"/api/v1/filings/by-receipt/{graph.filing.receipt_no}", params={"organization_id": str(records.org.id)})

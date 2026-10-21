@@ -4,6 +4,7 @@ from fastapi.responses import JSONResponse
 
 from app.domain.analysis_exceptions import AnalysisError, AnalysisAlreadyRunning
 from app.domain.auth_exceptions import AuthError
+from app.domain.disclosure_exceptions import DisclosureError
 from app.domain.memo_upload_exceptions import MemoUploadError
 from app.domain.resource_exceptions import ResourceNotFound
 
@@ -42,7 +43,12 @@ async def analysis_error_handler(request: Request, exc: AnalysisError) -> JSONRe
     return JSONResponse(status_code=exc.status_code, content={"error": error})
 
 
+async def disclosure_error_handler(request: Request, exc: DisclosureError) -> JSONResponse:
+    return JSONResponse(status_code=exc.status_code, content={"error": {"code": exc.code, "message": exc.message}})
+
+
 def install_exception_handlers(app: FastAPI) -> None:
+    app.add_exception_handler(DisclosureError, disclosure_error_handler)
     app.add_exception_handler(AnalysisError, analysis_error_handler)
     app.add_exception_handler(AuthError, auth_error_handler)
     app.add_exception_handler(MemoUploadError, memo_upload_error_handler)

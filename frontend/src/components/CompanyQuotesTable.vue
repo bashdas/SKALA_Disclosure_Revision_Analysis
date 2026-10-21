@@ -3,7 +3,7 @@ import { computed, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import { Star, FileText, Sparkles } from 'lucide-vue-next'
 import { useWorkspace } from '../stores/workspace'
-import { usePreferences } from '../stores/preferences'
+import { favoriteCompany, removeFavorite } from '../services/catalog'
 import { getWatchlistQuotes, type WatchlistQuote } from '../services/market'
 import type { Company } from '../types/domain'
 import { date } from '../lib/format'
@@ -12,7 +12,23 @@ const props = withDefaults(defineProps<{ companies: Company[]; directory?: boole
   directory: false,
 })
 const store = useWorkspace(),
-  preferences = usePreferences()
+  busy = ref(''),
+  error = ref('')
+const isFavorite = (id: string) => store.companies.some((c) => c.id === id && c.favorite)
+async function toggleFavorite(company: Company) {
+  if (busy.value) return
+  busy.value = company.id
+  error.value = ''
+  try {
+    if (isFavorite(company.id)) await removeFavorite(company.id)
+    else await favoriteCompany(company.id)
+    await store.refresh()
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : '즐겨찾기를 변경하지 못했습니다.'
+  } finally {
+    busy.value = ''
+  }
+}
 const categories = [
   { kind: 'filing', tab: 'filings', label: '공시' },
   { kind: 'memo', tab: 'memos', label: '메모' },
@@ -48,19 +64,20 @@ onMounted(async () => {
 })
 const number = new Intl.NumberFormat('ko-KR', { maximumFractionDigits: 1 })
 function price(value?: number) {
-  return value == null ? '—' : `${number.format(value)}원`
+  return value == null ? '미제공' : `${number.format(value)}원`
 }
 function amount(value?: number) {
-  if (value == null) return '—'
+  if (value == null) return '미제공'
   return value >= 1_000_000_000_000
     ? `${number.format(value / 1_000_000_000_000)}조원`
     : `${number.format(value / 100_000_000)}억원`
 }
 function change(value?: number) {
-  return value == null ? '—' : `${value > 0 ? '+' : ''}${value.toFixed(2)}%`
+  return value == null ? '미제공' : `${value > 0 ? '+' : ''}${value.toFixed(2)}%`
 }
 </script>
 <template>
+  <p v-if="error" class="field-error" role="alert">{{ error }}</p>
   <div
     v-if="companies.length"
     class="watchlist-table-scroll"
@@ -71,7 +88,7 @@ function change(value?: number) {
     <table
       class="watchlist-table"
       :class="{ 'company-directory-table': directory }"
-      :aria-label="directory ? '기업 목록 시세 예시' : '관심종목 시세 예시'"
+      :aria-label="directory ? '기업 목록 시세' : '관심종목 시세'"
     >
       <colgroup>
         <col class="watchlist-favorite-col" />
@@ -106,10 +123,11 @@ function change(value?: number) {
           <td>
             <button
               class="favorite-button"
-              :class="{ selected: preferences.isFavorite(company.id) }"
-              :aria-label="`${company.name} 관심종목 ${preferences.isFavorite(company.id) ? '해제' : '추가'}`"
-              :aria-pressed="preferences.isFavorite(company.id)"
-              @click="preferences.toggleFavorite(company.id)"
+              :class="{ selected: isFavorite(company.id) }"
+              :aria-label="`${company.name} 관심종목 ${isFavorite(company.id) ? '해제' : '추가'}`"
+              :aria-pressed="isFavorite(company.id)"
+              :disabled="!!busy"
+              @click="toggleFavorite(company)"
             >
               <Star :size="16" />
             </button>

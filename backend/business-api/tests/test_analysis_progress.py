@@ -61,7 +61,7 @@ def test_detail_roles_and_no_internal_fields(analysis_client, analysis_context, 
     assert body["task_id"] == str(task_id) and body["status"] == "QUEUED"
     assert body["current_stage"] == "REQUEST_VALIDATION" and body["base_memo_version"] == 3
     assert body["disclosure_receipt_no"] == "20261020000123"
-    assert body["corp_code"] is None and body["company_name_snapshot"] is None
+    assert body["corp_code"] is None and body["company_name_snapshot"] == "검사기업"
     assert not ({"error_message", "organization_id", "requested_by", "thread_id"} & body.keys())
     assert "must-not-expose" not in result.text
 

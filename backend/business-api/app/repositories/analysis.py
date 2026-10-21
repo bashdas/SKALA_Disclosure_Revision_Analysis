@@ -31,8 +31,12 @@ class AnalysisRepository:
     def get_by_thread_id(self, thread_id: str) -> AnalysisTask | None:
         return self.session.scalar(select(AnalysisTask).where(AnalysisTask.thread_id == thread_id))
 
-    def list_by_organization(self, organization_id: UUID) -> list[AnalysisTask]:
-        return list(self.session.scalars(select(AnalysisTask).where(AnalysisTask.organization_id == organization_id).order_by(AnalysisTask.created_at, AnalysisTask.id)))
+    def list_by_organization(self, organization_id: UUID, *, limit: int | None = None, offset: int = 0) -> list[AnalysisTask]:
+        # 조직 조건과 페이지 범위를 같은 조회에 적용합니다.
+        query = select(AnalysisTask).where(AnalysisTask.organization_id == organization_id).order_by(AnalysisTask.created_at, AnalysisTask.id)
+        if limit is not None:
+            query = query.limit(limit).offset(offset)
+        return list(self.session.scalars(query))
 
     def find_active_duplicate(self, organization_id: UUID, memo_id: UUID, base_memo_version: int, disclosure_receipt_no: str) -> AnalysisTask | None:
         """Read only: finding no row does not lock a missing key or prevent racing inserts."""

@@ -1,7 +1,7 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, Form, Path, Query, UploadFile
+from fastapi import APIRouter, Depends, File, Form, Path, Query, UploadFile, Response
 
 from app.api.dependencies import get_memo_service, require_roles
 from app.models.enums import UserRole
@@ -45,3 +45,9 @@ def upload_memo(user: Reader, service: Service, file: Annotated[UploadFile, File
         stream=file.file, filename=file.filename, content_type=file.content_type,
         organization_id=user.organization_id, created_by=user.id, title=title,
     )
+
+
+@router.delete("/{memo_id}", status_code=204)
+def delete_memo(memo_id: UUID, user: Reader, service: Service) -> Response:
+    service.delete(memo_id, user.organization_id)
+    return Response(status_code=204)

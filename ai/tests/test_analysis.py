@@ -441,7 +441,7 @@ def test_report_failure_keeps_common_sections_and_existing_results(ledger):
         assert "요약을 생성하지 못해" in sections["limitations"]
         assert report["report_json"]["sources"]
         assert report["has_warnings"]
-        assert "정정 내용" in report["content"]
+        assert "공시 내용" in report["content"]
         assert json.loads(ledger.row("task")["report"]) == report
 
     asyncio.run(check())

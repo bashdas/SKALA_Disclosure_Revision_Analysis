@@ -19,6 +19,7 @@ from app.schemas.auth import CurrentUser, TokenPayload
 from app.services.auth import AuthService
 from app.services.user import UserService
 from app.services.filing import FilingService
+from app.services.disclosure_source import DisclosureSource
 from app.services.memo import MemoService
 
 _bearer = HTTPBearer(auto_error=False)
@@ -72,8 +73,12 @@ def get_auth_service(
 
 
 
-def get_filing_service(session: Annotated[Session, Depends(get_db)]) -> FilingService:
-    return FilingService(FilingRepository(session))
+def get_disclosure_source(settings: Annotated[Settings, Depends(get_settings)]) -> DisclosureSource:
+    return DisclosureSource(settings)
+
+
+def get_filing_service(session: Annotated[Session, Depends(get_db)], source: Annotated[DisclosureSource, Depends(get_disclosure_source)]) -> FilingService:
+    return FilingService(FilingRepository(session), source)
 
 
 def get_memo_service(session: Annotated[Session, Depends(get_db)], settings: Annotated[Settings, Depends(get_settings)]) -> MemoService:

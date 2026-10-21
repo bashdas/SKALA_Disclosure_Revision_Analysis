@@ -1,5 +1,5 @@
 from contextlib import asynccontextmanager
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 import json
 import re
 from typing import Annotated, Any, Literal
@@ -13,7 +13,9 @@ from mcp.server.transport_security import TransportSecuritySettings
 from starlette.concurrency import run_in_threadpool
 from disclosure_shared.health import HealthResponse
 
+from app import sec
 from app.client import OpenDartClient
+from app.catalog import DisclosureCatalog
 from app.config import Settings
 from app.errors import OpenDartError
 from app.parser import OpenDartDocumentParser
@@ -40,6 +42,7 @@ def create_app(settings: Settings | None = None, *, transport: httpx.AsyncBaseTr
     client = OpenDartClient(settings, transport=transport)
     scholar = GoogleScholarClient(settings, transport=transport)
     parser = OpenDartDocumentParser()
+    catalog = DisclosureCatalog(client)
     mcp = FastMCP("external-mcp", stateless_http=True, json_response=True,
         host=settings.external_mcp_host, port=settings.external_mcp_port, streamable_http_path="/mcp",
         transport_security=TransportSecuritySettings(enable_dns_rebinding_protection=True,
@@ -49,6 +52,8 @@ def create_app(settings: Settings | None = None, *, transport: httpx.AsyncBaseTr
     async def get_disclosure(receipt_no: str) -> dict[str, Any]:
         """Retrieve OpenDART original text/tables and exact receipt metadata. No impact analysis."""
         try:
+            if receipt_no.startswith("SEC:"):
+                return await sec.disclosure(receipt_no, parser, settings, transport)
             if not re.fullmatch(r"[0-9]{14}", receipt_no):
                 raise OpenDartError("INVALID_RECEIPT_NO")
             raw = await client.get_document(receipt_no)
@@ -72,6 +77,8 @@ def create_app(settings: Settings | None = None, *, transport: httpx.AsyncBaseTr
                     "retrieved_at": datetime.now(timezone.utc).isoformat(),
                     "original_location": f"https://dart.fss.or.kr/dsaf001/main.do?rcpNo={receipt_no}"}}
             return _redact(result, settings.opendart_api_key.get_secret_value())
+        except (httpx.HTTPError, ValueError, KeyError, IndexError):
+            raise ToolError('{"code":"SEC_SOURCE_FAILED","message":"SEC 원문과 메타데이터를 확인하지 못했습니다."}') from None
         except OpenDartError as error:
             raise ToolError(json.dumps(error.as_dict(), ensure_ascii=False)) from None
 
@@ -120,6 +127,37 @@ def create_app(settings: Settings | None = None, *, transport: httpx.AsyncBaseTr
                 settings.opendart_api_key.get_secret_value())
         except ScholarError as error:
             raise ToolError(json.dumps({"code": error.code, "message": str(error)})) from None
+
+    @mcp.tool(annotations={"readOnlyHint": True, "destructiveHint": False, "openWorldHint": True})
+    async def opendart_search_companies(query: Annotated[str, Field(max_length=100)],
+        limit: Annotated[int, Field(ge=1, le=100)] = 20, offset: Annotated[int, Field(ge=0)] = 0) -> dict[str, Any]:
+        """회사명 또는 종목코드로 회사를 검색해 items, total_count와 has_more를 반환합니다."""
+        try:
+            if query.startswith("SEC:"):
+                return await sec.search_company(query, settings, transport)
+            return await catalog.search_companies(query, limit, offset)
+        except OpenDartError as error:
+            raise ToolError(json.dumps(error.as_dict(), ensure_ascii=False)) from None
+
+    @mcp.tool(annotations={"readOnlyHint": True, "destructiveHint": False, "openWorldHint": True})
+    async def opendart_search_disclosures(start_date: date, end_date: date,
+        corp_code: Annotated[str | None, Field(pattern=r"^(?:[0-9]{8}|SEC:[0-9]{1,10})$")] = None,
+        page: Annotated[int, Field(ge=1, le=10000)] = 1, query: Annotated[str, Field(max_length=100)] = "") -> dict[str, Any]:
+        """선택한 회사와 기간의 공시를 조회해 items, total_count와 has_more를 반환합니다."""
+        try:
+            if corp_code and corp_code.startswith("SEC:"):
+                return await sec.search_filings(corp_code, start_date, end_date, page, query, settings, transport)
+            return await catalog.search_disclosures(corp_code, start_date, end_date, page, query)
+        except OpenDartError as error:
+            raise ToolError(json.dumps(error.as_dict(), ensure_ascii=False)) from None
+
+    @mcp.tool(annotations={"readOnlyHint": True, "destructiveHint": False, "openWorldHint": True})
+    async def opendart_get_disclosure_family(receipt_no: Annotated[str, Field(pattern=r"^[0-9]{14}$")]) -> dict[str, Any]:
+        """공시 접수번호에 대해 DART가 연결한 본문 목록과 source_url을 반환합니다."""
+        try:
+            return await catalog.family(receipt_no)
+        except OpenDartError as error:
+            raise ToolError(json.dumps(error.as_dict(), ensure_ascii=False)) from None
 
     mcp_app = mcp.streamable_http_app()
 

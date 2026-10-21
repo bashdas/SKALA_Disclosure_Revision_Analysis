@@ -5,6 +5,7 @@ from disclosure_shared.config import ServiceSettings
 
 
 class Settings(ServiceSettings):
+    sec_user_agent: str = "DisclosureResearch/1.0"
     opendart_api_key: SecretStr = Field(default="", repr=False)
     serpapi_api_key: SecretStr = Field(default="", repr=False)
     opendart_base_url: str = "https://opendart.fss.or.kr/api"

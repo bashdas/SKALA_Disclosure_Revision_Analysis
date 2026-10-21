@@ -10,8 +10,9 @@ from app.models.enums import AnalysisStage, AnalysisStatus, PerspectiveType
 class AnalysisCreateRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     memo_id: UUID
+    memo_version: int | None = Field(default=None, ge=1, le=2147483647)
     # OpenDART receipt identifiers are exactly 14 ASCII digits; no remote lookup here.
-    disclosure_receipt_no: str = Field(pattern=r"^[0-9]{14}$", min_length=14, max_length=14)
+    disclosure_receipt_no: str = Field(pattern=r"^(?:[0-9]{14}|SEC:[0-9]{1,10}:[0-9]{10}-[0-9]{2}-[0-9]{6})$", min_length=14, max_length=64)
 
 
 class AnalysisAcceptedResponse(BaseModel):
@@ -69,3 +70,25 @@ class AnalysisEventPayload(BaseModel):
     message: str | None = Field(default=None, max_length=500)
     perspective: PerspectiveType | None = None
     reason: str | None = Field(default=None, max_length=1000)
+
+
+class PerspectiveResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    perspective_type: PerspectiveType
+    selection_reason: str
+    question: str
+    status: str
+    result_json: dict | None
+    failure_code: str | None
+
+
+class ReportResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: UUID
+    analysis_task_id: UUID
+    content: str
+    report_json: dict
+    has_warnings: bool
+    no_additional_analysis_reason: str | None
+    generated_at: datetime
+    saved_at: datetime | None

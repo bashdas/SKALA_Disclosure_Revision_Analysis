@@ -20,7 +20,7 @@ STATUS_NAMES = {
 }
 SECTION_TITLES = {
     "summary": "핵심 요약",
-    "correction": "확인된 정정 내용",
+    "correction": "확인된 공시 내용",
     "memo_impact": "메모 영향",
     "suggestions": "메모 수정 제안",
     "perspectives": "관점별 분석",
@@ -40,7 +40,7 @@ def source_key(source):
 
 async def join(run, state):
     warnings = list(state.get("base", {}).get("limitations", []))
-    if not state.get("filing", {}).get("complete_correction_table"):
+    if state.get("filing", {}).get("changes") and not state.get("filing", {}).get("complete_correction_table"):
         warnings.append("정정표 전체 추출을 확인하지 못했습니다. 본문 근거를 추가 확인해야 합니다.")
     for result in state.get("results", {}).values():
         warnings.extend(result.get("limitations", []))
@@ -207,7 +207,7 @@ async def report(run, state):
         warnings.append(
             f"근거 또는 메모 연결이 부족한 수정 제안 {omitted}건을 작성하지 않았습니다."
         )
-    if not state.get("filing", {}).get("complete_correction_table"):
+    if state.get("filing", {}).get("changes") and not state.get("filing", {}).get("complete_correction_table"):
         warnings.append("정정표 전체 추출을 확인하지 못했습니다.")
     if state.get("stage_failed") or not original:
         warnings.append("입력 또는 분석 처리 미완료로 확인된 원문만 표시합니다.")
@@ -285,7 +285,7 @@ def compose(data):
         "- " + escape(value) for value in [*statuses, *data.get("warnings", [])]
     )
     lines = [
-        "# 정정공시 분석 보고서",
+        "# 공시 영향 분석 보고서",
         "",
         "**기업:** " + escape(request["company_name_snapshot"]),
         "",
@@ -294,7 +294,7 @@ def compose(data):
     ]
     if not sections["summary"]:
         lines += [
-            "확인된 정정 내용과 처리 상태를 표시합니다. 근거가 부족한 해석은 작성하지 않았습니다.",
+            "확인된 공시 내용과 처리 상태를 표시합니다. 근거가 부족한 해석은 작성하지 않았습니다.",
             "",
         ]
     if selected:
@@ -348,7 +348,7 @@ def compose(data):
     data["sources"], data["sections"] = sources, sections
     reason = base.get("no_additional_analysis_reason") if not selected else None
     return {
-        "content": "\n".join(lines).strip(),
+        "content": "\n".join(lines).strip() + "\n",
         "report_json": data,
         "has_warnings": bool(data.get("warnings")) or bool(statuses),
         "no_additional_analysis_reason": reason,

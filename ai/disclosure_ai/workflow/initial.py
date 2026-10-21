@@ -52,7 +52,10 @@ async def prepare(run, state):
     documents = state["filing"]["documents"] + [state["memo"]]
     context = list(state["filing"].get("changes", []))
     context += search_documents(
-        documents, state["request"]["company_name_snapshot"] + " 계약 정정 금액 매출 기간 위험"
+        documents,
+        state["request"]["company_name_snapshot"]
+        + " 계약 정정 금액 매출 기간 위험 earnings revenue profit EPS goodwill impairment forecast guidance",
+        limit=12,
     )
     # 원문을 보존하고 모델에는 고정 버전의 메모와 정정표를 우선 전달합니다.
     context.append(

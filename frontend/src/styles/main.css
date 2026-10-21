@@ -1124,7 +1124,7 @@ main.companies-main {
   line-height: 1.95;
   color: var(--secondary);
   word-break: keep-all;
-  max-width: 1000px;
+  max-width: none;
 }
 .change-grid {
   display: grid;
@@ -2777,3 +2777,18 @@ main.company-main {
     width: 180px;
   }
 }
+
+/* 내 페이지와 헤더, 기업 상세의 좌우 기준선을 맞춥니다. */
+.company-workspace {
+  width: 100%;
+  max-width: 1500px;
+  margin-inline: auto;
+}
+@media (min-width: 1151px) {
+  .topbar {
+    padding-inline: max(43px, calc((100vw - 1500px) / 2 + 43px));
+  }
+}
+
+.report-body { margin: 28px 0 30px; }
+.report-summary .summary-text { width:100%; max-width:none; overflow-wrap:anywhere; }

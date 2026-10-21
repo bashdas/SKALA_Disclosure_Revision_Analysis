@@ -18,15 +18,15 @@ export const stages = [
   'REPORT_SAVE',
 ] as const
 export type AnalysisStage = (typeof stages)[number]
-export type PerspectiveType = 'BUSINESS_INDUSTRY' | 'FINANCE' | 'EXTERNAL_RISK'
+export type PerspectiveType = 'INDUSTRY_CONTRACT' | 'FINANCE' | 'FX_HEDGE'
 export type PerspectiveStatus =
   'REGISTERED' | 'RUNNING' | 'COMPLETED' | 'INSUFFICIENT_EVIDENCE' | 'LIMIT_REACHED' | 'FAILED'
 export type ImpactType =
   'FACT_UPDATE' | 'CALCULATION_UPDATE' | 'INTERPRETATION_REVIEW' | 'NO_IMPACT' | 'HOLD'
 export type DocumentKind = 'filing' | 'memo' | 'report'
-export type Scenario = 'normal' | 'evidence-gap' | 'analysis-failure' | 'save-failure' | 'limit'
 
 export interface Company {
+  favorite?: boolean
   id: string
   name: string
   code: string
@@ -40,6 +40,8 @@ export interface FilingVersion {
   createdAt: string
 }
 export interface Filing {
+  isCorrection: boolean
+  originReceiptNo: string | null
   id: string
   companyId: string
   receiptNo: string | null
@@ -93,7 +95,6 @@ export interface AnalysisTask {
   errorStage: AnalysisStage | null
   hasWarnings: boolean
   sequence: number
-  scenario: Scenario
 }
 export interface Evidence {
   id: string
@@ -116,7 +117,7 @@ export interface Finding {
   reason: string
   suggestion: string
   evidenceIds: string[]
-  memoParagraph: number
+  memoParagraph: number | null
 }
 export interface ReviewReport {
   id: string
@@ -126,6 +127,7 @@ export interface ReviewReport {
   generatedAt: string
   savedAt: string | null
   summary: string
+  content: string
   changes: { label: string; before: string; after: string }[]
   findings: Finding[]
   evidence: Evidence[]
@@ -136,7 +138,6 @@ export interface StartAnalysisInput {
   filingId: string
   memoId: string
   memoVersion: number
-  scenario?: Scenario
 }
 export interface AnalysisEvent {
   task: AnalysisTask
@@ -149,9 +150,9 @@ export interface ReadReference {
 }
 
 export const perspectiveLabels: Record<PerspectiveType, string> = {
-  BUSINESS_INDUSTRY: '기업·산업',
-  FINANCE: '재무·실적',
-  EXTERNAL_RISK: '외부 환경·위험',
+  INDUSTRY_CONTRACT: '산업 및 계약',
+  FINANCE: '재무,실적',
+  FX_HEDGE: '환율 및 헤지',
 }
 export const stageLabels: Record<AnalysisStage, string> = {
   REQUEST_VALIDATION: '요청 확인',

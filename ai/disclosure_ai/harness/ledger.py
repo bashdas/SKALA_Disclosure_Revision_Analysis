@@ -2,7 +2,9 @@ import asyncio
 import hashlib
 import json
 import os
+import re
 import sqlite3
+import tempfile
 import time
 from pathlib import Path
 
@@ -12,6 +14,7 @@ class Ledger:
 
     def __init__(self, path: str):
         Path(path).parent.mkdir(parents=True, exist_ok=True)
+        self.path = Path(path)
         self.db = sqlite3.connect(path)
         self.db.execute("PRAGMA journal_mode=WAL")
         self.db.executescript("""
@@ -87,6 +90,14 @@ class Ledger:
             f"UPDATE runs SET {key}=? WHERE id=?", (json.dumps(value, ensure_ascii=False), task_id)
         )
         self.db.commit()
+        if key == "report" and isinstance(value.get("content"), str):
+            if not re.fullmatch(r"[A-Za-z0-9_-]{1,100}", task_id):
+                raise ValueError("Invalid report filename")
+            directory = self.path.parent / "reports"
+            directory.mkdir(mode=0o700, exist_ok=True)
+            with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", dir=directory, delete=False) as output:
+                output.write(value["content"] + "\n")
+            os.replace(output.name, directory / f"{task_id}.md")
 
     def lookup_state(self, task_id, key, tool, state, attempt=0):
         self.db.execute(

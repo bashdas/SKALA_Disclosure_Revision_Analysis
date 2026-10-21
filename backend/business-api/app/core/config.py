@@ -5,6 +5,8 @@ from disclosure_shared.config import ServiceSettings
 
 
 class Settings(ServiceSettings):
+    external_mcp_url: str = "http://external-mcp:8083/mcp"
+    external_mcp_timeout_seconds: float = Field(default=40, ge=1, le=120)
     database_url: str = Field(default="", repr=False)
     database_connect_timeout: int = Field(default=3, ge=1, le=60)
     sse_poll_interval_seconds: float = Field(default=1, ge=0.1, le=60)

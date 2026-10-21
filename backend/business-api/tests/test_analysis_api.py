@@ -1,4 +1,5 @@
 from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime, timezone
 from threading import Barrier
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -15,7 +16,7 @@ from app.core.database import get_db
 from app.core.security import create_access_token
 from app.domain.analysis_exceptions import AnalysisAlreadyRunning, RabbitMQPublishFailed
 from app.main import app
-from app.models import AnalysisEvent, AnalysisPerspectiveTask, AnalysisReport, AnalysisTask, Memo, MemoVersion, Organization, User
+from app.models import AnalysisEvent, AnalysisPerspectiveTask, AnalysisReport, AnalysisTask, CompanyFavorite, Filing, FilingVersion, Memo, MemoVersion, Organization, User
 from app.models.enums import AnalysisStage, AnalysisStatus as S, UserRole
 from app.repositories import AnalysisRepository, MemoRepository
 from app.services.analysis import AnalysisService
@@ -39,6 +40,9 @@ def analysis_context(migrated_engine, auth_settings):
         db.add_all(memos)
         db.flush()
         db.add_all([MemoVersion(memo_id=memo.id, version=3, content="private memo body", created_by=user.id) for memo, user in zip(memos, users)])
+        db.add_all([Filing(organization_id=user.organization_id, company_name="검사기업", receipt_no=receipt,
+            filing_type="정정공시", is_correction=True, filed_at=datetime.now(timezone.utc))
+            for user in users for receipt in (RECEIPT, "20261020000124")])
         db.commit()
     context = SimpleNamespace(factory=factory, users=users, memos=memos, settings=auth_settings, calls=[], fail=False)
 
@@ -65,7 +69,10 @@ def analysis_context(migrated_engine, auth_settings):
             db.execute(delete(AnalysisTask).where(AnalysisTask.organization_id.in_(ids)))
             db.execute(delete(MemoVersion).where(MemoVersion.memo_id.in_([memo.id for memo in memos])))
             db.execute(delete(Memo).where(Memo.organization_id.in_(ids)))
+            db.execute(delete(CompanyFavorite).where(CompanyFavorite.user_id.in_([user.id for user in users])))
             db.execute(delete(User).where(User.organization_id.in_(ids)))
+            db.execute(delete(FilingVersion).where(FilingVersion.filing_id.in_(select(Filing.id).where(Filing.organization_id.in_(ids)))))
+            db.execute(delete(Filing).where(Filing.organization_id.in_(ids)))
             db.execute(delete(Organization).where(Organization.id.in_(ids)))
             db.commit()
 
@@ -109,7 +116,7 @@ def test_roles_creation_and_fixed_context(analysis_client, analysis_context, ind
         assert row.base_memo_version == 3
         assert row.disclosure_receipt_no == RECEIPT
         assert row.status == S.QUEUED and row.current_stage == AnalysisStage.REQUEST_VALIDATION
-        assert row.filing_id is None and row.corp_code is None and row.company_name_snapshot is None
+        assert row.filing_id is not None and row.corp_code is None and row.company_name_snapshot == "검사기업"
         assert not row.has_warnings and row.started_at is None and row.completed_at is None
         assert UUID(row.thread_id)
         memo = db.get(Memo, row.memo_id)

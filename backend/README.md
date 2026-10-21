@@ -1,4 +1,4 @@
-# Backend — 실행 뼈대 및 Business API DB 기반 구성
+# Backend 실행과 Business API
 
 구현 담당자: 박다솔
 
@@ -44,7 +44,7 @@ docker compose logs -f business-api business-mcp rag-mcp
 docker compose down
 ```
 
-`down`은 이름 있는 DB/큐 볼륨을 보존합니다. pgvector 이미지를 준비했고 core 업무 schema는 Alembic migration으로 관리합니다. pgvector extension 활성화는 아직 없으며 RabbitMQ 큐 선언·Producer 연결은 아래 Analysis 항목을 따릅니다. PostgreSQL 초기 자격 증명은 빈 볼륨을 처음 생성할 때 적용됩니다.
+`down`은 이름 있는 DB/큐 볼륨을 보존합니다. pgvector 이미지를 준비했고 core 업무 schema는 Alembic migration으로 관리합니다. pgvector extension 활성화는 아직 없으며 RabbitMQ 큐 선언, Producer 연결은 아래 Analysis 항목을 따릅니다. PostgreSQL 초기 자격 증명은 빈 볼륨을 처음 생성할 때 적용됩니다.
 
 ## 로컬 독립 실행
 
@@ -94,11 +94,11 @@ MCP는 공식 Python SDK v1의 Streamable HTTP를 사용합니다. JSON 응답/s
 
 ## 다음 단계 / TODO
 
-- RAG 모델·pgvector extension·checkpoint 영역의 별도 migration 설계
+- RAG 모델, pgvector extension, checkpoint 영역의 별도 migration 설계
 - 실제 업무 endpoint별 조직/역할 정책 적용 및 서비스 간 내부 인증 (JWT 로그인/current_user/RBAC 기반은 구현됨)
-- Internal API + Internal API Key 인증, 나머지 업무 API, Business MCP HTTP client와 실제 Tool (분석 생성·조회·이벤트·SSE·취소와 Filing/Memo 조회는 구현됨)
-- RabbitMQ Consumer 업무 retry·DLQ 판단·task_id 중복 실행 보호 (queue topology·메시지 계약·Producer는 구현됨)
-- RAG read-only DB 계정, 검색·원문·claim source Tool, embedding 정책
+- Internal API + Internal API Key 인증, 나머지 업무 API, Business MCP HTTP client와 실제 Tool (분석 생성, 조회, 이벤트, SSE, 취소와 Filing/Memo 조회는 구현됨)
+- RabbitMQ Consumer 업무 retry, DLQ 판단, task_id 중복 실행 보호 (queue topology, 메시지 계약, Producer는 구현됨)
+- RAG read-only DB 계정, 검색, 원문, claim source Tool, embedding 정책
 - 의존성 lock 파일, CI, 운영 비밀 관리와 readiness 정책
 - frontend, ai-agent, LangGraph checkpoint는 별도 영역에서 구현
 
@@ -110,7 +110,7 @@ SQLAlchemy 2.x sync + psycopg 3를 사용합니다. 현재 업무 중심 서비�
 
 `Depends(get_db)`로 요청별 Session을 받습니다. dependency 종료 시 Session을 닫아 미완료 트랜잭션을 rollback하고 자동 commit은 하지 않습니다. 향후 Service가 `with session.begin():` 또는 명시적 `commit()/rollback()`으로 경계를 관리합니다. Repository는 commit하지 않습니다. Service에서 `session.begin()`을 쓸 경우 그 전에 같은 Session에서 쿼리를 실행해 autobegin한 상태가 아닌지 확인해야 합니다.
 
-DB가 없어도 `/health`는 기존 응답을 유지합니다. `/health/db`는 `SELECT 1` 성공 시 `200 {"status":"ok","service":"business-api-db"}`, 설정 누락·연결 실패 시 세부 credential을 노출하지 않는 `503 {"detail":"Database unavailable"}`을 반환합니다. Engine 생성과 연결만 준비하며 시작 시 테이블을 생성하지 않습니다.
+DB가 없어도 `/health`는 기존 응답을 유지합니다. `/health/db`는 `SELECT 1` 성공 시 `200 {"status":"ok","service":"business-api-db"}`, 설정 누락, 연결 실패 시 세부 credential을 노출하지 않는 `503 {"detail":"Database unavailable"}`을 반환합니다. Engine 생성과 연결만 준비하며 시작 시 테이블을 생성하지 않습니다.
 
 환경변수는 `backend/.env.example`의 예시를 참고하세요. 예시 비밀번호는 실제 credential이 아닙니다. 로컬 실행은 서비스 실행 디렉터리의 `.env` 또는 export한 환경변수를 읽으며, Compose의 `postgres` 호스트 이름은 Compose 네트워크에서만 해석됩니다. 비밀번호의 특수 문자는 URL-encode하세요.
 
@@ -136,7 +136,7 @@ docker compose exec business-api alembic check
 curl -f http://localhost:8080/health/db
 ```
 
-`env.py`가 앱과 동일한 설정으로 URL을 읽고 `app.models`를 import하여 `Base.metadata`에 연결합니다. 새 모델은 `app/models/__init__.py`에서 명시적으로 import해야 합니다. 13개 업무 모델과 `0001_initial_core` → `0002_align_report_flow` → `0003_memo_upload` revision chain이 있습니다. 업무 테이블은 `core` schema에 생성하며 autogenerate는 core만 비교합니다. RAG/checkpoint/public의 다른 테이블은 제외합니다. `create_all`은 사용하지 않습니다. 상세 nullable·unique·삭제 정책과 PostgreSQL 모델/migration 테스트는 [Business API README](business-api/README.md)를 참고하세요.
+`env.py`가 앱과 동일한 설정으로 URL을 읽고 `app.models`를 import하여 `Base.metadata`에 연결합니다. 새 모델은 `app/models/__init__.py`에서 명시적으로 import해야 합니다. 14개 업무 모델과 `0001_initial_core` → `0002_align_report_flow` → `0003_memo_upload` → `0004_analysis_company` → `0005_user_token_version` → `0006_disclosure_watch` revision chain이 있습니다. 업무 테이블은 `core` schema에 생성하며 autogenerate는 core만 비교합니다. RAG/checkpoint/public의 다른 테이블은 제외합니다. `create_all`은 사용하지 않습니다. 상세 nullable, unique, 삭제 정책과 PostgreSQL 모델/migration 테스트는 [Business API README](business-api/README.md)를 참고하세요.
 
 ### PostgreSQL 테스트
 
@@ -148,7 +148,7 @@ cd backend/business-api
 TEST_DATABASE_URL="$DATABASE_URL" .venv/bin/python -m pytest -q
 ```
 
-통합 테스트는 일반 개발·운영 DB가 아닌 전용 테스트 DB를 사용하세요. migration을 적용하므로 공유 DB를 지정하지 마세요. `TEST_DATABASE_URL` 미설정 시 PostgreSQL 연결·모델 테스트는 skip합니다. downgrade 왕복 테스트는 추가로 `TEST_ALLOW_SCHEMA_RESET=1`이 필요합니다. 잘못된 password가 거부되는 password 인증 DB여야 합니다. 테스트는 연결, health, 트랜잭션 정리, 업무 제약조건, Alembic 비교를 확인합니다. 업무 테이블은 migration으로 생성하고 모델 테스트 데이터는 rollback합니다.
+통합 테스트는 일반 개발, 운영 DB가 아닌 전용 테스트 DB를 사용하세요. migration을 적용하므로 공유 DB를 지정하지 마세요. `TEST_DATABASE_URL` 미설정 시 PostgreSQL 연결, 모델 테스트는 skip합니다. downgrade 왕복 테스트는 추가로 `TEST_ALLOW_SCHEMA_RESET=1`이 필요합니다. 잘못된 password가 거부되는 password 인증 DB여야 합니다. 테스트는 연결, health, 트랜잭션 정리, 업무 제약조건, Alembic 비교를 확인합니다. 업무 테이블은 migration으로 생성하고 모델 테스트 데이터는 rollback합니다.
 
 구현 근거: [SQLAlchemy Session 관리](https://docs.sqlalchemy.org/en/20/orm/session_basics.html), [Alembic metadata 연결](https://alembic.sqlalchemy.org/en/latest/autogenerate.html).
 
@@ -168,16 +168,16 @@ Content-Type: application/json
 
 응답은 Broker publisher confirm 성공 후 `202 Accepted`이며
 `{"task_id":"<task UUID>","status":"QUEUED","created_at":"..."}`를 반환합니다.
-접수번호는 14자리 ASCII 숫자 형식만 검증하며, Filing 존재나 OpenDART 유효성을 확인하지 않습니다.
+접수번호는 14자리 ASCII 숫자이며 같은 조직에 등록한 정정공시여야 합니다. 신규 공시와 등록 해제된 공시는 CORRECTION_REQUIRED로 거부합니다.
 `organization_id`와 `requested_by`는 JWT를 DB User와 검증한 context에서만 가져옵니다.
 `Memo.current_version`에 해당하는 원문 버전을 확인하고 `base_memo_version`으로 고정합니다.
-회사 코드·회사명은 Agent 조회 전까지 NULL이며 Filing cache와 결합하지 않습니다.
+회사 코드와 회사명은 등록 공시에서 고정합니다. memo_version을 지정하면 해당 메모 버전을 고정하고, 생략하면 현재 버전을 사용합니다.
 
 중복 키는 `(organization_id, memo_id, base_memo_version, disclosure_receipt_no)`이고
 CREATED / QUEUED / RUNNING / SAVING / SAVE_FAILED는 `409 ANALYSIS_ALREADY_RUNNING`입니다.
 응답의 `error.existing_task_id`로 기존 작업을 식별합니다. Terminal 상태는 재실행 가능합니다.
 Service는 PostgreSQL 기본 READ COMMITTED에서 조직 범위 Memo를 `SELECT FOR UPDATE`로 잠그고,
-현재 버전 읽기·중복 확인·Task 생성·commit을 직렬화합니다. 이 경로를 우회하는 직접 insert까지
+현재 버전 읽기, 중복 확인, Task 생성, commit을 직렬화합니다. 이 경로를 우회하는 직접 insert까지
 차단하는 DB unique 제약은 없습니다. 향후 버전 변경/분석 생성 경로도 같은 Memo 잠금 규약을 따라야 합니다.
 
 ### RabbitMQ 연결과 topology
@@ -208,7 +208,7 @@ Classic queue의 기본 dead-letter 전달은 장애 중 무손실 전달을 보
 기존 큐의 TTL/DLX 설정 변경 시 RabbitMQ 정책 또는 계획된 큐 재구성이 필요합니다.
 
 메시지는 `message_id`(UUID), `task_id`, `type=RUN_ANALYSIS`, `retry_count=0`만 포함합니다.
-본문·JWT·조직 데이터는 복제하지 않습니다. AMQP properties에도 message_id/retry_count를 기록합니다.
+본문, JWT, 조직 데이터는 복제하지 않습니다. AMQP properties에도 message_id/retry_count를 기록합니다.
 Persistent 메시지 + mandatory routing + publisher confirm으로 전송 성공을 확인합니다.
 같은 publish의 transport retry는 같은 message_id를 재사용합니다.
 
@@ -256,7 +256,7 @@ TEST_RABBITMQ_URL='<test AMQP URL>' python -m pytest -q
 Consumer 서비스는 아직 구현하지 않았습니다. 분석 조회/SSE/취소는 다음 절을 따릅니다.
 
 
-## Analysis 조회·Event·SSE·취소
+## Analysis 조회, Event, SSE, 취소
 
 모든 endpoint는 Authorization Bearer 인증과 RA / ANALYST 권한이 필요합니다.
 Task ID는 항상 DB User에서 확인한 current_user.organization_id로 제한합니다.
@@ -264,7 +264,7 @@ Task ID는 항상 DB User에서 확인한 current_user.organization_id로 제한
 
 | Endpoint | 동작 |
 | --- | --- |
-| GET /api/v1/analyses/{task_id} | 상태·단계·기준 Memo 버전·접수번호·시각·회사 snapshot |
+| GET /api/v1/analyses/{task_id} | 상태, 단계, 기준 Memo 버전, 접수번호, 시각, 회사 snapshot |
 | GET /api/v1/analyses/{task_id}/events | sequence ASC 이벤트 조회 |
 | GET /api/v1/analyses/{task_id}/events/stream | 영속 이벤트 기반 SSE |
 | POST /api/v1/analyses/{task_id}/cancel | 요청자 본인의 협력적 취소 |
@@ -276,8 +276,8 @@ limit(기본 200, 최대 500)을 지원합니다. sequence > after_sequence 조�
 
 ### 영속 Event와 transaction
 
-AnalysisEventType은 queued/started, 입력 조회, RAG, 기본 분석, Perspective 선택·실행·실패,
-보고서 생성·저장·실패, warning/failed/cancelled/completed 이벤트 이름을 정의합니다.
+AnalysisEventType은 queued/started, 입력 조회, RAG, 기본 분석, Perspective 선택, 실행, 실패,
+보고서 생성, 저장, 실패, warning/failed/cancelled/completed 이벤트 이름을 정의합니다.
 Agent 이벤트 수신 API는 이번 단계에서 만들지 않았습니다.
 
 AnalysisEventService.append_event는 조직 범위 Task를 SELECT FOR UPDATE로 잠근 뒤
@@ -302,7 +302,7 @@ publish합니다. 이 이벤트는 DB의 QUEUED 전이를 뜻하며, Broker 수�
 payload는 status/stage/code/message/perspective/reason의 명시적인 요약 필드만 허용합니다.
 code 100자, message 500자, reason 1000자 한도이며 임의 nested 데이터, memo_content,
 password, JWT/API key 같은 필드는 거부합니다. 자유 텍스트 안의 credential을 자동 탐지하는
-기능은 없으므로 호출자도 반드시 안전한 요약만 전달해야 합니다. 원문·secret은 기록하지 않습니다.
+기능은 없으므로 호출자도 반드시 안전한 요약만 전달해야 합니다. 원문, secret은 기록하지 않습니다.
 
 ### SSE 재연결과 Session
 
@@ -355,7 +355,7 @@ SAVE_FAILED는 terminal이 아니므로 연결을 유지합니다. disconnect �
 다시 읽고 기존 상태 머신으로 CANCELLED 전이를 검증합니다. COMPLETED /
 COMPLETED_WITH_WARNINGS / FAILED는 409 ANALYSIS_CANNOT_BE_CANCELLED입니다.
 
-이미 CANCELLED인 경우에도 먼저 조직·요청자 권한을 검증하고 200을 반환합니다.
+이미 CANCELLED인 경우에도 먼저 조직, 요청자 권한을 검증하고 200을 반환합니다.
 completed_at을 바꾸거나 ANALYSIS_CANCELLED를 중복 추가하지 않습니다. 응답은
 `{"task_id":"...","status":"CANCELLED"}`입니다.
 
@@ -366,3 +366,41 @@ RabbitMQ 메시지를 삭제하거나 Worker를 kill하지 않습니다. 향후 
 Consumer/Internal API/Agent는 아직 구현하지 않았습니다.
 
 다음 구현 범위는 Internal API + X-Internal-API-Key 인증입니다.
+
+## 프론트엔드 연결 API
+
+`0006_disclosure_watch`는 공시의 회사 코드, 제목과 정정 여부 및 등록 상태를 추가하고 사용자별 즐겨찾기를 저장합니다. 기존 분석 원문은 등록 해제 시에도 보존합니다.
+
+| 경로 | 동작 |
+| --- | --- |
+| POST /api/v1/auth/signup | 조직과 RA 계정 생성 |
+| GET /api/v1/users/me | 로그인 사용자 확인 |
+| PATCH /api/v1/users/me/password | 비밀번호 변경과 기존 토큰 만료 |
+| GET /api/v1/disclosures/companies | 회사 목록과 검색, offset 기준 20건 조회 |
+| GET /api/v1/disclosures | 회사와 기간별 OpenDART 목록, page 기준 20건 조회 |
+| GET, POST /api/v1/favorites | 사용자별 즐겨찾기 조회와 추가 |
+| DELETE /api/v1/favorites/{corp_code} | 즐겨찾기 해제 |
+| POST /api/v1/filings | OpenDART 원문을 확인해 조직에 등록 |
+| DELETE /api/v1/filings/{id} | 등록 해제와 원문 보존 |
+| POST /api/v1/filings/{id}/corrections/check | DART 관련 본문에 명시된 후속 정정공시 등록 |
+| GET /api/v1/analyses | 조직별 분석 이력, limit과 offset |
+| GET /api/v1/analyses/{id}/report | 저장 보고서 조회, 미생성 시 null |
+| GET /api/v1/analyses/{id}/perspectives | 분석 관점 결과 조회 |
+
+Business API의 `EXTERNAL_MCP_URL` 기본값은 `http://external-mcp:8083/mcp`이며 기본 제한시간은 40초입니다. 회사 검색어를 비우면 전체 회사 목록을 조회합니다. 전체 공시 조회는 3개월, 회사별 조회는 1년 이내로 제한합니다. 프론트엔드는 기업 상세에서 회사별 공시를 조회합니다.
+
+Compose의 `ai-worker`는 같은 네트워크에서 분석을 처리하며 `ai-state` 볼륨에 실행 상태와 토큰 계산 캐시를 저장합니다. 최초 실행은 업무 DB와 RAG migration 적용 후 `/health/rabbitmq`로 큐를 준비하고 Worker를 시작합니다.
+
+## 메모 삭제와 보고서 파일
+
+`0007_memo_delete` 적용 후 `DELETE /api/v1/memos/{id}`는 204를 반환하며 메모를 목록과 신규 분석 대상에서 제외합니다. 기존 분석이 참조하는 버전 원문은 보존합니다. 다른 조직의 메모는 삭제할 수 없습니다.
+
+`GET /api/v1/analyses/{id}/report.md`와 `report.pdf`는 저장된 보고서를 첨부 파일로 내려줍니다. PDF는 한글 글꼴과 표를 포함하며 본문의 외부 자원은 불러오지 않습니다. AI Worker는 최종 Markdown을 상태 볼륨의 `reports/{task_id}.md`에도 저장합니다.
+
+## SEC 공시와 분석 대상
+
+분석은 조직에 원문을 등록한 정정공시, 계약 체결과 해지, 실적 공시에 대해 가능합니다. 미등록 또는 등록 해제 공시는 REGISTERED_FILING_REQUIRED로 거부합니다.
+
+SEC 8-K는 `SEC:{CIK}:{accession}`을 접수 식별자로 사용합니다. 예시는 `SEC:1071739:0001071739-25-000185`입니다. External MCP는 SEC 인덱스와 8-K 본문, EX-99.1 첨부를 조회하고 원문 URL과 공개일을 보존합니다. `SEC_USER_AGENT`에는 서비스 이름과 연락처를 지정합니다. 관심 기업은 `SEC:1071739` 형태로 등록하며 `0008_sec_favorites` migration이 식별자 길이를 확장합니다. 회사별 SEC 목록 조회는 최근 제출 목록에 포함된 8-K를 대상으로 합니다.
+
+ECOS와 KRX, 제재 및 정책 전용 조회는 연결되지 않았습니다. 공시와 확보한 근거 범위를 벗어나는 영향은 확정하지 않습니다.

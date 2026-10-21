@@ -21,7 +21,7 @@ class AnalysisContext(BaseModel):
     task_id: UUID
     organization_id: UUID
     memo: MemoContext
-    disclosure_receipt_no: str = Field(pattern=r"^\d{14}$")
+    disclosure_receipt_no: str = Field(pattern=r"^(?:[0-9]{14}|SEC:[0-9]{1,10}:[0-9]{10}-[0-9]{2}-[0-9]{6})$")
 
 
 def digest(value):

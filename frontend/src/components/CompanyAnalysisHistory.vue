@@ -44,7 +44,7 @@ const tasks = computed(() =>
         </div>
         <h3>{{ store.filings.find((f) => f.id === task.filingId)?.title }}</h3>
         <p class="small muted">
-          {{ store.memos.find((m) => m.id === task.memoId)?.title }} · 기준 v{{
+          {{ store.memos.find((m) => m.id === task.memoId)?.title }} , 기준 v{{
             task.baseMemoVersion
           }}
         </p>

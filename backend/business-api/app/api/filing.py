@@ -1,13 +1,13 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Path, Query
+from fastapi import APIRouter, Depends, Path, Query, Response
 
 from app.api.dependencies import get_filing_service, require_roles
 from app.models.enums import UserRole
 from app.schemas.auth import CurrentUser
 from app.schemas.filing import (
-    FilingDetailResponse, FilingSummaryResponse,
+    FilingDetailResponse, FilingSummaryResponse, FilingRegisterRequest,
     FilingVersionDetailResponse, FilingVersionSummaryResponse,
 )
 from app.services.filing import FilingService
@@ -43,3 +43,19 @@ def list_versions(filing_id: UUID, user: Reader, service: Service, limit: Limit 
 @router.get("/{filing_id}/versions/{version}", response_model=FilingVersionDetailResponse)
 def get_version(filing_id: UUID, version: Annotated[int, Path(ge=1, le=2147483647)], user: Reader, service: Service) -> FilingVersionDetailResponse:
     return FilingVersionDetailResponse.model_validate(service.get_version(filing_id, version, user.organization_id))
+
+
+@router.post("", response_model=FilingDetailResponse)
+def register_filing(request: FilingRegisterRequest, user: Reader, service: Service) -> FilingDetailResponse:
+    return FilingDetailResponse.model_validate(service.register(request.receipt_no, user.organization_id))
+
+
+@router.delete("/{filing_id}", status_code=204)
+def unregister_filing(filing_id: UUID, user: Reader, service: Service) -> Response:
+    service.unregister(filing_id, user.organization_id)
+    return Response(status_code=204)
+
+
+@router.post("/{filing_id}/corrections/check", response_model=list[FilingSummaryResponse])
+def check_corrections(filing_id: UUID, user: Reader, service: Service) -> list[FilingSummaryResponse]:
+    return [FilingSummaryResponse.model_validate(row) for row in service.check_corrections(filing_id, user.organization_id)]

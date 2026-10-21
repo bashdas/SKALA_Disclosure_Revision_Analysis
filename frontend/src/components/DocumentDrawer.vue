@@ -49,7 +49,7 @@ onBeforeUnmount(() => dialog.value?.close())
   >
     <template v-if="store.drawer">
       <div class="drawer-header">
-        <div class="eyebrow"><FileText :size="14" /> 원문·근거 확인</div>
+        <div class="eyebrow"><FileText :size="14" /> 원문,근거 확인</div>
         <button class="icon-button" aria-label="원문 닫기" @click="close"><X :size="20" /></button>
       </div>
       <div class="drawer-body">
@@ -65,9 +65,6 @@ onBeforeUnmount(() => dialog.value?.close())
             </select></label
           >
         </div>
-        <p class="sample-note">
-          시연용 문서·요약입니다. 실제 분석이나 원본 보고서로 사용하지 않습니다.
-        </p>
         <div class="source-content">
           <p
             v-for="(p, i) in store.drawer.content.split(/\n\s*\n/)"

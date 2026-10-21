@@ -15,7 +15,7 @@ BLOCK_TAGS = HEADINGS | {"p", "li", "table", "section", "section-1", "section-2"
 
 
 def tag(node):
-    return etree.QName(node).localname.lower() if isinstance(node.tag, str) else ""
+    return node.tag.rsplit("}", 1)[-1].rsplit(":", 1)[-1].lower() if isinstance(node.tag, str) else ""
 
 
 def normalized(value):
@@ -80,11 +80,17 @@ class OpenDartDocumentParser:
         match = re.search(br'(?:encoding\s*=\s*["\']|charset\s*=\s*["\']?)([A-Za-z0-9_-]+)', data[:2048], re.I)
         encoding = match.group(1).decode("ascii") if match else "utf-8-sig"
         # No lossy replacement/guessing. Honor explicit XML/HTML encodings.
-        source = data.decode(encoding)
+        try:
+            source = data.decode(encoding)
+        except UnicodeDecodeError:
+            # 일부 DART 문서는 EUC-KR 선언에 UTF-8 본문을 제공하므로 손실 없는 UTF-8만 재확인합니다.
+            if encoding.lower().replace("_", "-") not in {"euc-kr", "euckr"}:
+                raise
+            source = data.decode("utf-8-sig")
         if re.search(r"<!ENTITY\b", source, re.I):
             raise ValueError("Entity declarations prohibited")
         source = re.sub(r'^\s*<\?xml[^?]*\?>', '', source, count=1, flags=re.I)
-        is_html = filename.lower().endswith((".html", ".htm"))
+        is_html = filename.lower().endswith((".html", ".htm")) or bool(re.match(r"\s*(?:<!DOCTYPE\s+html[^>]*>\s*)?<html\b", source, re.I))
         if is_html:
             if not re.search(r"<(?:html|body|table)\b", source, re.I):
                 raise ValueError("Not HTML")
@@ -93,12 +99,18 @@ class OpenDartDocumentParser:
             # DART XML may contain HTML named whitespace/entities. Convert only known
             # non-XML names to numeric references, never expand arbitrary DTD entities.
             source = re.sub(r'&([A-Za-z][A-Za-z0-9]+);', lambda m: f'&#{name2codepoint[m[1]]};' if m[1] in name2codepoint and m[1] not in {"amp", "lt", "gt", "quot", "apos"} else m[0], source)
+            # 일부 DART 표의 한글 꺾쇠 문구를 본문으로 보존합니다. XML 복구 모드는 사용하지 않습니다.
+            source = re.sub(r"<([가-힣][^<>]*[ \t][^<>]*)>", r"&lt;\1&gt;", source)
             parser = etree.XMLParser(resolve_entities=False, no_network=True, load_dtd=False, recover=False)
         root = etree.fromstring(source.encode("utf-8"), parser=parser)
         if root is not None and any(isinstance(item, etree._Entity) for item in root.iter()):
             raise ValueError("Unresolved entity")
         if root is None:
             raise ValueError("Missing root")
+        # SEC의 숨겨진 iXBRL 메타데이터를 본문과 재무 표에서 제외합니다.
+        for item in list(root.iter()):
+            if item.tag == "ix:header" and item.getparent() is not None:
+                item.getparent().remove(item)
         return root, "text/html" if is_html else "application/xml"
 
     def _walk(self, node, filename, blocks, tables):

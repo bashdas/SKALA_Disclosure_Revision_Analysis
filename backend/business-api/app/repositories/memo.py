@@ -44,7 +44,7 @@ class MemoRepository:
 
 
     def list_by_organization(self, organization_id: UUID, *, limit: int = 20, offset: int = 0, company_name: str | None = None) -> list[Memo]:
-        query = select(Memo).where(Memo.organization_id == organization_id)
+        query = select(Memo).where(Memo.organization_id == organization_id, Memo.is_deleted.is_(False))
         if company_name is not None:
             query = query.where(Memo.company_name == company_name)
         return list(self.session.scalars(query.order_by(Memo.updated_at.desc(), Memo.id.desc()).limit(limit).offset(offset)))

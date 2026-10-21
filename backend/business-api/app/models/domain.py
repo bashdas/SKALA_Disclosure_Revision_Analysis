@@ -55,6 +55,11 @@ class Filing(IdentityCreatedMixin, Base):
     )
 
     organization_id: Mapped[UUID] = mapped_column(ForeignKey("core.organizations.id", ondelete="RESTRICT"))
+    corp_code: Mapped[str | None] = mapped_column(String(8))
+    title: Mapped[str | None] = mapped_column(String(500))
+    is_correction: Mapped[bool] = mapped_column(Boolean, default=False, server_default=text("false"))
+    is_registered: Mapped[bool] = mapped_column(Boolean, default=True, server_default=text("true"))
+    origin_receipt_no: Mapped[str | None] = mapped_column(String(64))
     company_name: Mapped[str] = mapped_column(String(255))
     receipt_no: Mapped[str] = mapped_column(String(64))
     filing_type: Mapped[str] = mapped_column(String(100))
@@ -98,6 +103,7 @@ class Memo(IdentityCreatedMixin, UpdatedMixin, Base):
     company_name: Mapped[str | None] = mapped_column(String(255))
     title: Mapped[str] = mapped_column(String(500))
     current_version: Mapped[int] = mapped_column(Integer, default=1, server_default=text("1"))
+    is_deleted: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default=text("false"))
     memo_versions: Mapped[list[MemoVersion]] = relationship(passive_deletes="all", order_by="MemoVersion.version")
 
 
@@ -245,3 +251,15 @@ class AnalysisReport(IdentityCreatedMixin, UpdatedMixin, Base):
     no_additional_analysis_reason: Mapped[str | None] = mapped_column(Text)
     generated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     saved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class CompanyFavorite(IdentityCreatedMixin, Base):
+    __tablename__ = "company_favorites"
+    __table_args__ = (
+        UniqueConstraint("user_id", "corp_code", name="uq_company_favorites_user_corp"),
+        {"schema": CORE_SCHEMA},
+    )
+    user_id: Mapped[UUID] = mapped_column(ForeignKey("core.users.id", ondelete="RESTRICT"))
+    corp_code: Mapped[str] = mapped_column(String(64))
+    company_name: Mapped[str] = mapped_column(String(255))
+    stock_code: Mapped[str] = mapped_column(String(6), default="", server_default="")

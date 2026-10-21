@@ -39,7 +39,9 @@ def db(migrated_engine):
 @pytest.fixture
 def user_client(db, graph, auth_settings, stored_password_hash):
     graph.user.password_hash = stored_password_hash
-    db.flush()
+    graph.user.email = "analyst@example.com"
+    # 요청의 rollback이 초기 자료를 되돌리지 않도록 바깥 트랜잭션 안의 준비용 savepoint를 마칩니다.
+    db.commit()
     application = FastAPI()
     application.include_router(auth_router)
     application.include_router(user_router)

@@ -35,6 +35,7 @@ services:
       dockerfile: mcp/external-mcp/Dockerfile
     environment:
       ENVIRONMENT: ${ENVIRONMENT:-local}
+      SEC_USER_AGENT: ${SEC_USER_AGENT:-DisclosureResearch/1.0}
       OPENDART_API_KEY: ${OPENDART_API_KEY:-}
       SERPAPI_API_KEY: ${SERPAPI_API_KEY:-}
       OPENDART_BASE_URL: ${OPENDART_BASE_URL:-https://opendart.fss.or.kr/api}
@@ -73,6 +74,32 @@ services:
       external-mcp:
         condition: service_healthy
 
+  ai-worker:
+    build:
+      context: ../ai
+      dockerfile: Dockerfile
+    environment:
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-5.4-mini}
+      RABBITMQ_URL: ${RABBITMQ_URL:?Configure RabbitMQ}
+      RABBITMQ_EXCHANGE: ${RABBITMQ_EXCHANGE:-analysis.exchange}
+      RABBITMQ_ANALYSIS_QUEUE: ${RABBITMQ_ANALYSIS_QUEUE:-analysis.tasks}
+      RABBITMQ_MAX_RETRIES: ${RABBITMQ_MAX_RETRIES:-3}
+      BUSINESS_MCP_URL: ${BUSINESS_MCP_URL:-http://business-mcp:8081/mcp}
+      EXTERNAL_MCP_URL: ${EXTERNAL_MCP_URL:-http://external-mcp:8083/mcp}
+      RAG_MCP_URL: http://rag-mcp:8082/mcp
+    volumes:
+      - ai-state:/state
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      business-mcp:
+        condition: service_healthy
+      external-mcp:
+        condition: service_healthy
+      rag-mcp:
+        condition: service_healthy
+
   postgres:
     image: pgvector/pgvector:pg16
     environment:
@@ -106,3 +133,4 @@ services:
 volumes:
   postgres-data:
   rabbitmq-data:
+  ai-state:

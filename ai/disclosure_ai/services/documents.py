@@ -171,7 +171,13 @@ def search_documents(documents: list[dict], query: str, limit=8) -> list[dict]:
     terms = set(re.findall(r"[가-힣A-Za-z0-9]+", query.lower()))
     rows = []
     for doc in documents:
+        seen = set()
         for index, paragraph in enumerate(doc["text"].splitlines()):
+            normalized = " ".join(paragraph.split())
+            # 반복되는 회사명과 표 머리글이 검색 문맥을 채우지 않도록 첫 원문 위치만 유지합니다.
+            if normalized in seen:
+                continue
+            seen.add(normalized)
             score = sum(t in paragraph.lower() for t in terms)
             if score:
                 rows.append(
@@ -202,7 +208,11 @@ def normalize_disclosure(result: dict, receipt: str) -> dict:
         # 공식 document_id가 없으므로 작업 내 원문 식별자로 내용 해시를 사용합니다.
         doc_id = f"opendart:{receipt}:{digest}"
         url = source["original_location"]
-        if url != f"https://dart.fss.or.kr/dsaf001/main.do?rcpNo={receipt}":
+        expected = f"https://dart.fss.or.kr/dsaf001/main.do?rcpNo={receipt}"
+        if receipt.startswith("SEC:"):
+            _, cik, accession = receipt.split(":")
+            expected = f"https://www.sec.gov/Archives/edgar/data/{int(cik)}/{accession.replace('-', '')}/{accession}-index.html"
+        if url != expected:
             raise ValueError()
         document = {
             "document_id": doc_id,

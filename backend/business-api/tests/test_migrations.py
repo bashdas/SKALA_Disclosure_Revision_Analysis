@@ -199,7 +199,7 @@ def test_upload_downgrade_cannot_fabricate_company_or_lose_metadata(legacy_datab
     with pytest.raises(DBAPIError, match="Archive upload metadata"):
         command.downgrade(config, "0002_align_report_flow")
     with engine.connect() as connection:
-        assert connection.execute(text("SELECT version_num FROM public.alembic_version")).scalar_one() == "0004_analysis_company"
+        assert connection.execute(text("SELECT version_num FROM public.alembic_version")).scalar_one() == ScriptDirectory.from_config(config).get_current_head()
         assert connection.execute(text(f"SELECT {field} FROM core.{table} WHERE id=:id"), {"id": ids[key]}).scalar_one() == value
 
 
@@ -225,7 +225,7 @@ def test_unknown_analysis_company_downgrade_guard(legacy_database):
     with pytest.raises(DBAPIError, match="Reconcile unknown analysis companies"):
         command.downgrade(config, "0003_memo_upload")
     with engine.connect() as connection:
-        assert connection.execute(text("SELECT version_num FROM public.alembic_version")).scalar_one() == "0004_analysis_company"
+        assert connection.execute(text("SELECT version_num FROM public.alembic_version")).scalar_one() == ScriptDirectory.from_config(config).get_current_head()
         assert connection.execute(text("SELECT company_name_snapshot FROM core.analysis_tasks WHERE id=:task"), ids).scalar_one() is None
     with engine.begin() as connection:
         connection.execute(text("UPDATE core.analysis_tasks SET company_name_snapshot='Verified legacy company' WHERE id=:task"), ids)

@@ -26,7 +26,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def test_model_metadata_and_delete_policy():
     configure_mappers()
-    assert len(Base.metadata.tables) == 13
+    assert len(Base.metadata.tables) == 14
     for table in Base.metadata.tables.values():
         assert table.schema == "core"
         for fk in table.foreign_keys:

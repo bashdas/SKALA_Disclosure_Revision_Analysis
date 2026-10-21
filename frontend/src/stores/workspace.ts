@@ -40,6 +40,7 @@ export const useWorkspace = defineStore('workspace', () => {
     drawer = ref<DrawerDocument | null>(null)
   const busy = ref(false),
     toast = ref('')
+  const syncError = ref('')
   let initialization: Promise<void> | null = null,
     unsubscribe: (() => void) | null = null
   const savedReports = computed(() => reports.value.filter((r) => r.savedAt !== null))
@@ -69,14 +70,20 @@ export const useWorkspace = defineStore('workspace', () => {
         tasks.value = t
         reports.value = r
         readKeys.value = reads
-        unsubscribe ??= services.analyses.subscribe((event) => {
-          applyTask(event.task)
-          if (event.report) {
-            const i = reports.value.findIndex((r) => r.id === event.report!.id)
-            if (i < 0) reports.value.push(event.report)
-            else reports.value[i] = event.report
-          }
-        })
+        unsubscribe ??= services.analyses.subscribe(
+          (event) => {
+            syncError.value = ''
+            applyTask(event.task)
+            if (event.report) {
+              const i = reports.value.findIndex((r) => r.id === event.report!.id)
+              if (i < 0) reports.value.push(event.report)
+              else reports.value[i] = event.report
+            }
+          },
+          (message) => {
+            syncError.value = message
+          },
+        )
         ready.value = true
       } catch (e) {
         error.value = e instanceof Error ? e.message : '자료를 불러오지 못했습니다.'
@@ -114,14 +121,17 @@ export const useWorkspace = defineStore('workspace', () => {
     const key = await services.reads.mark(ref)
     if (!readKeys.value.includes(key)) readKeys.value.push(key)
   }
-  function openMemo(id: string, version?: number, paragraph?: number) {
-    const memo = memos.value.find((m) => m.id === id)
-    if (!memo) return
+  async function openMemo(id: string, version?: number, paragraph?: number | null) {
+    let memo = memos.value.find((m) => m.id === id)
+    if (!memo) {
+      try { memo = await services.memos.get(id) }
+      catch(e) { syncError.value=e instanceof Error?e.message:'메모 조회 실패'; return }
+    }
     const v = memo.versions.find((v) => v.version === (version ?? memo.currentVersion))
     if (!v) return
     drawer.value = {
       title: memo.title,
-      subtitle: `${memo.companyName ?? '기업 미확정'} · 시연용 사내 메모`,
+      subtitle: `${memo.companyName ?? '기업 미확정'} , 사내 메모`,
       content: v.content,
       publishedAt: v.createdAt,
       readRef: { kind: 'memo', id, version: v.version },
@@ -138,9 +148,7 @@ export const useWorkspace = defineStore('workspace', () => {
     if (!v) return
     drawer.value = {
       title: filing.title,
-      subtitle: filing.receiptNo
-        ? `접수번호 ${filing.receiptNo}`
-        : '접수번호 미확인 · 보도 기반 샘플',
+      subtitle: filing.receiptNo ? `접수번호 ${filing.receiptNo}` : '접수번호 미확인',
       content: v.rawContent,
       publishedAt: v.createdAt,
       url: filing.sourceUrl,
@@ -157,7 +165,7 @@ export const useWorkspace = defineStore('workspace', () => {
     }
     drawer.value = {
       title: evidence.title,
-      subtitle: '분석 근거 · 시연용 요약',
+      subtitle: '분석 근거 인용',
       content: evidence.context,
       publishedAt: evidence.publishedAt,
       location: evidence.location,
@@ -168,6 +176,11 @@ export const useWorkspace = defineStore('workspace', () => {
     const memo = await services.memos.upload(file, title, companyId)
     memos.value.unshift(memo)
     return memo
+  }
+  async function deleteMemo(id: string) {
+    await services.memos.remove(id)
+    memos.value=memos.value.filter(m=>m.id!==id)
+    if(drawer.value?.memoId===id)drawer.value=null
   }
   async function start(input: StartAnalysisInput) {
     if (busy.value) return null
@@ -180,9 +193,21 @@ export const useWorkspace = defineStore('workspace', () => {
       busy.value = false
     }
   }
-  async function retrySave(taskId: string) {
-    const task = await services.analyses.retrySave(taskId)
-    applyTask(task)
+  async function refresh() {
+    services.filings.invalidate()
+    const [c, f] = await Promise.all([services.companies.list(), services.filings.list()])
+    companies.value = [
+      ...new Map(
+        [...companies.value.map((company) => ({ ...company, favorite: false })), ...c].map(
+          (company) => [company.id, company],
+        ),
+      ).values(),
+    ]
+    filings.value = f
+  }
+  function dispose() {
+    unsubscribe?.()
+    unsubscribe = null
   }
   return {
     companies,
@@ -199,6 +224,7 @@ export const useWorkspace = defineStore('workspace', () => {
     drawer,
     toast,
     initialize,
+    refresh,
     companyName,
     unread,
     countUnread,
@@ -207,7 +233,9 @@ export const useWorkspace = defineStore('workspace', () => {
     openFiling,
     openEvidence,
     upload,
+    deleteMemo,
     start,
-    retrySave,
+    dispose,
+    syncError,
   }
 })

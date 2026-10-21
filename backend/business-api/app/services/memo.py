@@ -27,6 +27,18 @@ class MemoService:
             raise MemoNotFound()
         return memo
 
+    def delete(self, memo_id: UUID, organization_id: UUID) -> None:
+        session = self.memos.session
+        try:
+            memo = self.memos.get_by_id_and_organization(memo_id, organization_id, for_update=True)
+            if memo is None:
+                raise MemoNotFound()
+            memo.is_deleted = True
+            session.commit()
+        except Exception:
+            session.rollback()
+            raise
+
     def list_versions(self, memo_id: UUID, organization_id: UUID, *, limit: int = 20, offset: int = 0) -> list[MemoVersion]:
         self.get_memo(memo_id, organization_id)
         return self.memos.list_versions(memo_id, organization_id=organization_id, limit=limit, offset=offset)

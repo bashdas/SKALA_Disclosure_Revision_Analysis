@@ -12,6 +12,7 @@ from app.api.analysis import router as analysis_router
 from app.api.auth import router as auth_router
 from app.api.user import router as user_router
 from app.api.filing import router as filing_router
+from app.api.disclosure import router as disclosure_router
 from app.api.memo import router as memo_router
 from app.api.exception_handlers import install_exception_handlers
 from app.core.config import get_settings
@@ -37,6 +38,7 @@ app.include_router(analysis_router)
 app.include_router(auth_router)
 app.include_router(user_router)
 app.include_router(filing_router)
+app.include_router(disclosure_router)
 app.include_router(memo_router)
 
 

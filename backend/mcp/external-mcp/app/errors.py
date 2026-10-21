@@ -1,5 +1,7 @@
 class OpenDartError(Exception):
     MESSAGES = {
+        "INVALID_SEARCH_RANGE": "검색 기간은 시작일부터 종료일까지 1년 이내로 지정해 주세요.",
+        "DISCLOSURE_FAMILY_UNAVAILABLE": "DART 관련 보고서 목록을 확인하지 못했습니다. 다시 시도해 주세요.",
         "INVALID_RECEIPT_NO": "receipt_no must contain exactly 14 ASCII digits",
         "DISCLOSURE_NOT_FOUND": "Disclosure document not found",
         "OPENDART_AUTH_FAILED": "OpenDART authentication failed or key is not configured",

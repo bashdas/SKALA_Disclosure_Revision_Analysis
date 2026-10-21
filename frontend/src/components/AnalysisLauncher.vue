@@ -1,13 +1,11 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRouter } from 'vue-router'
 import { Sparkles, ArrowRight, LockKeyhole } from 'lucide-vue-next'
 import { useWorkspace } from '../stores/workspace'
-import type { Scenario } from '../types/domain'
 const props = defineProps<{ companyId: string; preferredFiling?: string }>()
 const store = useWorkspace(),
-  router = useRouter(),
-  route = useRoute()
+  router = useRouter()
 const filingId = ref(''),
   memoId = ref(''),
   memoVersion = ref(1),
@@ -26,6 +24,7 @@ watch(
   (id) => {
     if (id) filingId.value = id
   },
+  { immediate: true },
 )
 watch(memoId, () => {
   memoVersion.value = memo.value?.currentVersion ?? 1
@@ -41,20 +40,11 @@ watch(
 async function start() {
   if (!filingId.value || !memoId.value || store.busy) return
   error.value = ''
-  const allowed: Scenario[] = [
-    'normal',
-    'evidence-gap',
-    'analysis-failure',
-    'save-failure',
-    'limit',
-  ]
-  const requested = String(route.query.scenario ?? 'normal')
   try {
     const task = await store.start({
       filingId: filingId.value,
       memoId: memoId.value,
       memoVersion: memoVersion.value,
-      scenario: allowed.includes(requested as Scenario) ? (requested as Scenario) : 'normal',
     })
     if (task) await router.push(`/analyses/${task.id}`)
   } catch (e) {
@@ -80,14 +70,14 @@ async function start() {
         >기준 메모<select v-model="memoId" aria-label="기준 메모" required>
           <option value="" disabled>메모를 선택하세요</option>
           <option v-for="item in availableMemos" :key="item.id" :value="item.id">
-            {{ item.title }}{{ item.companyName ? '' : ' · 기업 미확정' }}
+            {{ item.title }}{{ item.companyName ? '' : ' , 기업 미확정' }}
           </option>
         </select></label
       >
       <label v-if="memo"
         >기준 버전<select v-model.number="memoVersion" aria-label="기준 버전">
           <option v-for="v in memo.versions" :key="v.version" :value="v.version">
-            v{{ v.version }}{{ v.version === memo.currentVersion ? ' · 최신 버전' : '' }}
+            v{{ v.version }}{{ v.version === memo.currentVersion ? ' , 최신 버전' : '' }}
           </option>
         </select></label
       >
@@ -107,6 +97,5 @@ async function start() {
     <div class="preserve-note">
       <LockKeyhole :size="14" /><span>원본 메모는 변경되지 않습니다.</span>
     </div>
-    <p class="tiny muted">샘플 분석 · 실제 AI·외부 API 호출 없음</p>
   </aside>
 </template>

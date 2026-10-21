@@ -1,14 +1,22 @@
 import { defineConfig } from '@playwright/test'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+const port = process.env.E2E_PORT ?? '5173'
+const baseURL = `http://127.0.0.1:${port}`
 
 export default defineConfig({
   testDir: './tests',
+  outputDir: join(tmpdir(), 'disclosure-check-web', 'playwright'),
   timeout: 25000,
   fullyParallel: true,
   workers: 2,
   expect: { timeout: 10000 },
-  reporter: [['list'], ['html', { open: 'never' }]],
+  reporter: [
+    ['list'],
+    ['html', { open: 'never', outputFolder: join(tmpdir(), 'disclosure-check-web', 'playwright-report') }],
+  ],
   use: {
-    baseURL: 'http://127.0.0.1:5173',
+    baseURL,
     channel: process.env.PLAYWRIGHT_CHANNEL || undefined,
     screenshot: 'only-on-failure',
     trace: 'retain-on-failure',
@@ -21,9 +29,9 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'npm run dev',
-    url: 'http://127.0.0.1:5173',
-    reuseExistingServer: !process.env.CI,
+    command: `npm run dev -- --port ${port}`,
+    url: baseURL,
+    reuseExistingServer: !process.env.CI && !process.env.E2E_PORT,
     timeout: 20000,
   },
 })

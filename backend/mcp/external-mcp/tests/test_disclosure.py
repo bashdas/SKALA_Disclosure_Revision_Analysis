@@ -63,7 +63,7 @@ def test_server_initialize_health_and_single_tool():
         assert initialized.status_code == 200 and "serverInfo" in initialized.json()["result"]
         listing = client.post("/mcp", headers=HEADERS, json={"jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {}})
         tools = listing.json()["result"]["tools"]
-        assert {tool["name"] for tool in tools} == {"get_disclosure", "search_academic_papers", "get_financial_statements"}
+        assert {tool["name"] for tool in tools} == {"get_disclosure", "search_academic_papers", "get_financial_statements", "opendart_search_companies", "opendart_search_disclosures", "opendart_get_disclosure_family"}
         tools = [tool for tool in tools if tool["name"] == "get_disclosure"]
         assert set(tools[0]["inputSchema"]["properties"]) == {"receipt_no"}
 
@@ -230,3 +230,21 @@ def test_paragraph_boundaries_inside_table_cells():
     xml = '<DOCUMENT><TABLE><TR><TD><P>정정 전 설명</P><P>다음 줄</P></TD></TR></TABLE></DOCUMENT>'.encode()
     data = OpenDartDocumentParser().parse(archive(xml))
     assert data["tables"][0]["rows"][0]["cells"][0]["text"] == "정정 전 설명\n다음 줄"
+
+
+def test_literal_korean_angle_bracket_text_in_dart_table():
+    xml = '<DOCUMENT><TABLE><TR><TD><시장성 없는 지분증권>(주1)</TD></TR></TABLE></DOCUMENT>'.encode()
+    data = OpenDartDocumentParser().parse(archive(xml))
+    assert data['tables'][0]['rows'][0]['cells'][0]['text'] == '<시장성 없는 지분증권>(주1)'
+
+
+def test_dart_utf8_body_with_incorrect_euckr_declaration_and_literal_text():
+    xml = '<?xml version="1.0" encoding="EUC-KR"?><DOCUMENT><P>한글 공시 <기업 전체의 Value / 금액: 1,000></P></DOCUMENT>'.encode('utf-8')
+    assert '한글 공시 <기업 전체의 Value / 금액: 1,000>' in OpenDartDocumentParser().parse(archive(xml))['text']
+
+
+def test_dart_html_body_in_xml_named_member():
+    html = '<html><head><meta charset="EUC-KR"></head><body><p>정정공시 원문</p></body></html>'.encode('utf-8')
+    result = OpenDartDocumentParser().parse(archive(html, '20261016800907.xml'))
+    assert result['text'] == '정정공시 원문'
+    assert result['files'][0]['content_type'] == 'text/html'

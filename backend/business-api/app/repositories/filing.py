@@ -31,7 +31,7 @@ class FilingRepository:
 
 
     def list_by_organization(self, organization_id: UUID, *, limit: int = 20, offset: int = 0, company_name: str | None = None, filing_type: str | None = None) -> list[Filing]:
-        query = select(Filing).where(Filing.organization_id == organization_id)
+        query = select(Filing).where(Filing.organization_id == organization_id, Filing.is_registered.is_(True))
         if company_name is not None:
             query = query.where(Filing.company_name == company_name)
         if filing_type is not None:
