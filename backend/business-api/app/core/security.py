@@ -42,6 +42,7 @@ def create_access_token(user: User, *, settings: Settings | None = None, now: da
     expires = issued + timedelta(minutes=settings.jwt_access_token_expire_minutes)
     payload = TokenPayload(
         sub=user.id, organization_id=user.organization_id, role=user.role,
+        token_version=user.token_version or 0,
         iat=int(issued.timestamp()), exp=int(expires.timestamp()),
     )
     return jwt.encode(payload.model_dump(mode="json"), key, algorithm="HS256")

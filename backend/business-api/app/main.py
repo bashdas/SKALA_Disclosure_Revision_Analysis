@@ -10,6 +10,7 @@ from disclosure_shared.health import HealthResponse
 from app.api.internal.analyses import router as internal_router
 from app.api.analysis import router as analysis_router
 from app.api.auth import router as auth_router
+from app.api.user import router as user_router
 from app.api.filing import router as filing_router
 from app.api.memo import router as memo_router
 from app.api.exception_handlers import install_exception_handlers
@@ -34,6 +35,7 @@ install_exception_handlers(app)
 app.include_router(internal_router)
 app.include_router(analysis_router)
 app.include_router(auth_router)
+app.include_router(user_router)
 app.include_router(filing_router)
 app.include_router(memo_router)
 

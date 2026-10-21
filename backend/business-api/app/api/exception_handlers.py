@@ -12,7 +12,11 @@ async def auth_error_handler(request: Request, exc: AuthError) -> JSONResponse:
     code, message = exc.code, exc.message
     if code == "USER_NOT_FOUND":
         code, message = "INVALID_TOKEN", "Invalid token"
-    status = 403 if code == "FORBIDDEN" else 503 if code == "AUTH_CONFIGURATION_ERROR" else 401
+    status = {
+        "FORBIDDEN": 403, "AUTH_CONFIGURATION_ERROR": 503,
+        "EMAIL_ALREADY_REGISTERED": 409, "INVALID_CURRENT_PASSWORD": 400,
+        "PASSWORD_UNCHANGED": 400,
+    }.get(code, 401)
     headers = {"WWW-Authenticate": "Bearer"} if status == 401 else None
     return JSONResponse(status_code=status, content={"error": {"code": code, "message": message}}, headers=headers)
 

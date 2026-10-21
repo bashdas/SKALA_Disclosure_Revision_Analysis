@@ -40,3 +40,18 @@ class UserNotFound(AuthError):
 class AuthConfigurationError(AuthError):
     code = "AUTH_CONFIGURATION_ERROR"
     message = "Authentication unavailable"
+
+
+class EmailAlreadyRegistered(AuthError):
+    code = "EMAIL_ALREADY_REGISTERED"
+    message = "Email is already registered"
+
+
+class InvalidCurrentPassword(AuthError):
+    code = "INVALID_CURRENT_PASSWORD"
+    message = "Current password is invalid"
+
+
+class PasswordUnchanged(AuthError):
+    code = "PASSWORD_UNCHANGED"
+    message = "New password must differ from the current password"

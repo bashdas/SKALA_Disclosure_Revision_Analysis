@@ -18,3 +18,12 @@ class UserRepository:
 
     def get_by_id_and_organization(self, user_id: UUID, organization_id: UUID) -> User | None:
         return self.session.scalar(select(User).where(User.id == user_id, User.organization_id == organization_id))
+
+    def add(self, user: User) -> User:
+        self.session.add(user)
+        self.session.flush()
+        return user
+
+    def get_by_id_for_update(self, user_id: UUID) -> User | None:
+        return self.session.scalar(select(User).where(User.id == user_id)
+            .with_for_update().execution_options(populate_existing=True))

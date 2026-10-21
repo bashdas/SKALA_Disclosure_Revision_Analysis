@@ -317,3 +317,19 @@ NULL 회사명이 있거나 metadata가 하나라도 저장되어 있으면 down
 다음 Analysis 입력은 memo_id와 disclosure_receipt_no입니다. 현재 AnalysisTask.company_name_snapshot은 아직 NOT NULL이므로 기업명을 Agent가 나중에 확정하는 새 플로우에 맞춘 처리는 다음 Analysis 생성 단계에서 별도로 검토해야 합니다. 이번에는 AnalysisTask/RabbitMQ/OpenDART를 변경하거나 구현하지 않았습니다.
 
 구현 참고: [FastAPI UploadFile](https://fastapi.tiangolo.com/tutorial/request-files/), [SQLAlchemy flush/rollback](https://docs.sqlalchemy.org/en/20/orm/session_basics.html#flushing).
+
+## 회원 API
+
+- `POST /api/v1/auth/signup`: email, password(12~128자), organization_name. 신규 조직과 ANALYST 사용자를 한 transaction으로 생성합니다. 기존 조직 ID/역할 입력은 허용하지 않습니다. 성공 201, 중복 이메일 409입니다. 이메일은 domain 정규화 외 기존 case-sensitive 정책을 유지합니다.
+- `POST /api/v1/auth/login`: 기존 email/password 로그인, Bearer Access Token 발급.
+- `GET /api/v1/users/me`: Bearer 인증 사용자 본인 정보만 반환합니다.
+- `PATCH /api/v1/users/me/password`: current_password/new_password로 변경, 성공 204. 기존 토큰을 모두 무효화하므로 다시 로그인합니다.
+
+```json
+{"email":"user@example.com","password":"example-password-123!","organization_name":"새 조직"}
+```
+
+새 dependency를 설치하고 `alembic upgrade head`를 적용해야 합니다. revision `0005_user_token_version`은 core.users.token_version을 기본 0으로 추가합니다.
+기존 token_version claim이 없는 JWT는 0으로 해석하여 migration 직후 호환성을 유지합니다.
+비밀번호 변경 후에는 DB 버전과 불일치하는 토큰을 401로 거부합니다. 비밀번호를 변경한 사용자가 있으면 downgrade를 차단하며, JWT signing key 교체 및 인증 버전 정리 후 수행해야 합니다.
+회원 탈퇴·역할 변경·기존 조직 초대·이메일 변경·refresh token API는 이번 범위에 포함하지 않습니다.

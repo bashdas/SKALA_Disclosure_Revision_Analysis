@@ -17,6 +17,7 @@ from app.services.analysis import AnalysisService
 from app.services.analysis_stream import AnalysisEventStream
 from app.schemas.auth import CurrentUser, TokenPayload
 from app.services.auth import AuthService
+from app.services.user import UserService
 from app.services.filing import FilingService
 from app.services.memo import MemoService
 
@@ -40,7 +41,8 @@ def get_current_user(
     user = UserRepository(session).get_by_id(payload.sub)
     if user is None:
         raise UserNotFound()
-    if user.organization_id != payload.organization_id or user.role != payload.role:
+    if (user.organization_id != payload.organization_id or user.role != payload.role
+            or user.token_version != payload.token_version):
         raise InvalidToken()
     return CurrentUser(id=user.id, organization_id=user.organization_id, email=user.email, role=user.role)
 
@@ -108,3 +110,7 @@ def get_analysis_stream(
 ) -> AnalysisEventStream:
     return AnalysisEventStream(factory, poll_interval=settings.sse_poll_interval_seconds,
         heartbeat_seconds=settings.sse_heartbeat_seconds)
+
+
+def get_user_service(session: Annotated[Session, Depends(get_db)]) -> UserService:
+    return UserService(UserRepository(session))

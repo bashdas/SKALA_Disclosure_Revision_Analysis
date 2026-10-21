@@ -22,6 +22,7 @@ class TokenPayload(BaseModel):
     sub: UUID
     organization_id: UUID
     role: UserRole
+    token_version: StrictInt = Field(default=0, ge=0)
     exp: StrictInt
     iat: StrictInt
 

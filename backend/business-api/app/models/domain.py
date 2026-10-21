@@ -34,6 +34,7 @@ class User(IdentityCreatedMixin, Base):
     __tablename__ = "users"
     __table_args__ = (
         UniqueConstraint("email", name="uq_users_email"),
+        CheckConstraint("token_version >= 0", name="ck_users_token_version_nonnegative"),
         Index("ix_users_organization_id", "organization_id"),
         {"schema": CORE_SCHEMA},
     )
@@ -41,6 +42,7 @@ class User(IdentityCreatedMixin, Base):
     organization_id: Mapped[UUID] = mapped_column(ForeignKey("core.organizations.id", ondelete="RESTRICT"))
     email: Mapped[str] = mapped_column(String(320))
     password_hash: Mapped[str] = mapped_column(String(255))
+    token_version: Mapped[int] = mapped_column(Integer, default=0, server_default=text("0"))
     role: Mapped[UserRole] = mapped_column(enum_column(UserRole, "ck_users_role"))
 
 
