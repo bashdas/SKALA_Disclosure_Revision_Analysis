@@ -8,3 +8,8 @@ academic은 백엔드가 제공하는 Google Scholar 학술검색 도구입니�
 외부 검색어에 메모 원문이나 개인정보를 넣지 않습니다. 기업명과 공개된 공시 사실만 사용합니다.
 도구 실패나 조회 제한이 있으면 보유한 근거로 판단하고 부족한 이유를 limitations에 기록합니다.
 추가 자료가 필요하지 않으면 COMPLETED 또는 INSUFFICIENT_EVIDENCE를 반환합니다.
+
+재무 요청은 bsns_year, reprt_code(사업보고서 11011, 반기 11012, 1분기 11013, 3분기 11014), fs_div(CFS 연결, OFS 별도)를 지정할 수 있습니다.
+생략하면 공시 기준 직전 사업연도 사업보고서와 연결재무제표를 조회합니다. 응답에 자료가 없으면 실제 계정이 있다고 추정하지 않습니다.
+INSUFFICIENT_EVIDENCE인 경우 findings는 빈 문자열로 반환하고 제한 사유만 기록합니다.
+COMPLETED인 경우 sources의 원문이 findings의 모든 주장을 직접 뒷받침해야 합니다.

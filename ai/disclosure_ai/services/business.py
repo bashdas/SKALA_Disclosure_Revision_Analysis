@@ -69,6 +69,10 @@ async def mcp_call(service: str, name: str, args: dict) -> dict:
                         "BUSINESS_API_CONNECTION_FAILED",
                         "OPENDART_TIMEOUT",
                         "OPENDART_UNAVAILABLE",
+                        "OPENDART_RATE_LIMITED",
+                        "SCHOLAR_TIMEOUT",
+                        "SCHOLAR_UNAVAILABLE",
+                        "SCHOLAR_RATE_LIMITED",
                         "MCP_UNAVAILABLE",
                         "RAG_DATABASE_FAILED",
                     }

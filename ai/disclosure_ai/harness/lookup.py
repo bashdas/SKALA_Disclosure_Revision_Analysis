@@ -34,8 +34,9 @@ def normalize(args):
             if not isinstance(result[key], str):
                 raise ValueError("INVALID_TOOL_INPUT")
             result[key] = " ".join(unicodedata.normalize("NFC", result[key]).split())
-    if "as_of" in result and re.fullmatch(r"\d{4}-\d{2}-\d{2}", result["as_of"]):
-        result["as_of"] = result["as_of"].replace("-", "")
+    if "as_of" in result and re.fullmatch(r"\d{8}", result["as_of"]):
+        value = result["as_of"]
+        result["as_of"] = f"{value[:4]}-{value[4:6]}-{value[6:8]}"
     json.dumps(result, allow_nan=False)
     return result
 

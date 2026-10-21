@@ -5,7 +5,7 @@ LLM·정정 영향 판단·Report 생성·DB·RAG·Worker 코드를 포함하지
 
 MCP Python SDK v1/FastMCP (`mcp>=1.12,<2`, 테스트 1.30.0), Streamable HTTP `/mcp`,
 stateless/JSON 응답을 사용합니다. `/health`는 process liveness이며 외부 API readiness가 아닙니다.
-Tool은 **get_disclosure(receipt_no)**와 **search_academic_papers(...)**입니다.
+Tool은 **get_disclosure(receipt_no)**, **get_financial_statements(...)**, **search_academic_papers(...)**입니다.
 
 ## 공식 명세와 조회 흐름
 
@@ -148,3 +148,12 @@ SCHOLAR_RATE_LIMITED, SCHOLAR_TIMEOUT, SCHOLAR_UNAVAILABLE, SCHOLAR_INVALID_RESP
 현재 ai/disclosure_ai/services/tools.py의 academic은 TOOL_NOT_AVAILABLE로 고정되어 있습니다.
 MCP Tool 추가만으로 그 Agent 분기가 자동 연결되지는 않습니다. Agent 코드는 이번 변경에서 수정하지 않았습니다.
 기존 get_disclosure는 유지합니다. 이번 변경의 테스트 및 실제 API 호출은 사용자 지시에 따라 미실행입니다.
+
+## OpenDART 재무제표 조회
+
+`get_financial_statements(corp_code, bsns_year, reprt_code, fs_div)`를 제공합니다.
+[단일회사 전체 재무제표 공식 명세](https://opendart.fss.or.kr/guide/detail.do?apiGrpCd=DS003&apiId=2019020)의 `fnlttSinglAcntAll.json`을 사용하며 기존 `OPENDART_API_KEY`를 재사용합니다.
+
+기업코드는 8자리 숫자, 사업연도는 2015년부터 2100년까지 받습니다. 보고서 코드는 사업보고서 `11011`, 반기 `11012`, 1분기 `11013`, 3분기 `11014`이며 재무제표 구분은 연결 `CFS`, 별도 `OFS`입니다.
+
+응답은 요청 조건과 `accounts`, `sources`입니다. 계정의 금액, 통화와 기간은 원문 문자열을 보존합니다. 출처의 접수번호마다 기존 공시검색으로 실제 공시일을 확인하며 확인되지 않으면 `published_at=null`을 반환합니다. 자료가 없으면 빈 목록을 반환하고 인증, 한도와 통신 오류는 기존 OpenDART 오류 계약을 사용합니다. 입력 검증과 다른 기업의 응답 차단 검사를 추가했습니다. 기존 공시 조회와 학술 검색 구현은 변경하지 않았습니다.

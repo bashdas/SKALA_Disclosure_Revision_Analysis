@@ -98,7 +98,15 @@ def test_live_queue_to_report(internal_client, analysis_context, tmp_path):
                     report = reports[0].report_json
                     assert report["request"]["company_name_snapshot"] == "미로바펀즈"
                     assert report["base"] is not None
-                    assert all(report["sections"].values())
+                    assert report["sections"]["correction"]
+                    assert not report["base"]["proposals"]
+                    assert not report["sections"]["memo_impact"]
+                    assert not report["sections"]["suggestions"]
+                    assert all(
+                        r["status"] == "COMPLETED" or not r["findings"]
+                        for r in report["results"].values()
+                    )
+                    (tmp_path / "report.md").write_text(reports[0].content)
                     memo = db.scalar(
                         select(MemoVersion).where(
                             MemoVersion.memo_id == analysis_context.memos[0].id,

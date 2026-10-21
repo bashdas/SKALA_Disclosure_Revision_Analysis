@@ -1,9 +1,10 @@
 import os
+from datetime import date
 
 import httpx
 
 from disclosure_ai.services.business import BusinessError, RunCancelled, internal_request, mcp_call
-from disclosure_ai.services.documents import normalize_disclosure
+from disclosure_ai.services.documents import normalize_disclosure, normalize_evidence
 
 
 class Tools:
@@ -96,8 +97,26 @@ class Tools:
             except (KeyError, TypeError, ValueError):
                 return {"error": "INVALID_EVIDENCE_RESPONSE"}
         if name in {"financial", "academic"}:
-            # 이 두 도구는 아직 백엔드에 없습니다. 직접 조회 구현으로 우회하지 않습니다.
-            return {"error": "TOOL_NOT_AVAILABLE", "tool": name}
+            try:
+                cutoff = date.fromisoformat(args["as_of"])
+                if name == "financial":
+                    from disclosure_ai.schemas import FinancialQuery
+
+                    request = FinancialQuery.model_validate(
+                        {k: args[k] for k in FinancialQuery.model_fields}
+                    ).model_dump()
+                    tool = "get_financial_statements"
+                else:
+                    query = args["query"]
+                    if not isinstance(query, str) or not query.strip() or len(query) > 500:
+                        raise ValueError()
+                    # 날짜 단위 공개 시점을 알 수 없어 기준 연도 이전의 검색 결과만 요청합니다.
+                    request = {"query": query, "limit": 5, "year_to": cutoff.year - 1}
+                    tool = "search_academic_papers"
+            except (ValueError, TypeError, KeyError):
+                return {"error": "INVALID_TOOL_INPUT"}
+            result = await mcp_call("EXTERNAL", tool, request)
+            return result if result.get("error") else normalize_evidence(result, name, args)
         return {"error": "TOOL_NOT_AVAILABLE", "tool": name}
 
     async def authorize(self, request: dict) -> dict:

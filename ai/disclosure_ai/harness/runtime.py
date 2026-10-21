@@ -71,7 +71,36 @@ class Harness:
         encoded = self.encoding.encode(content)
         if role == "output_check" and len(encoded) > available:
             raise LimitReached("출력 검사 문맥을 일부만 검사할 수 없습니다.")
-        content = self.encoding.decode(encoded[:available])
+        if len(encoded) > available:
+            reduced = json.loads(content)
+            reduced["context_truncated"] = True
+            # 구조화 입력을 문자열 중간에서 자르면 메모와 출처 경계가 손실됩니다.
+            while len(self.encoding.encode(json.dumps(reduced, ensure_ascii=False))) > available:
+                lists, strings = [], []
+
+                def candidates(value, lists=lists, strings=strings):
+                    if isinstance(value, dict):
+                        for key, item in value.items():
+                            if isinstance(item, str) and len(item) > 256:
+                                strings.append((len(item), value, key))
+                            elif isinstance(item, (dict, list)):
+                                candidates(item)
+                    elif isinstance(value, list):
+                        if len(value) > 1:
+                            lists.append((len(json.dumps(value, ensure_ascii=False)), value))
+                        for item in value:
+                            candidates(item)
+
+                candidates(reduced)
+                if lists:
+                    values = max(lists, key=lambda item: item[0])[1]
+                    del values[max(1, len(values) // 2) :]
+                elif strings:
+                    length, parent, key = max(strings, key=lambda item: item[0])
+                    parent[key] = parent[key][: length // 2]
+                else:
+                    raise LimitReached("고정 입력이 문맥 한도를 초과했습니다.")
+            content = json.dumps(reduced, ensure_ascii=False)
         messages = [{"role": "system", "content": system}, {"role": "user", "content": content}]
         repair = False
         retries = 0
@@ -152,8 +181,8 @@ class Harness:
                 retries += 1
                 await asyncio.sleep(min(0.2 * retries, max(0, self.remaining(report))))
 
-    async def review_output(self, payload: dict) -> tuple[dict, list[str]]:
-        return await review_output(self, payload)
+    async def review_output(self, payload: dict, *, grounding=False) -> tuple[dict, list[str]]:
+        return await review_output(self, payload, grounding=grounding)
 
     async def tool(self, name, args, invoke, *, report=False, scope=""):
         return await lookup.call(self, name, args, invoke, report=report, scope=scope)

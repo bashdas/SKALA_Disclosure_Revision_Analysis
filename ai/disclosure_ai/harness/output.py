@@ -21,7 +21,7 @@ def safe_text(text: str) -> str:
     return "\n".join(s for s in parts if not risk.search(s)).strip()
 
 
-async def review_output(harness, payload: dict) -> tuple[dict, list[str]]:
+async def review_output(harness, payload: dict, *, grounding=False) -> tuple[dict, list[str]]:
     # 식별 정보와 대조된 원문 인용은 서술 판별 대상에서 분리합니다.
     fixed = {
         "request",
@@ -34,11 +34,25 @@ async def review_output(harness, payload: dict) -> tuple[dict, list[str]]:
         "impact_type",
         "perspective_type",
         "status",
+        "evidence_ids",
+        "before_text",
     }
     candidates = []
+    contexts = []
+    identities = []
+
+    def identity(text, key, evidence):
+        return (
+            text,
+            "selection"
+            if key in {"selection_reason", "no_additional_analysis_reason"}
+            else "analysis",
+            tuple((s.get("document_id"), s.get("quote")) for s in evidence) if grounding else (),
+        )
+
     filtered = False
 
-    def collect(value, key=""):
+    def collect(value, key="", evidence=()):
         nonlocal filtered
         if key in fixed:
             return
@@ -48,14 +62,18 @@ async def review_output(harness, payload: dict) -> tuple[dict, list[str]]:
                     continue
                 checked = safe_text(sentence)
                 filtered |= checked != sentence.strip()
-                if checked and checked not in candidates:
+                token = identity(checked, key, evidence)
+                if checked and token not in identities:
+                    identities.append(token)
                     candidates.append(checked)
+                    contexts.append({"evidence": list(evidence), "kind": token[1]})
         elif isinstance(value, list):
             for item in value:
-                collect(item, key)
+                collect(item, key, evidence)
         elif isinstance(value, dict):
+            evidence = value.get("evidence", value.get("sources", evidence))
             for name, item in value.items():
-                collect(item, name)
+                collect(item, name, evidence)
 
     collect(payload)
     accepted = set()
@@ -66,7 +84,13 @@ async def review_output(harness, payload: dict) -> tuple[dict, list[str]]:
                 raise LimitReached("출력 검사 문장 수를 초과했습니다.")
             review = await harness.model(
                 "output_check",
-                {"sentences": [{"index": i, "text": text} for i, text in enumerate(candidates)]},
+                {
+                    "require_grounding": grounding,
+                    "sentences": [
+                        {"index": i, "text": text, **(contexts[i] if grounding else {})}
+                        for i, text in enumerate(candidates)
+                    ],
+                },
                 OutputReview,
                 report=True,
             )
@@ -75,7 +99,7 @@ async def review_output(harness, payload: dict) -> tuple[dict, list[str]]:
                 i < 0 or i >= len(candidates) for i in indices
             ):
                 raise ValueError("INVALID_REVIEW_INDICES")
-            accepted = {candidates[i] for i in indices}
+            accepted = {identities[i] for i in indices}
         except RunCancelled:
             raise
         except Exception as error:
@@ -84,21 +108,22 @@ async def review_output(harness, payload: dict) -> tuple[dict, list[str]]:
                 "출력 검사를 완료하지 못해 자유 서술을 제외하고 원문 근거와 처리 상태를 보존했습니다."
             )
     if filtered or len(accepted) < len(candidates):
-        warnings.append("투자 권유 여부를 확정하지 못했거나 제한된 문장은 보고서에서 제외했습니다.")
+        warnings.append("근거 또는 출력 안전성을 확인하지 못한 문장은 작성하지 않았습니다.")
 
-    def apply(value, key=""):
+    def apply(value, key="", evidence=()):
         if key in fixed:
             return value
         if isinstance(value, str):
             return "\n".join(
                 checked
                 for sentence in re.split(r"(?<=[.!?。])\s+|\n", value)
-                if (checked := safe_text(sentence)) and checked in accepted
+                if (checked := safe_text(sentence)) and identity(checked, key, evidence) in accepted
             )
         if isinstance(value, list):
-            return [apply(item, key) for item in value]
+            return [apply(item, key, evidence) for item in value]
         if isinstance(value, dict):
-            return {name: apply(item, name) for name, item in value.items()}
+            evidence = value.get("evidence", value.get("sources", evidence))
+            return {name: apply(item, name, evidence) for name, item in value.items()}
         return value
 
     harness.ledger.event(

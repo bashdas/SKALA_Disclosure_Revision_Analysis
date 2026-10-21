@@ -1,11 +1,13 @@
+import hashlib
 import io
+import json
 import re
 import zipfile
+from datetime import date
+from urllib.parse import urlsplit
 
 from bs4 import BeautifulSoup
 from defusedxml import ElementTree
-
-from disclosure_ai.harness.output import safe_text
 
 
 def parse_filing(data: bytes, receipt: str) -> dict:
@@ -193,17 +195,19 @@ def validated_sources(sources: list[dict], documents: list[dict], fragments=()) 
     known = {d["document_id"]: d for d in documents}
     accepted = []
     for source in sources:
-        doc = known.get(source["document_id"])
+        if not isinstance(source, dict) or not isinstance(source.get("quote"), str):
+            continue
+        doc = known.get(source.get("document_id"))
         quote = source["quote"]
         fragment = next(
             (
                 f
                 for f in fragments
-                if f.get("document_id") == source["document_id"] and f.get("quote") == quote
+                if f.get("document_id") == source.get("document_id") and f.get("quote") == quote
             ),
             None,
         )
-        if doc and quote and (quote in doc["text"] or fragment) and safe_text(quote) == quote:
+        if doc and quote and (quote in doc["text"] or fragment):
             location = (
                 fragment["location"]
                 if fragment
@@ -211,10 +215,100 @@ def validated_sources(sources: list[dict], documents: list[dict], fragments=()) 
             )
             accepted.append(
                 {
-                    **source,
+                    "document_id": source["document_id"],
+                    "quote": quote,
                     "location": location,
                     "url": doc.get("url"),
                     "published_at": doc.get("published_at"),
                 }
             )
     return accepted
+
+
+def normalize_evidence(result, kind, args):
+    """백엔드 검색 요약과 재무 계정을 원문을 보존한 검색 문서로 변환합니다."""
+    try:
+        cutoff = date.fromisoformat(args["as_of"])
+        documents, sources, limitations = [], [], []
+        if kind == "financial":
+            if any(
+                str(result.get(k)) != str(args[k])
+                for k in ("corp_code", "bsns_year", "reprt_code", "fs_div")
+            ):
+                raise ValueError()
+            metadata = {s["identifier"]: s for s in result["sources"]}
+            rows = result["accounts"]
+        else:
+            if result.get("query") != args["query"]:
+                raise ValueError()
+            rows = result["results"]
+            limitations.append(
+                "학술 자료는 검색 요약이며 논문 전문과 정확한 발행일을 확인하지 못했습니다."
+            )
+        if not isinstance(rows, list):
+            raise ValueError()
+        for row in rows:
+            if kind == "financial":
+                source = metadata[row["rcept_no"]]
+                published = source.get("published_at")
+                if not published or date.fromisoformat(published[:10]) > cutoff:
+                    limitations.append(
+                        "기준일까지 공개됐음을 확인하지 못한 재무자료를 제외했습니다."
+                    )
+                    continue
+                text = json.dumps(
+                    {**row, "fs_div": args["fs_div"]}, ensure_ascii=False, sort_keys=True
+                )
+                location = "account:" + str(row.get("account_id") or row.get("account_nm"))
+            else:
+                source = row["source"]
+                title, snippet = row["title"], row.get("snippet")
+                if (
+                    not isinstance(title, str)
+                    or not isinstance(snippet, str)
+                    or not snippet.strip()
+                ):
+                    limitations.append("검색 요약이 없는 논문은 분석 근거에서 제외했습니다.")
+                    continue
+                published = source.get("published_at")
+                if published and date.fromisoformat(published[:10]) > cutoff:
+                    continue
+                text = title + "\n" + snippet
+                location = "scholar:search-snippet"
+            url = source.get("original_location")
+            parsed = urlsplit(url or "")
+            if (
+                parsed.scheme not in {"http", "https"}
+                or not parsed.hostname
+                or parsed.username
+                or parsed.password
+                or "api_key=" in (url or "").lower()
+            ):
+                raise ValueError()
+            digest = hashlib.sha256((url + text).encode()).hexdigest()
+            doc_id = kind + ":" + digest
+            documents.append(
+                {
+                    "document_id": doc_id,
+                    "text": text,
+                    "url": url,
+                    "published_at": published,
+                    "evidence_scope": "background" if kind == "academic" else "financial",
+                }
+            )
+            sources.append(
+                {
+                    "document_id": doc_id,
+                    "location": location,
+                    "quote": text,
+                    "url": url,
+                    "published_at": published,
+                }
+            )
+        return {
+            "documents": documents,
+            "sources": sources,
+            "limitations": list(dict.fromkeys(limitations)),
+        }
+    except (KeyError, TypeError, ValueError, AttributeError):
+        return {"error": "INVALID_EVIDENCE_RESPONSE"}

@@ -24,6 +24,23 @@ def test_mcp_client_contract_and_error_redaction(monkeypatch):
         return {"documents": [{"document_id": "test", "text": "검증용 자료"}]}
 
     @mcp.tool()
+    async def search_academic_papers(query: str, limit: int, year_to: int) -> dict:
+        assert query == "risk" and limit == 5 and year_to == 2025
+        return {
+            "query": query,
+            "results": [
+                {
+                    "title": "Risk research",
+                    "snippet": "기업 위험에 관한 연구입니다.",
+                    "source": {
+                        "original_location": "https://example.org/paper",
+                        "published_at": None,
+                    },
+                }
+            ],
+        }
+
+    @mcp.tool()
     async def unavailable(query: str) -> dict:
         raise ValueError(
             '{"code":"OPENDART_UNAVAILABLE","status_code":503,"message":"private-provider-error"}'
@@ -34,6 +51,7 @@ def test_mcp_client_contract_and_error_redaction(monkeypatch):
         port = probe.getsockname()[1]
     monkeypatch.setenv("INTERNAL_API_KEY", key)
     monkeypatch.setenv("BUSINESS_MCP_URL", f"http://127.0.0.1:{port}/mcp")
+    monkeypatch.setenv("EXTERNAL_MCP_URL", f"http://127.0.0.1:{port}/mcp")
     server = uvicorn.Server(
         uvicorn.Config(mcp.streamable_http_app(), host="127.0.0.1", port=port, log_level="error")
     )
@@ -54,7 +72,11 @@ def test_mcp_client_contract_and_error_redaction(monkeypatch):
         assert missing == {"error": "TOOL_NOT_AVAILABLE", "tool": "market"}
         failed = await mcp_call("BUSINESS", "unavailable", {"query": "risk"})
         assert failed == {"error": "OPENDART_UNAVAILABLE", "retryable": True, "tool": "unavailable"}
-        assert (await tools.call("academic", {"query": "risk"}))["error"] == "TOOL_NOT_AVAILABLE"
+        academic = await tools.call("academic", {"query": "risk", "as_of": "2026-10-20"})
+        assert academic["sources"][0]["location"] == "scholar:search-snippet"
+        assert academic["documents"][0]["evidence_scope"] == "background"
+        assert academic["limitations"]
+        assert (await tools.call("academic", {"query": "risk"}))["error"] == "INVALID_TOOL_INPUT"
         assert "private-provider-error" not in str(failed)
 
     try:

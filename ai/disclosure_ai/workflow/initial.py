@@ -104,7 +104,9 @@ async def impact(run, state):
         }
     try:
         base = await run.h.model(
-            "base", {"request": state["request"], "context": state["context"]}, BaseAnalysis
+            "base",
+            {"request": state["request"], "memo": state["memo"], "context": state["context"]},
+            BaseAnalysis,
         )
         data = base.model_dump()
         seen = set()
@@ -117,12 +119,23 @@ async def impact(run, state):
             proposal["evidence"] = validated_sources(
                 proposal["evidence"], state["documents"], state["context"]
             )
-            if proposal["before_text"] not in state["memo"]["text"] or not proposal["evidence"]:
+            if (
+                not proposal["before_text"].strip()
+                or proposal["before_text"] not in state["memo"]["text"]
+                or not proposal["evidence"]
+                or proposal["impact_type"] == "HOLD"
+            ):
                 proposal["impact_type"] = "HOLD"
                 proposal["after_text"] = None
+                proposal["before_text"] = ""
+                proposal["reason"] = "메모 문장 또는 출처를 확인하지 못해 작성하지 않았습니다."
+                proposal["evidence"] = []
                 data["limitations"].append(
                     "메모 문장 또는 출처를 확인하지 못한 제안은 보류했습니다."
                 )
+        # 출처가 연결되지 않은 기본 요약을 관점 분석에 재사용하지 않습니다.
+        data["summary"] = ""
+        data["limitations"] = list(dict.fromkeys(data["limitations"]))
         if not data["selected"] and not data["no_additional_analysis_reason"]:
             data["no_additional_analysis_reason"] = "기본 분석에서 추가 관점을 선택하지 않았습니다."
         return {"base": data}

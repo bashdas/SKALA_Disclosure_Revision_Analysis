@@ -55,6 +55,16 @@ class BaseAnalysis(Model):
 class Lookup(Model):
     tool: Literal["local_search", "financial", "academic"]
     query: str = Field(min_length=1, max_length=500)
+    bsns_year: int | None = Field(default=None, ge=2015, le=2100)
+    reprt_code: Literal["11011", "11012", "11013", "11014"] | None = None
+    fs_div: Literal["CFS", "OFS"] | None = None
+
+
+class FinancialQuery(Model):
+    corp_code: str = Field(pattern=r"^[0-9]{8}$")
+    bsns_year: int = Field(ge=2015, le=2100)
+    reprt_code: Literal["11011", "11012", "11013", "11014"]
+    fs_div: Literal["CFS", "OFS"]
 
 
 class PerspectiveAnswer(Model):
@@ -84,3 +94,12 @@ class SavedReport(Model):
     has_warnings: bool
     no_additional_analysis_reason: str | None
     generated_at: str
+
+
+class CitedSummary(Model):
+    text: str = Field(min_length=1, max_length=500)
+    evidence_ids: list[str] = Field(min_length=1, max_length=5)
+
+
+class ReportSummary(Model):
+    summary: list[CitedSummary] = Field(max_length=3)

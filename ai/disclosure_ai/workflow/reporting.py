@@ -1,18 +1,40 @@
+import html
+import re
 from datetime import datetime, timezone
 
-from disclosure_ai.schemas import ReportText
+from disclosure_ai.schemas import ReportSummary
 from disclosure_ai.services.business import RunCancelled
 from disclosure_ai.services.documents import validated_sources
 from disclosure_ai.workflow.perspectives import finish_perspective
 
-SECTION_TITLES = {
-    "summary": "처리 결과 요약",
-    "correction": "정정 내용",
-    "memo_impact": "메모 영향",
-    "suggestions": "수정 제안",
-    "perspectives": "관점별 분석",
-    "limitations": "제한 사유",
+PERSPECTIVE_NAMES = {
+    "INDUSTRY_CONTRACT": "기업과 산업 및 계약",
+    "FINANCE": "재무와 실적",
+    "FX_HEDGE": "외부 환경과 위험",
 }
+STATUS_NAMES = {
+    "COMPLETED": "작성 완료",
+    "INSUFFICIENT_EVIDENCE": "근거 부족으로 미작성",
+    "LIMIT_REACHED": "실행 한도로 미작성",
+    "FAILED": "처리 실패로 미작성",
+}
+SECTION_TITLES = {
+    "summary": "핵심 요약",
+    "correction": "확인된 정정 내용",
+    "memo_impact": "메모 영향",
+    "suggestions": "메모 수정 제안",
+    "perspectives": "관점별 분석",
+    "limitations": "작성하지 않은 항목",
+}
+
+
+def escape(value):
+    value = html.escape(str(value), quote=False)
+    return re.sub(r"([\\`*_[\]{}|#])", r"\\\1", value)
+
+
+def source_key(source):
+    return source["document_id"], source["location"], source["quote"]
 
 
 async def join(run, state):
@@ -46,98 +68,248 @@ async def join(run, state):
 
 async def report(run, state):
     await run.stage(state, "REPORT_GENERATION")
-    context = {
-        "request": state["request"],
-        "base": state.get("base"),
-        "results": state.get("results", {}),
-        "warnings": state.get("warnings", []),
-    }
-    warnings = []
-    try:
-        report = (
-            await run.h.model(
+    original = state.get("base") or {}
+    documents, fragments = state.get("documents", []), state.get("context", [])
+    proposals = []
+    for item in original.get("proposals", []):
+        evidence = validated_sources(item.get("evidence", []), documents, fragments)
+        before = item.get("before_text", "")
+        if (
+            item.get("impact_type") != "HOLD"
+            and before.strip()
+            and before in state.get("memo", {}).get("text", "")
+            and evidence
+        ):
+            proposals.append({**item, "evidence": evidence})
+    results = {}
+    for kind, item in state.get("results", {}).items():
+        evidence = validated_sources(item.get("sources", []), documents, fragments)
+        completed = item.get("status") == "COMPLETED" and evidence and item.get("findings")
+        results[kind] = {
+            "perspective_type": kind,
+            "status": item.get("status", "FAILED"),
+            "findings": item["findings"] if completed else "",
+            "sources": evidence if completed else [],
+        }
+        if item.get("status") == "COMPLETED" and not completed:
+            results[kind]["status"] = "INSUFFICIENT_EVIDENCE"
+    facts = {"proposals": proposals, "results": {k: v for k, v in results.items() if v["findings"]}}
+    evidence = [s for item in proposals for s in item["evidence"]]
+    evidence += [s for item in results.values() for s in item["sources"]]
+    evidence = list({source_key(s): s for s in evidence}.values())
+    numbered = {f"S{i + 1}": source for i, source in enumerate(evidence)}
+    claims, warnings = [], []
+    for name, label in (("filing", "공시"), ("memo", "메모")):
+        if state.get(name, {}).get("error"):
+            warnings.append(label + " 조회를 완료하지 못했습니다.")
+    if evidence and run.h.ledger.row(run.h.task_id)["turns"] < 7:
+        try:
+            summary = await run.h.model(
                 "report",
-                {**context, "corrections": state.get("filing", {}).get("changes", [])},
-                ReportText,
+                {"request": state["request"], "facts": facts, "evidence": numbered},
+                ReportSummary,
                 report=True,
             )
-        ).model_dump()
-    except RunCancelled:
-        raise
-    except Exception as error:
-        base = state.get("base", {})
-        proposals = base.get("proposals", [])
-        report = {
-            "summary": base.get("summary", "입력 자료 부족으로 영향 분석을 수행하지 못했습니다."),
-            "correction": "\n".join(
-                f"{c['label']}: 정정 전 {c['before']}, 정정 후 {c['after']}"
-                for c in state.get("filing", {}).get("changes", [])
-            )
-            or "정정 항목을 확보하지 못했습니다.",
-            "memo_impact": "\n".join(p["reason"] for p in proposals)
-            or "메모 영향에 대한 수정 제안 근거를 확보하지 못했습니다.",
-            "suggestions": "\n".join(p["after_text"] for p in proposals if p.get("after_text"))
-            or "확정된 메모 수정문이 없습니다.",
-            "perspectives": "\n".join(
-                f"{kind}: {result['status']}\n{result['findings']}"
-                for kind, result in state.get("results", {}).items()
-            )
-            or base.get("no_additional_analysis_reason")
-            or "추가 관점을 수행하지 않았습니다.",
-            "limitations": "모델 보고서 생성 실패: " + type(error).__name__,
-        }
-        warnings.append("보고서 모델 생성에 실패해 확보한 결과로 구성했습니다.")
-    base = state.get("base", {})
-    sources = [s for item in base.get("proposals", []) for s in item["evidence"]]
-    sources += [s for item in state.get("results", {}).values() for s in item["sources"]]
-    if not sources:
-        sources = validated_sources(
-            state.get("context", []), state.get("documents", []), state.get("context", [])
-        )
-    checked, check_warnings = await run.h.review_output(
-        {**context, "sections": report, "sources": sources}
+            for claim in summary.summary:
+                if all(key in numbered for key in claim.evidence_ids):
+                    claims.append(
+                        {
+                            "text": claim.text,
+                            "evidence": [numbered[key] for key in claim.evidence_ids],
+                        }
+                    )
+                else:
+                    warnings.append("출처가 연결되지 않은 요약을 제외했습니다.")
+        except RunCancelled:
+            raise
+        except Exception:
+            warnings.append("요약을 생성하지 못해 확인된 항목만 표시했습니다.")
+    selection_sources = validated_sources(
+        state.get("filing", {}).get("changes", []), documents, fragments
     )
-    warnings.extend(check_warnings)
-    checked["warnings"] = list(dict.fromkeys([w for w in checked["warnings"] if w] + warnings))
-    base = checked.get("base") or {}
-    lines = [
-        "정정공시 분석 보고서",
-        "기업: " + state["request"]["company_name_snapshot"],
-        "접수번호: " + state["request"]["disclosure_receipt_no"],
+    selections = [
+        {**item, "evidence": selection_sources[:8]} for item in original.get("selected", [])
     ]
-    for title, text in checked["sections"].items():
-        lines.extend([SECTION_TITLES[title], text or "검사에서 제외된 서술입니다."])
-    for proposal in base.get("proposals", []):
-        lines.extend(
-            ["메모 수정 제안", proposal["reason"], proposal.get("after_text") or "수정문 없음"]
+    payload = {
+        "request": state["request"],
+        "base": {
+            "summary": "",
+            "proposals": proposals,
+            "selected": selections,
+            "no_additional_analysis_reason": original.get("no_additional_analysis_reason"),
+            "limitations": [],
+        },
+        "results": results,
+        "summary_claims": claims,
+    }
+    checked, check_warnings = await run.h.review_output(payload, grounding=True)
+    warnings.extend(check_warnings)
+    # 검사에서 이유나 수정문이 제거된 제안은 승인된 제안처럼 표시하지 않습니다.
+    checked["base"]["proposals"] = [
+        item
+        for item in checked["base"]["proposals"]
+        if item.get("reason") and (item.get("impact_type") == "NO_IMPACT" or item.get("after_text"))
+    ]
+    for item in checked["results"].values():
+        if item["status"] == "COMPLETED" and not item["findings"]:
+            item["status"], item["sources"] = "INSUFFICIENT_EVIDENCE", []
+    corrections = []
+    for item in state.get("filing", {}).get("changes", []):
+        verified = validated_sources([item], documents, fragments)
+        if verified:
+            corrections.append(
+                {
+                    "label": item["label"],
+                    "before": item["before"],
+                    "after": item["after"],
+                    "source": verified[0],
+                }
+            )
+    checked["corrections"] = corrections
+    omitted = len(original.get("proposals", [])) - len(checked["base"]["proposals"])
+    if omitted:
+        warnings.append(
+            f"근거 또는 메모 연결이 부족한 수정 제안 {omitted}건을 작성하지 않았습니다."
         )
-    for result in checked["results"].values():
-        lines.extend(
-            [
-                result["perspective_type"] + ": " + result["status"],
-                result["selection_reason"] or "선택 근거는 출력 검사에서 제외했습니다.",
-                result["findings"] or "분석 서술은 출력 검사에서 제외했습니다.",
-            ]
-        )
-    reason = base.get("no_additional_analysis_reason")
-    if not base.get("selected"):
-        reason = reason or "추가 관점을 실행하지 않았습니다. 상세 사유는 출력할 수 없습니다."
-        lines.append(reason)
-    lines.append("출처")
-    for source in checked["sources"]:
-        lines.append(
-            f"{source['document_id']} {source['location']} {source.get('url') or ''} 원문 인용: {source['quote']}"
-        )
-    lines.extend(checked["warnings"])
-    body = {
-        "content": "\n".join(lines),
-        "report_json": checked,
-        "has_warnings": bool(checked["warnings"]) or not bool(base),
+    if not state.get("filing", {}).get("complete_correction_table"):
+        warnings.append("정정표 전체 추출을 확인하지 못했습니다.")
+    if state.get("stage_failed") or not original:
+        warnings.append("입력 또는 분석 처리 미완료로 확인된 원문만 표시합니다.")
+    checked["warnings"] = list(dict.fromkeys(warnings))
+    body = compose(checked)
+    run.h.ledger.keep(run.h.task_id, "report", body)
+    return {"report": body, "warnings": checked["warnings"]}
+
+
+def compose(data):
+    request, base = data["request"], data.get("base") or {}
+    selected, results = base.get("selected", []), data.get("results", {})
+    all_sources = list(data.get("sources", [])) + [
+        item["source"] for item in data.get("corrections", [])
+    ]
+    all_sources += [s for item in base.get("proposals", []) for s in item["evidence"]]
+    all_sources += [s for item in results.values() for s in item["sources"]]
+    all_sources += [
+        s for item in data.get("summary_claims", []) if item["text"] for s in item["evidence"]
+    ]
+    sources = list({source_key(s): s for s in all_sources}.values())
+    numbers = {source_key(s): i + 1 for i, s in enumerate(sources)}
+
+    def refs(items):
+        return " ".join(f"[근거 {numbers[source_key(s)]}]" for s in items)
+
+    sections = {key: "" for key in SECTION_TITLES}
+    sections["summary"] = "\n".join(
+        "- " + escape(item["text"]) + " " + refs(item["evidence"])
+        for item in data.get("summary_claims", [])
+        if item["text"]
+    )
+    changes = data.get("corrections", [])
+    if changes:
+        rows = ["| 항목 | 정정 전 | 정정 후 | 근거 |", "| --- | --- | --- | --- |"]
+        for item in changes:
+            cells = [" ".join(str(item[k]).split()) for k in ("label", "before", "after")]
+            # 긴 정정표는 항목별 미리보기와 아래 원문 인용으로 나눠 읽습니다.
+            cells = [escape(value[:200] + (" …" if len(value) > 200 else "")) for value in cells]
+            rows.append("| " + " | ".join(cells) + " | " + refs([item["source"]]) + " |")
+        sections["correction"] = "\n".join(rows)
+    proposals = base.get("proposals", [])
+    sections["memo_impact"] = "\n".join(
+        "- " + escape(item["reason"]) + " " + refs(item["evidence"]) for item in proposals
+    )
+    sections["suggestions"] = "\n\n".join(
+        f"**제안 {i + 1}**\n\n기존: {escape(item['before_text'])}\n\n수정: {escape(item['after_text'])} {refs(item['evidence'])}"
+        for i, item in enumerate(proposals)
+        if item.get("after_text")
+    )
+    sections["perspectives"] = "\n\n".join(
+        "### "
+        + PERSPECTIVE_NAMES[kind]
+        + "\n\n"
+        + escape(item["findings"])
+        + " "
+        + refs(item["sources"])
+        for kind, item in results.items()
+        if item["status"] == "COMPLETED" and item["findings"]
+    )
+    statuses = [
+        PERSPECTIVE_NAMES[k] + ": " + STATUS_NAMES.get(item["status"], "미작성")
+        for k, item in results.items()
+        if item["status"] != "COMPLETED"
+    ]
+    sections["limitations"] = "\n".join(
+        "- " + escape(value) for value in [*statuses, *data.get("warnings", [])]
+    )
+    lines = [
+        "# 정정공시 분석 보고서",
+        "",
+        "**기업:** " + escape(request["company_name_snapshot"]),
+        "",
+        "**공시 접수번호:** " + request["disclosure_receipt_no"],
+        "",
+    ]
+    if not sections["summary"]:
+        lines += [
+            "확인된 정정 내용과 처리 상태를 표시합니다. 근거가 부족한 해석은 작성하지 않았습니다.",
+            "",
+        ]
+    if selected:
+        lines += [
+            "## 추가 분석을 선택한 이유",
+            "",
+            "| 관점 | 선택 이유 | 처리 결과 |",
+            "| --- | --- | --- |",
+        ]
+        for item in selected:
+            kind = item["perspective_type"]
+            reason = (
+                " ".join(item.get("selection_reason", "").split())[:140]
+                or {
+                    "FINANCE": "재무 수치와 메모의 연결 여부를 추가로 확인하기 위해 선택했습니다.",
+                    "INDUSTRY_CONTRACT": "산업 및 계약 조건과 메모의 연결 여부를 추가로 확인하기 위해 선택했습니다.",
+                    "FX_HEDGE": "외부 환경과 위험에 관한 추가 근거를 확인하기 위해 선택했습니다.",
+                }[kind]
+            )
+            lines.append(
+                "| "
+                + PERSPECTIVE_NAMES[kind]
+                + " | "
+                + escape(reason)
+                + " | "
+                + STATUS_NAMES.get(results.get(kind, {}).get("status"), "미작성")
+                + " |"
+            )
+        lines.append("")
+    else:
+        lines += ["추가 관점은 선택되지 않았습니다.", ""]
+    for name, value in sections.items():
+        if value:
+            lines += ["## " + SECTION_TITLES[name], "", value, ""]
+    if sources:
+        lines += ["## 출처와 원문 인용", ""]
+        for i, source in enumerate(sources):
+            lines += [f"### 근거 {i + 1}", "", "위치: " + escape(source["location"]), ""]
+            if source.get("url"):
+                lines += [
+                    "출처: <" + source["url"].replace("<", "%3C").replace(">", "%3E") + ">",
+                    "",
+                ]
+            quote = " ".join(source["quote"].split())
+            lines += ["> " + escape(quote[:800]), ""]
+            if len(quote) > 800:
+                lines += [
+                    "인용 앞부분 800자를 표시했습니다. 전체 원문은 출처에서 확인할 수 있습니다.",
+                    "",
+                ]
+    data["sources"], data["sections"] = sources, sections
+    reason = base.get("no_additional_analysis_reason") if not selected else None
+    return {
+        "content": "\n".join(lines).strip(),
+        "report_json": data,
+        "has_warnings": bool(data.get("warnings")) or bool(statuses),
         "no_additional_analysis_reason": reason,
         "generated_at": datetime.now(timezone.utc).isoformat(),
     }
-    run.h.ledger.keep(run.h.task_id, "report", body)
-    return {"report": body, "warnings": warnings}
 
 
 async def save(run, state):
@@ -157,47 +329,27 @@ async def save(run, state):
 
 
 def emergency(run, state, error):
-    sources = validated_sources(
+    # 완료 검사를 거치지 못한 모델 문장은 재사용하지 않습니다.
+    selected = [
+        {"perspective_type": item["perspective_type"], "selection_reason": ""}
+        for item in state.get("base", {}).get("selected", [])
+    ]
+    data = {
+        "request": state["request"],
+        "base": {"selected": selected, "proposals": []},
+        "results": {
+            item["perspective_type"]: {"status": "FAILED", "findings": "", "sources": []}
+            for item in selected
+        },
+        "corrections": [],
+        "summary_claims": [],
+        "warnings": [
+            "분석 처리를 완료하지 못해 분석 내용을 작성하지 않았습니다. " + type(error).__name__
+        ],
+    }
+    data["sources"] = validated_sources(
         state.get("context", []), state.get("documents", []), state.get("context", [])
     )
-    # 검사를 실행할 예산이 없으면 모델 서술을 다시 사용하지 않고 검증된 원문과 상태만 보존합니다.
-    reason = "분석 처리 중단: " + type(error).__name__
-    sections = {
-        "summary": "실행이 중단돼 확보된 원문과 처리 상태를 보존했습니다.",
-        "correction": "정정 내용은 출처의 원문 인용에서 확인할 수 있습니다.",
-        "memo_impact": "영향 분석 서술은 출력 검사를 완료하지 못해 제외했습니다.",
-        "suggestions": "확정된 수정 제안을 표시하지 않았습니다.",
-        "perspectives": "\n".join(
-            kind + ": " + result.get("status", "FAILED")
-            for kind, result in state.get("results", {}).items()
-        )
-        or "추가 분석 미수행",
-        "limitations": reason,
-    }
-    request = state["request"]
-    payload = {
-        "request": request,
-        "base": None,
-        "results": {},
-        "sections": sections,
-        "sources": sources,
-        "warnings": [reason],
-    }
-    content = "\n".join(
-        [
-            "정정공시 분석 보고서",
-            "기업: " + request["company_name_snapshot"],
-            "접수번호: " + request["disclosure_receipt_no"],
-            *[part for name, value in sections.items() for part in (SECTION_TITLES[name], value)],
-            *[f"{s['document_id']} {s['location']} {s['quote']}" for s in sources],
-        ]
-    )
-    body = {
-        "content": content,
-        "report_json": payload,
-        "has_warnings": True,
-        "no_additional_analysis_reason": reason,
-        "generated_at": datetime.now(timezone.utc).isoformat(),
-    }
+    body = compose(data)
     run.h.ledger.keep(run.h.task_id, "report", body)
     return body

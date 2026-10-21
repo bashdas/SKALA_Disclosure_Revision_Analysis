@@ -76,6 +76,9 @@ async def perspective(run, state):
 
 
 async def finish_perspective(run, kind, selection, result):
+    # 근거 부족 서술은 후속 모델과 업무 DB의 관점 결과에도 남기지 않습니다.
+    if result["status"] != "COMPLETED":
+        result = {**result, "findings": "", "sources": [], "requests": []}
     warnings = []
     if hasattr(run.tools, "perspective"):
         try:

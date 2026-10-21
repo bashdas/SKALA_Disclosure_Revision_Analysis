@@ -171,7 +171,7 @@ def test_context_failure_generates_report(ledger, monkeypatch):
         result = await graph.ainvoke(initial(), {"configurable": {"thread_id": "context-failure"}})
         assert result["output"]["report_id"] == "report"
         assert any("PREPARE" in warning for warning in result["warnings"])
-        assert ledger.row("task")["turns"] == 2
+        assert ledger.row("task")["turns"] == 0
         assert "IMPACT" not in [
             json.loads(e["payload"]).get("stage") for e in ledger.events("task")
         ]
@@ -275,7 +275,7 @@ def test_report_checks_generated_text_without_rechecking_raw_tables(ledger):
 
     async def model(role, context, schema):
         if role == "report":
-            assert len(context["corrections"]) == 150
+            raise AssertionError("no supported analysis must not generate a summary")
         if role == "output_check":
             assert all(not row["text"].startswith("원문 항목") for row in context["sentences"])
         return await fake_model(role, context, schema)
@@ -284,14 +284,19 @@ def test_report_checks_generated_text_without_rechecking_raw_tables(ledger):
         graph = AnalysisGraph(Harness("task", ledger, model), FakeTools(), InMemorySaver())
         state = {
             **initial(),
-            "filing": {"changes": [{"label": "원문 항목 " + str(i)} for i in range(150)]},
+            "filing": {
+                "changes": [
+                    {**filing()["changes"][0], "label": "원문 항목 " + str(i)} for i in range(150)
+                ]
+            },
             "documents": filing()["documents"],
             "context": filing()["changes"],
             "base": await fake_model("base", {}, None),
         }
         result = await report(graph, state)
-        assert all(result["report"]["report_json"]["sections"].values())
-        assert ledger.row("task")["turns"] == 2
+        assert result["report"]["report_json"]["sections"]["correction"]
+        assert not result["report"]["report_json"]["sections"]["summary"]
+        assert ledger.row("task")["turns"] == 1
 
     asyncio.run(check())
 

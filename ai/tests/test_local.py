@@ -45,7 +45,7 @@ def test_local_graph_preserves_snapshot_and_reuses_report(tmp_path):
         assert first["report"]["content"]
         assert snapshot.model_dump_json() == original
         assert await analyze(snapshot, state, buffer.getvalue(), model) == first
-        assert calls == ["base", "report", "output_check"]
+        assert calls == ["base", "output_check"]
         changed = Snapshot.model_validate(json.loads(original))
         changed.memo_text = "다른 메모"
         with pytest.raises(ValueError):

@@ -2,7 +2,7 @@ from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 import json
 import re
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 from pydantic import Field
 
 from fastapi import FastAPI
@@ -72,6 +72,35 @@ def create_app(settings: Settings | None = None, *, transport: httpx.AsyncBaseTr
                     "retrieved_at": datetime.now(timezone.utc).isoformat(),
                     "original_location": f"https://dart.fss.or.kr/dsaf001/main.do?rcpNo={receipt_no}"}}
             return _redact(result, settings.opendart_api_key.get_secret_value())
+        except OpenDartError as error:
+            raise ToolError(json.dumps(error.as_dict(), ensure_ascii=False)) from None
+
+    @mcp.tool()
+    async def get_financial_statements(
+        corp_code: Annotated[str, Field(pattern=r"^[0-9]{8}$")],
+        bsns_year: Annotated[int, Field(ge=2015, le=2100)],
+        reprt_code: Literal["11011", "11012", "11013", "11014"],
+        fs_div: Literal["CFS", "OFS"],
+    ) -> dict[str, Any]:
+        """기업, 사업연도와 연결 또는 별도 구분으로 OpenDART 재무제표를 조회합니다."""
+        try:
+            accounts = await client.get_financial_statements(corp_code, bsns_year, reprt_code, fs_div)
+            sources = []
+            for receipt in dict.fromkeys(row["rcept_no"] for row in accounts):
+                metadata, status = await client.find_metadata(receipt)
+                published_at = None
+                if metadata and isinstance(metadata.get("rcept_dt"), str):
+                    try:
+                        published_at = datetime.strptime(metadata["rcept_dt"], "%Y%m%d").date().isoformat()
+                    except ValueError:
+                        pass
+                sources.append({"provider": "OPENDART", "identifier": receipt,
+                    "published_at": published_at, "metadata_status": status,
+                    "retrieved_at": datetime.now(timezone.utc).isoformat(),
+                    "original_location": f"https://dart.fss.or.kr/dsaf001/main.do?rcpNo={receipt}"})
+            return _redact({"corp_code": corp_code, "bsns_year": bsns_year,
+                "reprt_code": reprt_code, "fs_div": fs_div,
+                "accounts": accounts, "sources": sources}, settings.opendart_api_key.get_secret_value())
         except OpenDartError as error:
             raise ToolError(json.dumps(error.as_dict(), ensure_ascii=False)) from None
 

@@ -108,3 +108,29 @@ class OpenDartClient:
             except (ValueError, TypeError, KeyError):
                 raise OpenDartError("OPENDART_UNAVAILABLE") from None
         return None, "SEARCH_LIMIT_REACHED"
+
+    async def get_financial_statements(self, corp_code, bsns_year, reprt_code, fs_div):
+        raw = await self._get("fnlttSinglAcntAll.json", {
+            "corp_code": corp_code, "bsns_year": str(bsns_year),
+            "reprt_code": reprt_code, "fs_div": fs_div,
+        })
+        try:
+            body = json.loads(raw)
+            if not isinstance(body, dict) or not isinstance(body.get("status"), str):
+                raise ValueError()
+            check_status(body["status"], allow_empty=True)
+            rows = [] if body["status"] in ("013", "014") else body["list"]
+            if not isinstance(rows, list):
+                raise ValueError()
+            for row in rows:
+                if (not isinstance(row, dict)
+                    or row.get("corp_code") != corp_code
+                    or row.get("bsns_year") != str(bsns_year)
+                    or row.get("reprt_code") != reprt_code
+                    or not isinstance(row.get("account_nm"), str)
+                    or not isinstance(row.get("rcept_no"), str)
+                    or not re.fullmatch(r"[0-9]{14}", row["rcept_no"])):
+                    raise ValueError()
+            return rows
+        except (ValueError, TypeError, KeyError):
+            raise OpenDartError("OPENDART_UNAVAILABLE") from None

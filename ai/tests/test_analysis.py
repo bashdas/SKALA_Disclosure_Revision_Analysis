@@ -96,15 +96,9 @@ async def fake_model(role, context, schema):
             "limitations": ["추가 자료가 없습니다."],
         }
     return {
-        k: "확보한 자료로 작성했습니다."
-        for k in (
-            "summary",
-            "correction",
-            "memo_impact",
-            "suggestions",
-            "perspectives",
-            "limitations",
-        )
+        "summary": [
+            {"text": "계약금액이 정정됐습니다.", "evidence_ids": [next(iter(context["evidence"]))]}
+        ]
     }
 
 
@@ -131,7 +125,7 @@ def test_graph_normal_and_failure_report(ledger):
         graph = AnalysisGraph(h, tools, InMemorySaver()).graph
         output = await graph.ainvoke(initial(), {"configurable": {"thread_id": "thread"}})
         assert output["output"]["report_id"] == "report"
-        assert ledger.row("task")["turns"] == 3
+        assert ledger.row("task")["turns"] == 2
         assert tools.calls.count("business_save_report") == 1
         assert json.loads(ledger.row("task")["report"])["content"]
 
@@ -146,7 +140,7 @@ def test_missing_input_and_save_failure_preserve_report(ledger):
         result = await graph.ainvoke(initial(), {"configurable": {"thread_id": "thread"}})
         assert result["output"]["status"] == "SAVE_FAILED"
         assert "공시 조회" in result["output"]["report"]["content"]
-        assert ledger.row("task")["turns"] == 2
+        assert ledger.row("task")["turns"] == 0
         assert ledger.row("task")["report"]
 
     asyncio.run(check())
@@ -171,7 +165,7 @@ def test_parallel_perspectives(ledger):
         graph = AnalysisGraph(Harness("task", ledger, model), FakeTools(), InMemorySaver()).graph
         result = await graph.ainvoke(initial(), {"configurable": {"thread_id": "thread"}})
         assert set(result["results"]) == {"FINANCE", "INDUSTRY_CONTRACT", "FX_HEDGE"}
-        assert ledger.row("task")["turns"] == 6
+        assert ledger.row("task")["turns"] == 5
 
     asyncio.run(check())
 
@@ -267,7 +261,7 @@ def test_checkpoint_resume_preserves_budget_and_inputs(ledger, tmp_path):
             result = await graph.ainvoke(None, config)
             assert result["output"]["report_id"] == "report"
         assert tools.calls.count("disclosure_get_document") == 1
-        assert ledger.row("task")["turns"] == 3
+        assert ledger.row("task")["turns"] == 2
 
     asyncio.run(check())
 
@@ -410,12 +404,15 @@ def test_report_failure_keeps_common_sections_and_existing_results(ledger):
         state = {
             **initial(),
             "filing": filing(),
+            "memo": {"text": "계약금액은 100입니다."},
             "documents": filing()["documents"],
             "context": filing()["changes"],
             "base": {
                 "summary": "계약금액이 정정됐습니다.",
                 "proposals": [
                     {
+                        "impact_type": "FACT_UPDATE",
+                        "before_text": "계약금액은 100입니다.",
                         "reason": "금액 변경을 반영합니다.",
                         "after_text": "계약금액은 80입니다.",
                         "evidence": [filing()["changes"][0]],
@@ -429,7 +426,7 @@ def test_report_failure_keeps_common_sections_and_existing_results(ledger):
                     "status": "COMPLETED",
                     "selection_reason": "계약금액 영향을 확인합니다.",
                     "findings": "계약금액이 20 감소했습니다.",
-                    "sources": [],
+                    "sources": [filing()["changes"][0]],
                 }
             },
         }
@@ -437,11 +434,11 @@ def test_report_failure_keeps_common_sections_and_existing_results(ledger):
         report = output["report"]
         sections = report["report_json"]["sections"]
         assert set(sections) == set(ReportText.model_fields)
-        assert "정정 후 80" in sections["correction"]
-        assert sections["memo_impact"] == "금액 변경을 반영합니다."
-        assert sections["suggestions"] == "계약금액은 80입니다."
+        assert "| 100 | 80 |" in sections["correction"]
+        assert "금액 변경을 반영합니다." in sections["memo_impact"]
+        assert "계약금액은 80입니다." in sections["suggestions"]
         assert "20 감소" in sections["perspectives"]
-        assert "RuntimeError" in sections["limitations"]
+        assert "요약을 생성하지 못해" in sections["limitations"]
         assert report["report_json"]["sources"]
         assert report["has_warnings"]
         assert "정정 내용" in report["content"]
