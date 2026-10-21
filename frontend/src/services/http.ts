@@ -1,3 +1,4 @@
+import { notifyError } from '../lib/notifications'
 import { disclosureUrl } from '../lib/format'
 import { ref } from 'vue'
 import type { Services } from './contracts'
@@ -63,7 +64,9 @@ export async function request<T>(
       signal: options.signal ?? AbortSignal.timeout(65000),
     })
   } catch {
-    throw new Error('서버에 연결하지 못했습니다. 연결 상태를 확인해 주세요.')
+    const error = new Error('서버에 연결하지 못했습니다. 연결 상태를 확인해 주세요.')
+    if (!options.signal?.aborted) notifyError(error)
+    throw error
   }
   if (!response.ok) {
     const body = await response.json().catch(() => ({}))
@@ -72,7 +75,7 @@ export async function request<T>(
       logout()
       if (hadToken) window.dispatchEvent(new Event('session-expired'))
     }
-    throw new ApiError(
+    const error = new ApiError(
       response.status,
       (body.error?.code === 'INVALID_CREDENTIALS'
         ? '이메일 또는 비밀번호를 확인해 주세요. 처음 이용하시면 회원가입을 진행해 주세요.'
@@ -84,6 +87,8 @@ export async function request<T>(
             : `요청에 실패했습니다 (${response.status}).`),
       body.error?.existing_task_id,
     )
+    if (response.status !== 409) notifyError(error)
+    throw error
   }
   if (response.status === 204) return undefined as T
   return (format === 'blob' ? response.blob() : response.json()) as Promise<T>

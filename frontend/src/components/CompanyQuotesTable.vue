@@ -1,39 +1,19 @@
 <script setup lang="ts">
 import { computed, onUnmounted, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
-import { Star, FileText, Sparkles } from 'lucide-vue-next'
+import { FileText, Sparkles } from 'lucide-vue-next'
 import { useWorkspace } from '../stores/workspace'
-import {
-  favoriteCompany,
-  removeFavorite,
-  getCompanyUpdates,
-  type CompanyUpdate,
-} from '../services/catalog'
+import { getCompanyUpdates, type CompanyUpdate } from '../services/catalog'
 import { getWatchlistQuotes, type WatchlistQuote } from '../services/market'
 import type { Company } from '../types/domain'
 import { date } from '../lib/format'
+import CompanyFavorite from './CompanyFavorite.vue'
+import CompanyLogo from './CompanyLogo.vue'
 import StatusPill from './StatusPill.vue'
 const props = withDefaults(defineProps<{ companies: Company[]; directory?: boolean }>(), {
   directory: false,
 })
-const store = useWorkspace(),
-  busy = ref(''),
-  error = ref('')
-const isFavorite = (id: string) => store.companies.some((c) => c.id === id && c.favorite)
-async function toggleFavorite(company: Company) {
-  if (busy.value) return
-  busy.value = company.id
-  error.value = ''
-  try {
-    if (isFavorite(company.id)) await removeFavorite(company.id)
-    else await favoriteCompany(company.id)
-    await store.refresh()
-  } catch (e) {
-    error.value = e instanceof Error ? e.message : '즐겨찾기를 변경하지 못했습니다.'
-  } finally {
-    busy.value = ''
-  }
-}
+const store = useWorkspace()
 const updates = ref<Record<string, CompanyUpdate>>({})
 let updateGeneration = 0
 async function refreshUpdates() {
@@ -145,7 +125,6 @@ function change(value?: number | null) {
 }
 </script>
 <template>
-  <p v-if="error" class="field-error" role="alert">{{ error }}</p>
   <p v-if="quoteError" class="field-error" role="alert">
     시세 갱신에 실패했습니다. 기존 수신 값이 있으면 유지하며 1분 후 재시도합니다.
   </p>
@@ -162,7 +141,6 @@ function change(value?: number | null) {
       :aria-label="directory ? '기업 목록 시세' : '관심종목 시세'"
     >
       <colgroup>
-        <col class="watchlist-favorite-col" />
         <col class="watchlist-name-col" />
         <col />
         <col />
@@ -170,10 +148,10 @@ function change(value?: number | null) {
         <col />
         <col v-if="directory" class="directory-updates-col" />
         <col class="watchlist-sector-col" />
+        <col class="watchlist-favorite-col" />
       </colgroup>
       <thead>
         <tr>
-          <th scope="col"><span class="sr-only">관심종목 설정</span></th>
           <th scope="col">종목</th>
           <th scope="col" class="numeric">현재가</th>
           <th scope="col" class="numeric">등락률</th>
@@ -181,6 +159,7 @@ function change(value?: number | null) {
           <th scope="col" class="numeric">시가총액</th>
           <th v-if="directory" scope="col">업데이트</th>
           <th scope="col">산업군</th>
+          <th scope="col"><span class="sr-only">관심종목 설정</span></th>
         </tr>
       </thead>
       <tbody>
@@ -191,23 +170,9 @@ function change(value?: number | null) {
           :class="{ 'company-row': directory }"
           :data-testid="`${directory ? 'company' : 'favorite'}-${company.id}`"
         >
-          <td>
-            <button
-              class="favorite-button"
-              :class="{ selected: isFavorite(company.id) }"
-              :aria-label="`${company.name} 관심종목 ${isFavorite(company.id) ? '해제' : '추가'}`"
-              :aria-pressed="isFavorite(company.id)"
-              :disabled="!!busy"
-              @click="toggleFavorite(company)"
-            >
-              <Star :size="16" />
-            </button>
-          </td>
           <th scope="row">
             <div class="watchlist-stock">
-              <span v-if="directory" class="company-logo" :class="company.id">{{
-                company.initials
-              }}</span>
+              <CompanyLogo :code="company.code" :name="company.name" />
               <div class="watchlist-company">
                 <div class="watchlist-stock-name">
                   <h2 class="watchlist-stock-title">
@@ -218,7 +183,12 @@ function change(value?: number | null) {
                   <span class="watchlist-code">{{ company.code }}</span>
                 </div>
                 <span
-                  v-if="directory"
+                  v-if="directory && !updates[company.id]"
+                  class="skeleton skeleton-value"
+                  aria-label="공시 업데이트 조회 중"
+                ></span>
+                <span
+                  v-else-if="directory"
                   class="directory-last-update"
                   :title="latestUpdate(company.id)"
                 >
@@ -248,9 +218,22 @@ function change(value?: number | null) {
               </div>
             </div>
           </th>
-          <td class="numeric quote-price">{{ price(quotes[company.id]?.price) }}</td>
+          <td class="numeric quote-price">
+            <span
+              v-if="quoteLoading && !quotes[company.id]"
+              class="skeleton skeleton-value"
+              aria-label="현재가 조회 중"
+            ></span
+            ><template v-else>{{ price(quotes[company.id]?.price) }}</template>
+          </td>
           <td class="numeric">
             <span
+              v-if="quoteLoading && !quotes[company.id]"
+              class="skeleton skeleton-value"
+              aria-label="등락률 조회 중"
+            ></span>
+            <span
+              v-else
               class="quote-change"
               :class="{
                 up: (quotes[company.id]?.changePercent ?? 0) > 0,
@@ -259,8 +242,22 @@ function change(value?: number | null) {
               >{{ change(quotes[company.id]?.changePercent) }}</span
             >
           </td>
-          <td class="numeric">{{ amount(quotes[company.id]?.tradingValue) }}</td>
-          <td class="numeric">{{ amount(quotes[company.id]?.marketCap) }}</td>
+          <td class="numeric">
+            <span
+              v-if="quoteLoading && !quotes[company.id]"
+              class="skeleton skeleton-value"
+              aria-label="거래대금 조회 중"
+            ></span
+            ><template v-else>{{ amount(quotes[company.id]?.tradingValue) }}</template>
+          </td>
+          <td class="numeric">
+            <span
+              v-if="quoteLoading && !quotes[company.id]"
+              class="skeleton skeleton-value"
+              aria-label="시가총액 조회 중"
+            ></span
+            ><template v-else>{{ amount(quotes[company.id]?.marketCap) }}</template>
+          </td>
           <td v-if="directory">
             <div class="directory-update-links">
               <RouterLink
@@ -272,7 +269,12 @@ function change(value?: number | null) {
                 :aria-label="`${company.name} ${category.label} ${updateCount(company.id, category.kind)}건`"
                 :data-testid="`${company.id}-${category.kind}-badge`"
                 >{{ category.label }}
-                <span>{{ updateCount(company.id, category.kind) }}</span></RouterLink
+                <span
+                  v-if="category.kind === 'filing' && !updates[company.id]"
+                  class="skeleton skeleton-value"
+                  style="width: 24px"
+                ></span
+                ><span v-else>{{ updateCount(company.id, category.kind) }}</span></RouterLink
               >
             </div>
             <StatusPill
@@ -281,7 +283,12 @@ function change(value?: number | null) {
             />
           </td>
           <td>
-            <span class="watchlist-sector">{{
+            <span
+              v-if="!updates[company.id]"
+              class="skeleton skeleton-value"
+              aria-label="산업군 조회 중"
+            ></span>
+            <span v-else class="watchlist-sector">{{
               updates[company.id]?.sector ||
               company.sector ||
               (!updates[company.id]
@@ -290,6 +297,9 @@ function change(value?: number | null) {
                   ? '조회 실패'
                   : '분류 없음')
             }}</span>
+          </td>
+          <td>
+            <CompanyFavorite :company-id="company.id" :name="company.name" />
           </td>
         </tr>
       </tbody>

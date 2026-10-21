@@ -31,10 +31,12 @@ test('기업 상세의 배경과 필터, 네 목록의 오른쪽 버튼 정렬�
           document.querySelector('.company-workspace')!,
           document.querySelector('.topbar')!,
           document.querySelector('.company-tools')!,
-        ].map((el) => getComputedStyle(el).backgroundColor),
+        ]
+          .filter(Boolean)
+          .map((el) => getComputedStyle(el).backgroundColor),
       )
       expect(new Set(backgrounds).size).toBe(1)
-      const inputs = page.locator('.filing-filters input')
+      const inputs = page.locator('.filing-filters input, .ui-date > button')
       const boxes = await inputs.evaluateAll((nodes) =>
         nodes.map((node) => {
           const r = node.getBoundingClientRect()
@@ -50,6 +52,7 @@ test('기업 상세의 배경과 필터, 네 목록의 오른쪽 버튼 정렬�
         await expect(page).toHaveURL(
           new RegExp('tab=' + ['filings', 'memos', 'reports', 'history'][tab]),
         )
+        await expect(page.locator('.company-tools')).toHaveCount(0)
         const rows = page.locator(
           '.company-workspace .document-row, .company-workspace .analysis-row',
         )
@@ -81,7 +84,7 @@ test('기업 상세의 배경과 필터, 네 목록의 오른쪽 버튼 정렬�
           const ordinary = rows.filter({ has: page.locator('.tag', { hasText: '신규공시' }) })
           expect(await ordinary.count()).toBeGreaterThan(0)
           await expect(
-            ordinary.getByRole('button', { name: '분석에 사용', exact: true }),
+            ordinary.getByRole('button', { name: '분석하기', exact: true }),
           ).toHaveCount(0)
         }
         if (
@@ -102,23 +105,15 @@ test('기업 상세의 배경과 필터, 네 목록의 오른쪽 버튼 정렬�
     .filter({ has: page.locator('.tag', { hasText: '정정공시' }) })
   expect(await corrections.count()).toBeGreaterThan(0)
   await expect(
-    corrections.first().getByRole('button', { name: '분석에 사용', exact: true }),
+    corrections.first().getByRole('button', { name: '분석하기', exact: true }),
   ).toBeEnabled()
-  const start = page.getByLabel('시작일', { exact: true })
-  const end = await page.getByLabel('종료일', { exact: true }).inputValue()
-  const startDate = new Date((await start.inputValue()) + 'T00:00:00Z')
-  startDate.setUTCDate(startDate.getUTCDate() + 1)
-  const startValue = startDate.toISOString().slice(0, 10)
-  const queried = page.waitForResponse((response) => {
+  const date = page.locator('.ui-date').first()
+  const queried = page.waitForResponse(response => {
     const url = new URL(response.url())
-    return (
-      url.pathname === '/api/v1/disclosures' &&
-      url.searchParams.get('query') === '정정' &&
-      url.searchParams.get('start_date') === startValue &&
-      url.searchParams.get('end_date') === end
-    )
+    return url.pathname === '/api/v1/disclosures' && url.searchParams.get('query') === '정정'
   })
-  await start.fill(startValue)
+  await date.getByRole('button', { name: '시작일', exact: true }).click()
+  await page.locator('[data-slot=calendar-cell-trigger]:not([data-disabled]):not([data-selected])').first().click()
   expect((await queried).status()).toBe(200)
   expect(errors).toEqual([])
 })

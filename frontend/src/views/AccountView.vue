@@ -1,33 +1,154 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { notifyError, queueNotice } from '../lib/notifications'
+import { ref, nextTick, watch, onBeforeUnmount } from 'vue'
+import { X } from 'lucide-vue-next'
+import { useRoute, useRouter } from 'vue-router'
+import SkeletonState from '../components/SkeletonState.vue'
 import { currentUser, changePassword } from '../services/http'
-const currentPassword = ref(''), newPassword = ref(''), confirmPassword = ref('')
-const busy = ref(false), error = ref('')
+const dialog = ref<HTMLDialogElement | null>(null)
+const route = useRoute(),
+  router = useRouter()
+function open() {
+  dialog.value?.showModal()
+}
+function close() {
+  if (busy.value) return
+  dialog.value?.close()
+  currentPassword.value = newPassword.value = confirmPassword.value = ''
+  error.value = ''
+  if (route.query.account === 'open') {
+    const { account, ...query } = route.query
+    void router.replace({ query })
+  }
+}
+watch(
+  () => route.query.account,
+  async (value) => {
+    if (value === 'open') {
+      await nextTick()
+      if (!dialog.value?.open) open()
+    }
+  },
+  { immediate: true },
+)
+onBeforeUnmount(() => {
+  if (dialog.value?.open) dialog.value.close()
+})
+const currentPassword = ref(''),
+  newPassword = ref(''),
+  confirmPassword = ref('')
+const busy = ref(false),
+  error = ref('')
 async function submit() {
   error.value = ''
-  if (newPassword.value !== confirmPassword.value) { error.value = '새 비밀번호가 일치하지 않습니다.'; return }
+  if (newPassword.value !== confirmPassword.value) {
+    error.value = '새 비밀번호가 일치하지 않습니다.'
+    notifyError(error.value)
+    return
+  }
   if (busy.value) return
   busy.value = true
   try {
     await changePassword(currentPassword.value, newPassword.value)
+    queueNotice('비밀번호를 변경했습니다. 다시 로그인해 주세요.')
     window.location.assign('/login')
-  } catch (e) { error.value = e instanceof Error ? e.message : '비밀번호 변경 실패' }
-  finally { busy.value = false }
+  } catch (e) {
+    notifyError(e)
+    error.value = e instanceof Error ? e.message : '비밀번호 변경 실패'
+  } finally {
+    busy.value = false
+  }
 }
 </script>
 <template>
-  <section class="surface demo-login">
-    <h1>내 계정</h1>
+  <button class="text-button" type="button" @click="open">내 계정</button>
+  <dialog
+    ref="dialog"
+    class="account-dialog surface"
+    aria-labelledby="account-title"
+    @cancel.prevent="close"
+  >
+    <div class="account-dialog-heading">
+      <h2 id="account-title">내 계정</h2>
+      <button
+        class="icon-button"
+        type="button"
+        aria-label="내 계정 닫기"
+        :disabled="busy"
+        @click="close"
+      >
+        <X :size="20" />
+      </button>
+    </div>
     <p>{{ currentUser?.email }}</p>
-    <p class="small muted">권한: {{ currentUser?.role }}</p>
-    <h2>비밀번호 변경</h2>
-    <form @submit.prevent="submit">
-      <label>현재 비밀번호<input v-model="currentPassword" type="password" autocomplete="current-password" required maxlength="1024" /></label>
-      <label>새 비밀번호<input v-model="newPassword" type="password" autocomplete="new-password" required minlength="12" maxlength="128" /></label>
-      <label>새 비밀번호 확인<input v-model="confirmPassword" type="password" autocomplete="new-password" required minlength="12" maxlength="128" /></label>
+    <h3>비밀번호 변경</h3>
+    <SkeletonState v-if="busy || !currentUser" variant="account-form" />
+    <form v-show="!busy && currentUser" @submit.prevent="submit">
+      <label
+        >현재 비밀번호<input
+          v-model="currentPassword"
+          :disabled="busy"
+          type="password"
+          autocomplete="current-password"
+          required
+          maxlength="1024"
+      /></label>
+      <label
+        >새 비밀번호<input
+          v-model="newPassword"
+          :disabled="busy"
+          type="password"
+          autocomplete="new-password"
+          required
+          minlength="12"
+          maxlength="128"
+      /></label>
+      <label
+        >새 비밀번호 확인<input
+          v-model="confirmPassword"
+          :disabled="busy"
+          type="password"
+          autocomplete="new-password"
+          required
+          minlength="12"
+          maxlength="128"
+      /></label>
       <p class="small muted">비밀번호는 12~128자입니다. 변경하면 기존 로그인 세션이 만료됩니다.</p>
       <p v-if="error" role="alert" class="field-error">{{ error }}</p>
-      <button class="button primary full-width" type="submit" :disabled="busy">{{ busy ? '변경 중…' : '비밀번호 변경' }}</button>
+      <button class="button primary full-width" type="submit" :disabled="busy">
+        {{ busy ? '변경 중…' : '비밀번호 변경' }}
+      </button>
     </form>
-  </section>
+  </dialog>
 </template>
+
+<style scoped>
+.account-dialog {
+  width: min(480px, calc(100vw - 32px));
+  max-height: calc(100dvh - 40px);
+  margin: auto;
+  padding: 24px;
+  color: var(--ink);
+  overflow-y: auto;
+  overscroll-behavior: none;
+}
+.account-dialog::backdrop {
+  background: rgb(0 0 0 / 55%);
+}
+.account-dialog-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.account-dialog h3 {
+  margin: 24px 0 16px;
+}
+.account-dialog label {
+  display: block;
+  margin-bottom: 16px;
+}
+.account-dialog form > .button {
+  margin-top: 20px;
+}
+</style>

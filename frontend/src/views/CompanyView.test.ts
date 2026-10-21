@@ -4,6 +4,7 @@ import { createPinia, setActivePinia } from 'pinia'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import { useWorkspace } from '../stores/workspace'
 import CompanyView from './CompanyView.vue'
+import { registerDisclosure } from '../services/catalog'
 import type { AnalysisTask, Company, Filing, Memo, ReviewReport } from '../types/domain'
 
 vi.mock('../services', () => ({ services: {} }))
@@ -31,7 +32,10 @@ vi.mock('../services/catalog', () => ({
   registerDisclosure: vi.fn(),
   unregisterDisclosure: vi.fn(),
 }))
-afterEach(() => vi.unstubAllGlobals())
+afterEach(() => {
+  vi.unstubAllGlobals()
+  vi.clearAllMocks()
+})
 
 it.each(['filings', 'memos', 'reports', 'history'])(
   '%s 목록의 동작을 본문 바깥 오른쪽 영역에 둡니다',
@@ -82,6 +86,8 @@ it.each(['filings', 'memos', 'reports', 'history'])(
     await router.push('/companies/company?tab=' + tab)
     const wrapper = mount(CompanyView, { global: { plugins: [pinia, router] } })
     await flushPromises()
+    expect(wrapper.find('.company-tools').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('등록')
     const rows = wrapper.findAll('.document-row, .analysis-row')
     expect(rows.length).toBeGreaterThan(0)
     for (const row of rows) {
@@ -89,8 +95,20 @@ it.each(['filings', 'memos', 'reports', 'history'])(
       expect(row.find(':scope > .document-actions').exists()).toBe(true)
     }
     if (tab === 'filings') {
-      expect(rows[0]!.find('.document-actions').text()).not.toContain('분석에 사용')
-      expect(rows[1]!.find('.document-actions').text()).toContain('분석에 사용')
+      for (const row of rows) {
+        expect(row.get('a.document-title').attributes('target')).toBe('_blank')
+        expect(row.find('.document-actions a').exists()).toBe(false)
+        expect(row.text()).not.toContain('내용 확인')
+      }
+      expect(rows[0]!.find('.document-actions').text()).not.toContain('분석하기')
+      expect(rows[1]!.find('.document-actions').text()).toContain('분석하기')
+      const dialog = wrapper.get('dialog').element as HTMLDialogElement
+      dialog.showModal = () => dialog.setAttribute('open', '')
+      dialog.close = () => dialog.removeAttribute('open')
+      await rows[1]!.get('.document-actions button').trigger('click')
+      await flushPromises()
+      expect(dialog.open).toBe(true)
+      expect(registerDisclosure).not.toHaveBeenCalled()
     }
     wrapper.unmount()
   },

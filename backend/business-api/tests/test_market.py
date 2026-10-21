@@ -137,6 +137,7 @@ def test_stock_quotes_units_encoding_cache_and_validation(monkeypatch):
                                 "nv": 90,
                                 "sv": 100,
                                 "aa": 123456789,
+                                "ov": 95, "hv": 105, "lv": 89, "aq": 12345,
                                 "countOfListedStock": 1000,
                             },
                             {"cd": "005930", "nv": 0},
@@ -165,6 +166,7 @@ def test_stock_quotes_units_encoding_cache_and_validation(monkeypatch):
     assert quote["changePercent"] == pytest.approx(-10)
     assert quote["tradingValue"] == 123456789
     assert quote["marketCap"] == 90000
+    assert [quote[k] for k in ("openPrice", "highPrice", "lowPrice", "volume")] == [95, 105, 89, 12345]
     assert client.get("/api/v1/market/stocks?codes=005930,060310").json() == result
     assert len(calls) == 1
     for codes in ["", "AAPL", "005930,https://example.com", ",".join(["005930"] * 51)]:
@@ -221,3 +223,39 @@ def test_sector_provider_mapping_and_missing_classification(monkeypatch):
     assert TestClient(app).get("/api/v1/market/sectors?codes=bad").status_code == 422
     market.stock_sector.cache_clear()
     market.industry_name.cache_clear()
+
+
+def test_stock_history_matches_requested_code_and_caches(monkeypatch):
+    original = httpx.Client
+    calls = []
+
+    def respond(request):
+        calls.append(request.url.path)
+        code = request.url.path.rsplit("/", 1)[-1]
+        return httpx.Response(
+            200,
+            json={
+                "code": code,
+                "priceInfos": [
+                    {"localDate": "20261020", "closePrice": 100},
+                    {"localDate": "20261021", "closePrice": 110},
+                ],
+            },
+        )
+
+    monkeypatch.setattr(
+        market.httpx,
+        "Client",
+        lambda **kw: original(transport=httpx.MockTransport(respond), **kw),
+    )
+    market.stock_history.cache_clear()
+    client = TestClient(app)
+    result = client.get("/api/v1/market/history/005930")
+    assert result.status_code == 200
+    assert result.json()["series"] == [100, 110]
+    assert result.json()["start_date"] == "20261020"
+    assert result.json()["end_date"] == "20261021"
+    assert client.get("/api/v1/market/history/005930").json() == result.json()
+    assert len(calls) == 1
+    assert client.get("/api/v1/market/history/AAPL").status_code == 422
+    market.stock_history.cache_clear()

@@ -1,10 +1,14 @@
 <script setup lang="ts">
-import { onMounted, onBeforeUnmount, ref, watch } from 'vue'
+import { onMounted, onBeforeUnmount, ref, watch, computed } from 'vue'
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
-import { LoaderCircle, RefreshCw, Sun, Moon } from 'lucide-vue-next'
+import { RefreshCw, Sun, Moon } from 'lucide-vue-next'
 import { useWorkspace } from './stores/workspace'
 import { useTheme } from './stores/theme'
 import { hasSession, restoreSession, logout } from './services/http'
+import ToastOutlet from './components/ToastOutlet.vue'
+import { notifyError } from './lib/notifications'
+import SkeletonState from './components/SkeletonState.vue'
+import AccountView from './views/AccountView.vue'
 import DocumentDrawer from './components/DocumentDrawer.vue'
 const store = useWorkspace(),
   route = useRoute(),
@@ -12,6 +16,13 @@ const store = useWorkspace(),
 const router = useRouter(),
   checking = ref(true),
   sessionError = ref('')
+const pageSkeleton = computed(() => {
+  if (route.path === '/login') return 'login'
+  if (route.path === '/home' || route.path === '/') return 'home'
+  if (route.params.companyId) return 'company'
+  if (route.params.taskId) return 'analysis'
+  return 'directory'
+})
 function signOut() {
   logout()
   window.location.assign('/login')
@@ -26,6 +37,7 @@ onMounted(async () => {
     await restoreSession()
   } catch (e) {
     sessionError.value = e instanceof Error ? e.message : '인증 확인 실패'
+    notifyError(e)
   } finally {
     checking.value = false
   }
@@ -58,7 +70,7 @@ onBeforeUnmount(() => {
             >기업 목록</RouterLink
           >
         </nav>
-        <RouterLink v-if="hasSession()" to="/account" class="text-button">내 계정</RouterLink>
+        <AccountView v-if="hasSession()" />
         <button v-if="hasSession()" class="text-button" @click="signOut">로그아웃</button>
         <button
           class="icon-button theme-toggle"
@@ -79,17 +91,13 @@ onBeforeUnmount(() => {
           'company-main': typeof route.params.companyId === 'string',
         }"
       >
-        <div v-if="checking" class="loading-state" role="status">로그인 확인 중입니다.</div>
+        <SkeletonState v-if="checking" :variant="pageSkeleton" :rows="7" header />
         <RouterView v-else-if="route.path === '/login'" />
         <div v-else-if="sessionError" class="empty-state" role="alert">
           <p>{{ sessionError }}</p>
           <button class="button secondary" @click="signOut">다시 로그인</button>
         </div>
-        <div v-else-if="store.loading" class="loading-state" role="status">
-          <LoaderCircle :size="28" class="spin" />
-          <h2>리서치 자료를 준비하고 있어요</h2>
-          <p>서버의 공시와 메모를 불러옵니다.</p>
-        </div>
+        <SkeletonState v-else-if="store.loading" :variant="pageSkeleton" :rows="7" header />
         <div v-else-if="store.error" class="empty-state" role="alert">
           <h2>자료를 불러오지 못했어요</h2>
           <p>{{ store.error }}</p>
@@ -105,4 +113,5 @@ onBeforeUnmount(() => {
     </div>
   </div>
   <DocumentDrawer />
+  <ToastOutlet />
 </template>

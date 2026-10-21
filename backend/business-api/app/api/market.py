@@ -4,9 +4,9 @@ from concurrent.futures import ThreadPoolExecutor
 from time import monotonic
 
 import httpx
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Path, Query
 
-from app.services.market import market_data, stock_quotes, stock_sector
+from app.services.market import market_data, stock_history, stock_quotes, stock_sector
 
 router = APIRouter(prefix="/api/v1/market", tags=["market"])
 
@@ -34,4 +34,21 @@ def stocks(codes: str = Query(pattern=r"^[0-9]{6}(,[0-9]{6}){0,49}$")) -> dict:
     except (httpx.HTTPError, ValueError, KeyError, TypeError, OverflowError) as exc:
         raise HTTPException(
             status_code=502, detail="종목 시세를 조회하지 못했습니다."
+        ) from exc
+
+
+@router.get("/history/{code}")
+def history(code: str = Path(pattern=r"^[0-9]{6}$")) -> dict:
+    try:
+        return stock_history(code, int(monotonic() // 60))
+    except (
+        httpx.HTTPError,
+        ValueError,
+        KeyError,
+        TypeError,
+        IndexError,
+        OverflowError,
+    ) as exc:
+        raise HTTPException(
+            status_code=502, detail="주가 추이를 조회하지 못했습니다."
         ) from exc

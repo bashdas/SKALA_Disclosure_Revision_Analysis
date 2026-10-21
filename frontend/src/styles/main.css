@@ -220,7 +220,7 @@ select {
   flex-direction: column;
 }
 .topbar {
-  height: 48px;
+  height: 60px;
   gap: 24px;
   display: flex;
   align-items: center;
@@ -1413,7 +1413,7 @@ main.companies-main {
   overflow: auto;
   padding: 28px;
   flex: 1;
-  overscroll-behavior: contain;
+  overscroll-behavior: none;
 }
 .drawer-body h2 {
   font-size: 21px;
@@ -1652,7 +1652,7 @@ main.companies-main {
   }
   .topbar {
     height: auto;
-    min-height: 48px;
+    min-height: 60px;
     padding: 6px 19px;
     flex-wrap: wrap;
     gap: 12px;
@@ -2622,7 +2622,7 @@ main.company-main {
   overflow-x: auto;
   max-width: 100%;
   scrollbar-width: thin;
-  overscroll-behavior-x: contain;
+  overscroll-behavior-x: none;
 }
 .watchlist-table-scroll:focus-visible {
   outline: 2px solid var(--primary);
@@ -2682,18 +2682,16 @@ main.company-main {
   position: sticky;
   left: 0;
   z-index: 2;
-  padding-left: 8px;
-  padding-right: 0;
 }
-.watchlist-table tr > :nth-child(2) {
-  position: sticky;
-  left: 40px;
-  z-index: 2;
-  padding-left: 6px;
-}
-.watchlist-table thead tr > :first-child,
-.watchlist-table thead tr > :nth-child(2) {
+.watchlist-table thead tr > :first-child {
   z-index: 3;
+}
+.watchlist-table tr > :last-child {
+  text-align: right;
+  padding-inline: 8px 16px;
+}
+.watchlist-favorite-col {
+  width: 56px;
 }
 .watchlist-stock {
   display: flex;
@@ -2899,3 +2897,260 @@ main.company-main {
   max-width: none;
   overflow-wrap: anywhere;
 }
+
+.company-workspace .detail-layout.without-tools {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.memo-heading-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-left: auto;
+}
+.memo-heading-actions > input {
+  min-height: 40px;
+}
+.memo-heading-actions > .button {
+  min-height: 40px;
+}
+
+html,
+body {
+  overscroll-behavior: none;
+}
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  flex-shrink: 0;
+}
+.skeleton {
+  display: block;
+  background: linear-gradient(
+    100deg,
+    var(--surface-strong) 25%,
+    var(--line) 45%,
+    var(--surface-strong) 65%
+  );
+  background-size: 220% 100%;
+  animation: skeleton-shimmer 1.6s ease-in-out infinite;
+}
+.skeleton-value {
+  display: inline-block;
+  width: 80px;
+  max-width: 100%;
+  height: 15px;
+  border-radius: 5px;
+  vertical-align: middle;
+}
+@keyframes skeleton-shimmer {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: -100% 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .skeleton {
+    animation: none;
+  }
+}
+.company-workspace {
+  min-height: calc(100dvh - 60px);
+}
+dialog[open] {
+  overscroll-behavior: none;
+}
+
+.company-favorite-control {
+  display: inline-flex;
+  align-items: center;
+  position: relative;
+}
+.company-favorite-control .field-error {
+  position: absolute;
+  right: 0;
+  top: 100%;
+  width: 200px;
+  padding: 8px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  z-index: 4;
+  white-space: normal;
+}
+.version-label .ui-select {
+  width: 100px;
+}
+
+:root {
+  --workspace-inset: 43px;
+}
+.company-workspace-header,
+.company-workspace > .tabs {
+  padding-inline: var(--workspace-inset);
+}
+.company-main > .skeleton-company {
+  max-width: 1500px;
+  margin-inline: auto;
+}
+.company-main .skeleton-company .sk-company-header,
+.company-main .skeleton-company .sk-tabs,
+.company-main .skeleton-company .sk-filters,
+.company-main .skeleton-company .sk-filing {
+  padding-inline: var(--workspace-inset);
+}
+.company-main .skeleton-company .sk-section-heading {
+  padding-inline: var(--workspace-inset);
+}
+@media (max-width: 1150px) {
+  :root {
+    --workspace-inset: 27px;
+  }
+}
+@media (max-width: 650px) {
+  :root {
+    --workspace-inset: 19px;
+  }
+}
+.ui-select {
+  min-height: 44px;
+  padding-inline: 14px;
+  border-color: var(--line);
+  background: var(--surface-strong);
+  color: var(--ink);
+}
+label > .ui-select,
+label > .ui-date {
+  margin-top: 7px;
+}
+.ui-date {
+  width: 100%;
+  min-width: 0;
+}
+.ui-date > button {
+  height: 44px;
+  padding-inline: 14px;
+  background: var(--surface-strong);
+  border-color: var(--line);
+  font-weight: 400;
+}
+.filters .ui-select {
+  min-width: 150px;
+}
+[data-slot='select-content'],
+[data-slot='popover-content'] {
+  border-color: var(--line);
+}
+
+.perspectives-section {
+  margin-top: 40px;
+}
+.report-summary .report-fold-content > h2 {
+  margin-bottom: 16px;
+  font-size: 22px;
+}
+
+.analysis-field > .ui-select { margin-top: 7px; }
+
+.select-field { position: relative; width: 100%; min-width: 0; }
+.filters .select-field { width: 150px; flex: 0 0 150px; }
+.analysis-field > .select-field, label > .select-field { margin-top: 7px; }
+.version-label .select-field { width: 100px; }
+
+/* 상세의 실제 화면과 대기 화면에 같은 상단 간격을 적용합니다. */
+.company-workspace-header,
+.company-main .skeleton-company .sk-company-header {
+  padding-top: 72px;
+}
+.findings-section + .source-list {
+  margin-top: 32px;
+}
+@media (max-width: 650px) {
+  .company-workspace-header,
+  .company-main .skeleton-company .sk-company-header {
+    padding-top: 48px;
+  }
+}
+
+.company-workspace-header,
+.company-main .skeleton-company .sk-company-header {
+  padding-bottom: 64px;
+}
+@media (max-width: 650px) {
+  .company-workspace-header,
+  .company-main .skeleton-company .sk-company-header {
+    padding-bottom: 48px;
+  }
+}
+
+:root { --workspace-inset: 64px; --page-width: 1320px; }
+main { max-width: var(--page-width); padding-inline: var(--workspace-inset); }
+main.company-main { max-width: none; padding-inline: 0; }
+.company-workspace, .company-main > .skeleton-company { max-width: var(--page-width); }
+.topbar { padding-inline: max(var(--workspace-inset), calc((100vw - var(--page-width)) / 2 + var(--workspace-inset))); }
+.company-workspace .filing-filters,
+.company-workspace .document-section > .list-heading,
+.company-workspace .document-section > .document-row,
+.company-workspace .document-section .analysis-row { padding-inline: var(--workspace-inset); }
+.company-workspace .context-note { margin-inline: var(--workspace-inset); }
+@media(max-width: 1150px) { :root { --workspace-inset: 40px; } }
+@media(max-width: 650px) { :root { --workspace-inset: 24px; } }
+
+.company-workspace > .tabs,
+.company-workspace > .detail-layout {
+  margin-inline: var(--workspace-inset);
+}
+.company-workspace > .tabs,
+.company-workspace .filing-filters,
+.company-workspace .document-section > .list-heading,
+.company-workspace .document-section > .document-row,
+.company-workspace .document-section .analysis-row {
+  padding-inline: 0;
+}
+.company-main .skeleton-company .sk-tabs,
+.company-main .skeleton-company .sk-filters,
+.company-main .skeleton-company .sk-filing,
+.company-main .skeleton-company .sk-section-heading {
+  margin-inline: var(--workspace-inset);
+  padding-inline: 0;
+}
+
+.filing-tag-new { color: var(--primary); background: var(--primary-soft); }
+.filing-tag-correction { color: var(--warning); background: var(--warning-soft); }
+.filing-date, .filing-receipt { white-space: nowrap; }
+.company-workspace .history-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; white-space: nowrap; }
+@media(max-width: 650px) {
+ .company-workspace .history-meta { grid-column: 2 / -1; flex-direction: row; flex-wrap: wrap; justify-content: flex-end; }
+}
+
+.document-drawer.memo-reader {
+  inset: 0;
+  margin: auto;
+  width: min(800px, calc(100vw - 48px));
+  height: min(720px, calc(100dvh - 64px));
+  max-height: calc(100dvh - 64px);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  box-shadow: 0 20px 60px var(--shadow-color);
+}
+@media(max-width: 650px) {
+  .document-drawer.memo-reader {
+    width: calc(100vw - 32px);
+    height: calc(100dvh - 48px);
+    max-height: calc(100dvh - 48px);
+  }
+  .memo-reader .drawer-header, .memo-reader .drawer-body { padding: 20px; }
+}
+
+[data-sonner-toast][data-styled='true'] [data-close-button] {
+  left: auto;
+  right: 8px;
+  top: 8px;
+  transform: none;
+}
+[data-sonner-toast][data-styled='true'] { padding-right: 40px; }

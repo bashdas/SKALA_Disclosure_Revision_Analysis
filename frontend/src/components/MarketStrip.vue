@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
+import SkeletonState from './SkeletonState.vue'
 import MarketSparkline from './MarketSparkline.vue'
 import { getMarketIndices, type MarketSnapshot } from '../services/market'
 
@@ -130,7 +131,9 @@ watch(selected, () => rail.value?.scrollTo({ left: 0 }))
         </button>
       </div>
     </div>
+    <SkeletonState v-if="loading" variant="market" :rows="8" />
     <div
+      v-show="!loading"
       ref="rail"
       class="market-rail"
       tabindex="0"
@@ -241,7 +244,7 @@ watch(selected, () => rail.value?.scrollTo({ left: 0 }))
 }
 .market-rail {
   overflow-x: auto;
-  overscroll-behavior-x: contain;
+  overscroll-behavior-x: none;
   scrollbar-width: none;
   -ms-overflow-style: none;
 }

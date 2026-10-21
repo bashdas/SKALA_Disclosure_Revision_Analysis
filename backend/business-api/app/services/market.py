@@ -187,7 +187,7 @@ def stock_sector(code: str, period: int) -> dict:
             response.raise_for_status()
             payload = response.json()
         if not isinstance(payload, dict):
-            raise ValueError("Invalid sector response")
+            raise TypeError("Invalid sector response")
         if payload.get("itemCode") != code:
             return {"sector": None, "status": "unavailable"}
         industry = str(payload.get("industryCode", ""))
@@ -222,6 +222,10 @@ def stock_quotes(codes: tuple[str, ...], minute: int) -> dict:
                 continue
             items[code] = {
                 "price": price,
+                "openPrice": row.get("ov") if finite(row.get("ov")) and row["ov"] > 0 else None,
+                "highPrice": row.get("hv") if finite(row.get("hv")) and row["hv"] > 0 else None,
+                "lowPrice": row.get("lv") if finite(row.get("lv")) and row["lv"] > 0 else None,
+                "volume": row.get("aq") if finite(row.get("aq")) and row["aq"] >= 0 else None,
                 "changePercent": (price / previous - 1) * 100
                 if finite(previous) and previous > 0
                 else None,
@@ -233,3 +237,21 @@ def stock_quotes(codes: tuple[str, ...], minute: int) -> dict:
         "fetched_at": datetime.now(UTC).isoformat(),
         "items": items,
     }
+
+
+@lru_cache(maxsize=256)
+def stock_history(code: str, minute: int) -> dict:
+    with httpx.Client(timeout=8) as client:
+        response = client.get(
+            f"https://api.stock.naver.com/chart/domestic/item/{code}",
+            params={"periodType": "month"},
+        )
+        response.raise_for_status()
+        payload = response.json()
+    data = parse_domestic(payload, code)
+    dates = sorted(
+        row["localDate"]
+        for row in payload["priceInfos"]
+        if finite(row.get("closePrice"))
+    )
+    return {**data, "start_date": dates[0], "end_date": dates[-1]}

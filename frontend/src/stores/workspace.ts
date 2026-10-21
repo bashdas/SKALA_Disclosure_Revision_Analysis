@@ -1,5 +1,6 @@
+import { toast as notification, notifyError } from '../lib/notifications'
 import { defineStore } from 'pinia'
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { services } from '../services'
 import { readKey } from '../services/contracts'
 import type {
@@ -40,14 +41,45 @@ export const useWorkspace = defineStore('workspace', () => {
     drawer = ref<DrawerDocument | null>(null)
   const busy = ref(false),
     toast = ref('')
+  const drawerLoading = ref(false)
+  let drawerRequest = 0
+  watch(
+    drawer,
+    (doc) => {
+      if (!doc) {
+        drawerRequest++
+        drawerLoading.value = false
+      }
+    },
+    { flush: 'sync' },
+  )
   const syncError = ref('')
   let initialization: Promise<void> | null = null,
     unsubscribe: (() => void) | null = null
   const savedReports = computed(() => reports.value.filter((r) => r.savedAt !== null))
   function applyTask(task: AnalysisTask) {
     const i = tasks.value.findIndex((t) => t.id === task.id)
+    const previous = tasks.value[i]
+    if (previous && task.sequence < previous.sequence) return
     if (i < 0) tasks.value.unshift(task)
-    else if (task.sequence >= tasks.value[i]!.sequence) tasks.value[i] = task
+    else tasks.value[i] = task
+    if (!previous || previous.status === task.status) return
+    const completed = ['COMPLETED', 'COMPLETED_WITH_WARNINGS']
+    if (completed.includes(task.status) && !completed.includes(previous.status))
+      notification.success('분석이 완료되었습니다.', {
+        description: companyName(task.companyId),
+        id: 'analysis:' + task.id,
+      })
+    else if (task.status === 'FAILED' || task.status === 'SAVE_FAILED')
+      notification.error(
+        task.status === 'FAILED' ? '분석에 실패했습니다.' : '보고서를 저장하지 못했습니다.',
+        {
+          description: task.errorMessage ?? companyName(task.companyId),
+          id: 'analysis:' + task.id,
+        },
+      )
+    else if (task.status === 'CANCELLED')
+      notification.info('분석이 취소되었습니다.', { id: 'analysis:' + task.id })
   }
   async function initialize() {
     if (ready.value) return
@@ -82,11 +114,13 @@ export const useWorkspace = defineStore('workspace', () => {
           },
           (message) => {
             syncError.value = message
+            notifyError(message)
           },
         )
         ready.value = true
       } catch (e) {
         error.value = e instanceof Error ? e.message : '자료를 불러오지 못했습니다.'
+        notifyError(e)
       } finally {
         loading.value = false
         initialization = null
@@ -103,7 +137,9 @@ export const useWorkspace = defineStore('workspace', () => {
   function memosForCompany(companyId: string) {
     const company = companies.value.find((c) => c.id === companyId)
     if (!company) return []
-    return memos.value.filter((m) => m.companyName?.normalize('NFC') === company.name.normalize('NFC'))
+    return memos.value.filter(
+      (m) => m.companyName?.normalize('NFC') === company.name.normalize('NFC'),
+    )
   }
   function countUnread(companyId: string, kind: 'filing' | 'memo' | 'report') {
     if (kind === 'filing')
@@ -111,9 +147,8 @@ export const useWorkspace = defineStore('workspace', () => {
         (f) => f.companyId === companyId && unread({ kind, id: f.id, version: f.currentVersion }),
       ).length
     if (kind === 'memo')
-      return memosForCompany(companyId).filter(
-        (m) =>
-          unread({ kind, id: m.id, version: m.currentVersion }),
+      return memosForCompany(companyId).filter((m) =>
+        unread({ kind, id: m.id, version: m.currentVersion }),
       ).length
     return savedReports.value.filter(
       (r) =>
@@ -126,13 +161,33 @@ export const useWorkspace = defineStore('workspace', () => {
     if (!readKeys.value.includes(key)) readKeys.value.push(key)
   }
   async function openMemo(id: string, version?: number, paragraph?: number | null) {
+    const request = ++drawerRequest
+    drawerLoading.value = false
     let memo = memos.value.find((m) => m.id === id)
     if (!memo) {
-      try { memo = await services.memos.get(id) }
-      catch(e) { syncError.value=e instanceof Error?e.message:'메모 조회 실패'; return }
+      drawerLoading.value = true
+      drawer.value = { title: '메모', subtitle: '', content: '', memoId: id }
+      try {
+        memo = await services.memos.get(id)
+        if (request !== drawerRequest) return
+      } catch (e) {
+        if (request === drawerRequest) {
+          syncError.value = e instanceof Error ? e.message : '메모 조회 실패'
+          notifyError(e)
+          drawer.value = null
+        }
+        return
+      } finally {
+        if (request === drawerRequest) drawerLoading.value = false
+      }
     }
     const v = memo.versions.find((v) => v.version === (version ?? memo.currentVersion))
-    if (!v) return
+    if (!v) {
+      drawer.value = null
+      syncError.value = '요청한 메모 버전을 찾지 못했습니다.'
+      notifyError(syncError.value)
+      return
+    }
     drawer.value = {
       title: memo.title,
       subtitle: `${memo.companyName ?? '기업 미확정'} , 사내 메모`,
@@ -183,8 +238,9 @@ export const useWorkspace = defineStore('workspace', () => {
   }
   async function deleteMemo(id: string) {
     await services.memos.remove(id)
-    memos.value=memos.value.filter(m=>m.id!==id)
-    if(drawer.value?.memoId===id)drawer.value=null
+    memos.value = memos.value.filter((m) => m.id !== id)
+    if (drawer.value?.memoId === id) drawer.value = null
+    notification.success('메모를 삭제했습니다.')
   }
   async function start(input: StartAnalysisInput) {
     if (busy.value) return null
@@ -192,6 +248,10 @@ export const useWorkspace = defineStore('workspace', () => {
     try {
       const task = await services.analyses.start(input)
       applyTask(task)
+      if (['COMPLETED', 'COMPLETED_WITH_WARNINGS'].includes(task.status))
+        notification.info('기존 분석 결과를 불러왔습니다.')
+      else
+        notification.success('분석을 시작했습니다.', { description: companyName(task.companyId) })
       return task
     } finally {
       busy.value = false
@@ -200,13 +260,19 @@ export const useWorkspace = defineStore('workspace', () => {
   async function refresh() {
     services.filings.invalidate()
     const [c, f] = await Promise.all([services.companies.list(), services.filings.list()])
-    companies.value = [
-      ...new Map(
-        [...companies.value.map((company) => ({ ...company, favorite: false })), ...c].map(
-          (company) => [company.id, company],
-        ),
-      ).values(),
-    ]
+    const merged = new Map(companies.value.map(company => [company.id, { ...company, favorite: false }]))
+    for (const company of c) {
+      const previous = merged.get(company.id)
+      merged.set(company.id, {
+        ...previous,
+        ...company,
+        favorite: !!company.favorite,
+        code: company.code || previous?.code || '',
+        sector: company.sector || previous?.sector || '',
+        description: company.description || previous?.description || '',
+      })
+    }
+    companies.value = [...merged.values()]
     filings.value = f
   }
   function dispose() {
@@ -226,6 +292,7 @@ export const useWorkspace = defineStore('workspace', () => {
     error,
     busy,
     drawer,
+    drawerLoading,
     toast,
     initialize,
     refresh,

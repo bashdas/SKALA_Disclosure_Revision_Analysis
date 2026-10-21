@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { RouterLink } from 'vue-router'
-import { Activity, ArrowUpRight } from 'lucide-vue-next'
+import { Activity } from 'lucide-vue-next'
 import { useWorkspace } from '../stores/workspace'
 import { date } from '../lib/format'
 import { statusLabels } from '../types/domain'
 import StatusPill from './StatusPill.vue'
+import UiSelect from './UiSelect.vue'
 import EmptyState from './EmptyState.vue'
 const props = defineProps<{ companyId: string }>()
 const store = useWorkspace(),
@@ -21,23 +22,23 @@ const tasks = computed(() =>
     <h2>
       분석 이력 <span class="count">{{ tasks.length }}</span>
     </h2>
-    <label class="filters"
-      ><span class="sr-only">분석 상태</span
-      ><select v-model="status" aria-label="분석 상태">
-        <option value="">전체 상태</option>
-        <option v-for="(label, key) in statusLabels" :key="key" :value="key">{{ label }}</option>
-      </select></label
-    >
+    <div class="filters">
+      <span class="sr-only">분석 상태</span
+      ><UiSelect
+        v-model="status"
+        aria-label="분석 상태"
+        :options="[
+          { label: '전체 상태', value: '' },
+          ...Object.entries(statusLabels).map(([value, label]) => ({ value, label })),
+        ]"
+      />
+    </div>
   </div>
   <div class="analysis-list">
     <article v-for="task in tasks" :key="task.id" class="analysis-row">
       <span class="document-icon"><Activity :size="20" /></span>
       <div class="document-info">
-        <div class="inline-meta">
-          <strong>{{ store.companyName(task.companyId) }}</strong
-          ><span class="small muted">{{ date(task.createdAt, true) }}</span>
-          <StatusPill :status="task.status" />
-        </div>
+
         <h3>
           <RouterLink :to="`/analyses/${task.id}`" class="document-title">{{
             store.filings.find((f) => f.id === task.filingId)?.title
@@ -49,10 +50,9 @@ const tasks = computed(() =>
           }}
         </p>
       </div>
-      <div class="document-actions">
-        <RouterLink :to="`/analyses/${task.id}`" class="text-button"
-          >상세 보기 <ArrowUpRight :size="13"
-        /></RouterLink>
+      <div class="document-actions history-meta">
+        <StatusPill :status="task.status" />
+        <span class="small muted">{{ date(task.createdAt, true) }}</span>
       </div>
     </article>
   </div>

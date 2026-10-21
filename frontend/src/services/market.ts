@@ -20,6 +20,10 @@ export function getMarketIndices() {
 }
 
 export interface WatchlistQuote {
+  openPrice?: number | null
+  highPrice?: number | null
+  lowPrice?: number | null
+  volume?: number | null
   price: number
   changePercent: number | null
   tradingValue: number | null

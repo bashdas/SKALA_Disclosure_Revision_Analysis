@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { toast, notifyError } from '../lib/notifications'
 import { computed, nextTick, watch, ref } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import {
@@ -16,8 +17,6 @@ import {
   Building2,
   Calculator,
   ShieldCheck,
-  Sparkles,
-  LockKeyhole,
 } from 'lucide-vue-next'
 import { useWorkspace } from '../stores/workspace'
 import { date } from '../lib/format'
@@ -28,6 +27,8 @@ import {
   perspectiveStatusLabels,
   impactLabels,
 } from '../types/domain'
+import ReportSection from '../components/ReportSection.vue'
+import SkeletonState from '../components/SkeletonState.vue'
 import StatusPill from '../components/StatusPill.vue'
 import EmptyState from '../components/EmptyState.vue'
 import MarkdownReport from '../components/MarkdownReport.vue'
@@ -58,13 +59,21 @@ watch(
   },
   { immediate: true, flush: 'post' },
 )
-const exporting=ref(''), exportError=ref('')
-async function download(extension:'md'|'pdf') {
-  if(!task.value||exporting.value)return
-  exporting.value=extension;exportError.value=''
-  try { await downloadReport(task.value.id,extension) }
-  catch(e) { exportError.value=e instanceof Error?e.message:'다운로드 실패' }
-  finally { exporting.value='' }
+const exporting = ref(''),
+  exportError = ref('')
+async function download(extension: 'md' | 'pdf') {
+  if (!task.value || exporting.value) return
+  exporting.value = extension
+  exportError.value = ''
+  try {
+    await downloadReport(task.value.id, extension)
+    toast.success('보고서를 다운로드했습니다.')
+  } catch (e) {
+    notifyError(e)
+    exportError.value = e instanceof Error ? e.message : '다운로드 실패'
+  } finally {
+    exporting.value = ''
+  }
 }
 function evidence(id: string) {
   const e = report.value?.evidence.find((e) => e.id === id)
@@ -73,12 +82,13 @@ function evidence(id: string) {
 </script>
 <template>
   <template v-if="task">
-    <RouterLink :to="task.companyId ? `/companies/${task.companyId}?tab=reports` : '/companies'" class="back-link"
+    <RouterLink
+      :to="task.companyId ? `/companies/${task.companyId}?tab=reports` : '/companies'"
+      class="back-link"
       ><ArrowLeft :size="15" /> {{ store.companyName(task.companyId) }}</RouterLink
     >
     <div class="page-heading report-heading">
       <div>
-        <p class="eyebrow">RESEARCH IMPACT REVIEW</p>
         <h1>
           {{ store.companyName(task.companyId) }} <span class="heading-light">영향 분석</span>
         </h1>
@@ -155,13 +165,12 @@ function evidence(id: string) {
       </div>
     </div>
     <template v-if="report">
-      <section class="report-summary surface">
-        <div class="report-title-row">
-          <span class="eyebrow"><Sparkles :size="15" /> 검토 보고서</span
+      <ReportSection title="검토 보고서" class="report-summary surface">
+        <template #actions
           ><span v-if="report.savedAt" class="saved-label"
             ><CheckCircle2 :size="14" />{{ date(report.savedAt, true) }} 저장</span
-          ><span v-else class="warning-text">미저장</span>
-        </div>
+          ><span v-else class="warning-text">미저장</span></template
+        >
         <h2>{{ report.title }}</h2>
         <p class="summary-text">{{ report.summary }}</p>
         <div class="change-grid">
@@ -173,22 +182,26 @@ function evidence(id: string) {
             </div>
           </div>
         </div>
-      </section>
-      <section class="surface report-body" aria-label="보고서 본문">
-        <div class="list-heading"><h2>보고서 본문</h2><div class="row-actions">
-          <button class="button secondary" :disabled="!!exporting" @click="download('md')"><Download :size="15" />MD 다운로드</button>
-          <button class="button primary" :disabled="!!exporting" @click="download('pdf')"><Download :size="15" />{{exporting==='pdf'?'PDF 생성 중…':'PDF 다운로드'}}</button>
-        </div></div>
-        <p v-if="exportError" class="inline-warning" role="alert">{{exportError}}</p>
+      </ReportSection>
+      <ReportSection title="보고서 본문" class="surface report-body" aria-label="보고서 본문">
+        <template #actions>
+          <div class="row-actions">
+            <button class="button secondary" :disabled="!!exporting" @click="download('md')">
+              <Download :size="15" />MD 다운로드
+            </button>
+            <button class="button primary" :disabled="!!exporting" @click="download('pdf')">
+              <Download :size="15" />{{ exporting === 'pdf' ? 'PDF 생성 중…' : 'PDF 다운로드' }}
+            </button>
+          </div></template
+        >
+        <p v-if="exportError" class="inline-warning" role="alert">{{ exportError }}</p>
         <MarkdownReport :content="report.content" />
-      </section>
-      <section class="findings-section">
-        <div class="section-heading">
-          <h2>
-            기존 논리의 재검토 <span class="count">{{ report.findings.length }}</span>
-          </h2>
-          <span class="small muted">기준 메모 v{{ task.baseMemoVersion }}와 비교</span>
-        </div>
+      </ReportSection>
+      <ReportSection
+        title="기존 논리의 재검토"
+        :count="report.findings.length"
+        class="surface findings-section"
+      >
         <article
           v-for="(finding, i) in report.findings"
           :key="finding.id"
@@ -233,24 +246,8 @@ function evidence(id: string) {
             </button>
           </div>
         </article>
-      </section>
-      <section class="warning-section">
-        <div class="section-heading">
-          <h2><AlertTriangle :size="18" /> 추가 확인 사항</h2>
-          <span class="tag warning">확정 판단과 구분</span>
-        </div>
-        <ul>
-          <li v-for="warning in report.warnings" :key="warning">{{ warning }}</li>
-          <li v-if="report.noAdditionalAnalysisReason">{{ report.noAdditionalAnalysisReason }}</li>
-        </ul>
-      </section>
-      <section class="surface source-list">
-        <div class="list-heading">
-          <h2>
-            근거 자료 <span class="count">{{ report.evidence.length }}</span>
-          </h2>
-          <span class="small muted">출처,시점,원문 위치</span>
-        </div>
+      </ReportSection>
+      <ReportSection title="근거 자료" :count="report.evidence.length" class="surface source-list">
         <button
           v-for="source in report.evidence"
           :key="source.id"
@@ -264,22 +261,18 @@ function evidence(id: string) {
             ></span
           ><ExternalLink :size="15" />
         </button>
-      </section>
-      <p class="preserve-note report-preserve">
-        <LockKeyhole :size="14" />이 보고서는 별도 자료입니다. 기존 메모의 내용,버전은 변경되지
-        않았습니다.
-      </p>
+      </ReportSection>
     </template>
     <div v-else-if="inProgress" class="analysis-wait" role="status">
-      <span class="launcher-icon"><Sparkles :size="24" /></span>
+      <SkeletonState variant="report" />
       <h2>기존 논리와 새로운 사실을 비교하고 있어요</h2>
       <p>단계가 완료되면 이곳에 서버 보고서가 표시됩니다.</p>
     </div>
-    <section v-if="task.currentStage && stageIndex >= 3" class="perspectives-section">
-      <div class="section-heading">
-        <h2>선택한 분석 관점</h2>
-        <span class="small muted">필요한 관점만 실행합니다</span>
-      </div>
+    <ReportSection
+      v-if="task.currentStage && stageIndex >= 3"
+      title="선택한 분석 관점"
+      class="surface perspectives-section"
+    >
       <div class="perspective-grid">
         <article
           v-for="p in task.perspectives"
@@ -302,7 +295,7 @@ function evidence(id: string) {
           <p v-if="p.result" class="perspective-result">{{ p.result }}</p>
         </article>
       </div>
-    </section>
+    </ReportSection>
   </template>
   <EmptyState
     v-else
