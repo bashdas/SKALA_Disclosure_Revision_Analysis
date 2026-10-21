@@ -1,0 +1,2 @@
+class LimitReached(RuntimeError):
+    pass
