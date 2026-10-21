@@ -65,7 +65,7 @@ async function start() {
 <template>
   <aside class="analysis-launcher">
     <span class="launcher-icon"><Sparkles :size="21" /></span>
-    <h2>기존 리서치와 연결하기</h2>
+    <h2>공시 체크</h2>
     <p class="muted small">공시와 기준 메모를 선택하면 재검토가 필요한 논리를 살펴봅니다.</p>
     <form @submit.prevent="start">
       <label

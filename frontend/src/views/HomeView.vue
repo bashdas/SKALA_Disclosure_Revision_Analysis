@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { RouterLink } from 'vue-router'
-import { ArrowUpRight, ArrowRight, Star, FileText, Sparkles } from 'lucide-vue-next'
+import { ArrowRight } from 'lucide-vue-next'
 import { useWorkspace } from '../stores/workspace'
 import { demoUsers, usePreferences } from '../stores/preferences'
 import EmptyState from '../components/EmptyState.vue'
 import MarketStrip from '../components/MarketStrip.vue'
+import CompanyQuotesTable from '../components/CompanyQuotesTable.vue'
 const store = useWorkspace(),
   preferences = usePreferences()
 const favorites = computed(() => store.companies.filter((c) => preferences.isFavorite(c.id)))
@@ -35,50 +36,13 @@ const favorites = computed(() => store.companies.filter((c) => preferences.isFav
       <div class="list-heading">
         <h2 id="watchlist-heading">
           내 관심종목 <span class="count">{{ favorites.length }}</span>
+          <span class="watchlist-sample">시세 예시</span>
         </h2>
         <RouterLink to="/companies" class="text-button"
           >종목 관리 <ArrowRight :size="14"
         /></RouterLink>
       </div>
-      <article
-        v-for="company in favorites"
-        :key="company.id"
-        class="watchlist-row"
-        :data-testid="`favorite-${company.id}`"
-      >
-        <span class="company-logo" :class="company.id">{{ company.initials }}</span>
-        <div class="watchlist-company">
-          <RouterLink :to="`/companies/${company.id}`"
-            >{{ company.name }} <ArrowUpRight :size="14" /></RouterLink
-          ><span class="small muted">{{ company.sector }} · {{ company.code }}</span>
-          <div
-            v-if="
-              store.countUnread(company.id, 'filing') > 0 ||
-              store.countUnread(company.id, 'report') > 0
-            "
-            class="watchlist-updates"
-          >
-            <RouterLink
-              v-if="store.countUnread(company.id, 'filing') > 0"
-              :to="`/companies/${company.id}?tab=filings`"
-              ><FileText :size="12" />공시 {{ store.countUnread(company.id, 'filing') }}</RouterLink
-            ><RouterLink
-              v-if="store.countUnread(company.id, 'report') > 0"
-              :to="`/companies/${company.id}?tab=reports`"
-              ><Sparkles :size="12" />AI 보고서
-              {{ store.countUnread(company.id, 'report') }}</RouterLink
-            >
-          </div>
-        </div>
-        <button
-          class="favorite-button selected"
-          :aria-label="`${company.name} 관심종목 해제`"
-          aria-pressed="true"
-          @click="preferences.toggleFavorite(company.id)"
-        >
-          <Star :size="19" />
-        </button>
-      </article>
+      <CompanyQuotesTable :companies="favorites" />
       <EmptyState
         v-if="!favorites.length"
         title="관심종목을 추가해 보세요"

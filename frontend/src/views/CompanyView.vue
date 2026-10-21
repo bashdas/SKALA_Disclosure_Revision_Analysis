@@ -50,28 +50,30 @@ const tabs = computed(() => [
 ])
 </script>
 <template>
-  <template v-if="company">
-    <RouterLink to="/companies" class="back-link"><ArrowLeft :size="15" /> 기업 목록</RouterLink>
-    <div class="company-detail-heading">
-      <span class="company-logo" :class="company.id">{{ company.initials }}</span>
-      <div>
-        <p class="eyebrow">{{ company.sector }} · {{ company.code }}</p>
-        <h1>{{ company.name }}</h1>
+  <section v-if="company" class="company-workspace" aria-labelledby="company-title">
+    <header class="company-workspace-header">
+      <RouterLink to="/companies" class="back-link"><ArrowLeft :size="15" /> 기업 목록</RouterLink>
+      <div class="company-detail-heading">
+        <span class="company-logo" :class="company.id">{{ company.initials }}</span>
+        <div>
+          <p class="eyebrow">{{ company.sector }} · {{ company.code }}</p>
+          <h1 id="company-title">{{ company.name }}</h1>
+        </div>
       </div>
-    </div>
+    </header>
+    <nav class="tabs" aria-label="기업 자료 종류">
+      <RouterLink
+        v-for="item in tabs"
+        :key="item.id"
+        :to="{ query: { ...route.query, tab: item.id } }"
+        :class="{ selected: tab === item.id }"
+        :aria-current="tab === item.id ? 'page' : undefined"
+        ><component :is="item.icon" :size="16" />{{ item.name
+        }}<span>{{ item.count }}</span></RouterLink
+      >
+    </nav>
     <div class="detail-layout">
-      <section class="document-section">
-        <nav class="tabs" aria-label="기업 자료 종류">
-          <RouterLink
-            v-for="item in tabs"
-            :key="item.id"
-            :to="{ query: { ...route.query, tab: item.id } }"
-            :class="{ selected: tab === item.id }"
-            :aria-current="tab === item.id ? 'page' : undefined"
-            ><component :is="item.icon" :size="16" />{{ item.name
-            }}<span>{{ item.count }}</span></RouterLink
-          >
-        </nav>
+      <section class="document-section" aria-label="기업 자료">
         <template v-if="tab === 'filings'">
           <div class="list-heading">
             <h2>공시 업데이트</h2>
@@ -195,20 +197,22 @@ const tabs = computed(() => [
           />
         </template>
       </section>
-      <MemoUpload
-        v-if="tab === 'memos'"
-        :key="`upload-${company.id}`"
-        :company-id="company.id"
-        :company-name="company.name"
-      />
-      <AnalysisLauncher
-        v-else
-        :key="company.id"
-        :company-id="company.id"
-        :preferred-filing="preferredFiling"
-      />
+      <aside class="company-tools" :aria-label="tab === 'memos' ? '메모 추가' : '분석 도구'">
+        <MemoUpload
+          v-if="tab === 'memos'"
+          :key="`upload-${company.id}`"
+          :company-id="company.id"
+          :company-name="company.name"
+        />
+        <AnalysisLauncher
+          v-else
+          :key="company.id"
+          :company-id="company.id"
+          :preferred-filing="preferredFiling"
+        />
+      </aside>
     </div>
-  </template>
+  </section>
   <EmptyState v-else title="기업을 찾을 수 없습니다" message="기업 목록에서 다시 선택해 주세요."
     ><RouterLink to="/companies" class="button secondary">기업 목록</RouterLink></EmptyState
   >
