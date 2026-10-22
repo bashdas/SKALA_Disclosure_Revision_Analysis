@@ -216,7 +216,7 @@ const tabs = computed(() => [
                   id="filing-search"
                   v-model="search"
                   type="search"
-                  placeholder="공시명으로 검색"
+                  placeholder="공시명 또는 공시번호로 검색"
                   maxlength="100"
                 />
               </span>

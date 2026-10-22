@@ -73,12 +73,23 @@ class DisclosureCatalog:
     async def search_disclosures(self, corp_code: str | None, start_date: date, end_date: date, page: int = 1, query: str = "") -> dict:
         if start_date > end_date:
             raise OpenDartError("INVALID_SEARCH_RANGE")
+        key = query.strip().casefold()
+        exact_receipt = bool(re.fullmatch(r"[0-9]{14}", key))
         if corp_code is None:
             month = end_date.year * 12 + end_date.month - 4
             year, month0 = divmod(month, 12)
             earliest = date(year, month0 + 1, min(end_date.day, calendar.monthrange(year, month0 + 1)[1]))
             if start_date < earliest:
                 raise OpenDartError("INVALID_SEARCH_RANGE")
+        if exact_receipt:
+            # 번호의 날짜 부분은 조회 힌트이며 실제 결과는 반환된 접수번호로 확인합니다.
+            try:
+                receipt_date = datetime.strptime(key[:8], "%Y%m%d").date()
+            except ValueError:
+                return {"items": [], "total_count": 0, "has_more": False}
+            if not start_date <= receipt_date <= end_date:
+                return {"items": [], "total_count": 0, "has_more": False}
+            start_date = end_date = receipt_date
         raw = await self.client._get("list.json", {**({"corp_code": corp_code} if corp_code else {}),
             "bgn_de": start_date.strftime("%Y%m%d"), "end_de": end_date.strftime("%Y%m%d"),
             "last_reprt_at": "N", "page_count": 20, "page_no": page, "sort": "date", "sort_mth": "desc"})
@@ -95,7 +106,15 @@ class DisclosureCatalog:
                 rows.append({"receipt_no": receipt, "corp_code": row["corp_code"], "company_name": row["corp_name"],
                     "report_name": row["report_nm"], "filed_at": datetime.strptime(row["rcept_dt"], "%Y%m%d").date().isoformat(),
                     "is_correction": bool(re.match(r"^\[(?:기재|첨부)?정정\]", row["report_nm"])), "has_corrections": "정" in row.get("rm", "")})
-            return {"items": [r for r in rows if not query or query.casefold() in r["report_name"].casefold() or query.casefold() in r["company_name"].casefold()], "total_count": None if query else int(data["total_count"]), "has_more": page < int(data["total_page"]), "next_page": page + 1}
+            matches = [r for r in rows if not key or key in r["report_name"].casefold()
+                or key in r["company_name"].casefold() or key in r["receipt_no"]]
+            has_more = page < int(data["total_page"])
+            if exact_receipt:
+                matches = [r for r in rows if r["receipt_no"] == key]
+                return {"items": matches, "total_count": 1 if matches else (None if has_more else 0),
+                    "has_more": has_more and not matches, "next_page": page + 1}
+            return {"items": matches, "total_count": None if key else int(data["total_count"]),
+                "has_more": has_more, "next_page": page + 1}
         except (ValueError, TypeError, KeyError):
             raise OpenDartError("OPENDART_UNAVAILABLE") from None
 

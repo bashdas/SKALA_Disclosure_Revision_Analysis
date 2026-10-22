@@ -49,9 +49,11 @@ async def search_filings(identifier, start, end, page, query, settings, transpor
     data = await company(identifier.removeprefix("SEC:"), settings, transport)
     recent = data["filings"]["recent"]
     items = []
+    key = query.strip().casefold()
     for i, accession in enumerate(recent["accessionNumber"]):
         filed, form = recent["filingDate"][i], recent["form"][i]
-        if form in {"8-K", "8-K/A"} and start.isoformat() <= filed <= end.isoformat() and query.lower() in form.lower():
+        receipt = f"SEC:{int(data['cik'])}:{accession}"
+        if form in {"8-K", "8-K/A"} and start.isoformat() <= filed <= end.isoformat() and (key in form.casefold() or key in receipt.casefold()):
             items.append({"receipt_no": f"SEC:{int(data['cik'])}:{accession}",
                 "corp_code": identifier, "company_name": data["name"], "report_name": form,
                 "filed_at": filed, "is_correction": form.endswith("/A"), "has_corrections": False})

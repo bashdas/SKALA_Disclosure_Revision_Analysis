@@ -146,7 +146,7 @@ def create_app(settings: Settings | None = None, *, transport: httpx.AsyncBaseTr
     async def opendart_search_disclosures(start_date: date, end_date: date,
         corp_code: Annotated[str | None, Field(pattern=r"^(?:[0-9]{8}|SEC:[0-9]{1,10})$")] = None,
         page: Annotated[int, Field(ge=1, le=10000)] = 1, query: Annotated[str, Field(max_length=100)] = "") -> dict[str, Any]:
-        """선택한 회사와 기간의 공시를 조회해 items, total_count와 has_more를 반환합니다."""
+        """선택한 회사와 기간에서 공시명 또는 접수번호로 검색해 items, total_count와 has_more를 반환합니다."""
         try:
             if corp_code and corp_code.startswith("SEC:"):
                 return await sec.search_filings(corp_code, start_date, end_date, page, query, settings, transport)

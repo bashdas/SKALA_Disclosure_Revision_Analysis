@@ -47,3 +47,22 @@ it('leaves empty date filters out of the request and preserves multi-year filter
   await searchDisclosures({ company: '00126380', start: '2020-01-01', end: '2026-10-22', page: 1 })
   expect(vi.mocked(request).mock.lastCall?.[0]).toContain('start_date=2020-01-01')
 })
+
+it('passes receipt searches with company and date filters to the server', async () => {
+  vi.mocked(request).mockResolvedValue({ items: [], has_more: false })
+  await searchDisclosures({
+    company: '00398701',
+    start: '2025-01-01',
+    end: '2025-12-31',
+    page: 2,
+    query: '20251014800059',
+  })
+  const params = new URLSearchParams(vi.mocked(request).mock.lastCall![0].split('?')[1])
+  expect(Object.fromEntries(params)).toEqual({
+    corp_code: '00398701',
+    start_date: '2025-01-01',
+    end_date: '2025-12-31',
+    page: '2',
+    query: '20251014800059',
+  })
+})

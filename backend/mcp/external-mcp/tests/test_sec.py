@@ -47,3 +47,12 @@ def test_sec_amendment_keeps_official_form_type():
         return response
     result = asyncio.run(disclosure(ID, OpenDartDocumentParser(), Settings(_env_file=None), httpx.MockTransport(amended)))
     assert result['report_name'].startswith('8-K/A ')
+
+
+@pytest.mark.parametrize("query", [ID, ID.lower(), "0001071739-25-000185", "000185", "8-K"])
+def test_sec_search_matches_receipt_and_form(query):
+    from datetime import date
+    result = asyncio.run(search_filings('SEC:1071739', date(2025, 1, 1), date(2025, 12, 31),
+        1, query, Settings(_env_file=None), httpx.MockTransport(handler)))
+    assert [row['receipt_no'] for row in result['items']] == [ID]
+    assert result['total_count'] == 1 and result['has_more'] is False

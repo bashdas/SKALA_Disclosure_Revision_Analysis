@@ -3032,15 +3032,48 @@ label > .ui-date {
   margin-top: 7px;
 }
 .ui-date {
+  position: relative;
   width: 100%;
   min-width: 0;
 }
-.ui-date > button {
+.ui-date > .ui-date-trigger {
   height: 44px;
   padding-inline: 14px;
   background: var(--surface-strong);
   border-color: var(--line);
   font-weight: 400;
+  font-size: 13px;
+}
+.ui-date.has-value > .ui-date-trigger {
+  padding-right: 38px;
+}
+.ui-date-trigger > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ui-date-clear {
+  position: absolute;
+  right: 4px;
+  top: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+}
+.ui-date-clear:hover {
+  color: var(--primary);
+}
+.ui-date-clear:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: -4px;
 }
 .filters .ui-select {
   min-width: 150px;

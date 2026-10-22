@@ -72,3 +72,72 @@ def test_company_disclosures_accept_more_than_one_year():
             result = await DisclosureCatalog(client).search_disclosures("00126380", date(2020, 1, 1), date(2026, 10, 22))
             assert result["items"] == [] and not result["has_more"]
     asyncio.run(check())
+
+
+@pytest.mark.parametrize("query", ["20251014800059", " 20251014800059 "])
+def test_receipt_search_limits_date_and_stops_after_exact_match(query):
+    def handle(request):
+        assert request.url.params["corp_code"] == "00398701"
+        assert request.url.params["bgn_de"] == request.url.params["end_de"] == "20251014"
+        return httpx.Response(200, json={"status": "000", "total_count": 30, "total_page": 2,
+            "list": [{"corp_code": "00398701", "corp_name": "엘앤에프", "rcept_no": "20251014800059",
+                "rcept_dt": "20251014", "report_nm": "풍문또는보도에대한해명", "rm": ""}]})
+
+    async def check():
+        async with OpenDartClient(Settings(_env_file=None, opendart_api_key='a'*40), transport=httpx.MockTransport(handle)) as client:
+            result = await DisclosureCatalog(client).search_disclosures("00398701", date(1999, 1, 1), date(2026, 10, 22), query=query)
+            assert [r["receipt_no"] for r in result["items"]] == ["20251014800059"]
+            assert result["total_count"] == 1 and result["has_more"] is False
+            assert result["items"][0]["filed_at"] == "2025-10-14"
+    asyncio.run(check())
+
+
+def test_receipt_search_checks_later_pages_on_the_same_date():
+    calls = []
+    def handle(request):
+        page = int(request.url.params["page_no"])
+        calls.append(page)
+        assert request.url.params["bgn_de"] == request.url.params["end_de"] == "20251014"
+        return httpx.Response(200, json={"status": "000", "total_count": 21, "total_page": 2,
+            "list": [{"corp_code": "00398701", "corp_name": "엘앤에프",
+                "rcept_no": "20251014800059" if page == 2 else "20251014800001",
+                "rcept_dt": "20251014", "report_nm": "주요사항보고서", "rm": ""}]})
+
+    async def check():
+        async with OpenDartClient(Settings(_env_file=None, opendart_api_key='a'*40), transport=httpx.MockTransport(handle)) as client:
+            catalog = DisclosureCatalog(client)
+            first = await catalog.search_disclosures("00398701", date(1999, 1, 1), date(2026, 10, 22), query="20251014800059")
+            assert first["items"] == [] and first["has_more"] is True
+            assert first["next_page"] == 2 and first["total_count"] is None
+            second = await catalog.search_disclosures("00398701", date(1999, 1, 1), date(2026, 10, 22), page=2, query="20251014800059")
+            assert len(second["items"]) == 1 and second["has_more"] is False
+            assert second["total_count"] == 1 and calls == [1, 2]
+    asyncio.run(check())
+
+
+@pytest.mark.parametrize("query", ["20251014800059", "20251340800059"])
+def test_receipt_search_preserves_date_filters_without_external_calls(query):
+    def handle(request):
+        pytest.fail("An invalid or out-of-range receipt must not call OpenDART")
+
+    async def check():
+        async with OpenDartClient(Settings(_env_file=None, opendart_api_key='a'*40), transport=httpx.MockTransport(handle)) as client:
+            result = await DisclosureCatalog(client).search_disclosures("00398701", date(2026, 1, 1), date(2026, 10, 22), query=query)
+            assert result == {"items": [], "total_count": 0, "has_more": False}
+    asyncio.run(check())
+
+
+@pytest.mark.parametrize("query, expected", [("800059", 1), ("풍문", 1), ("엘앤에프", 1), ("없는공시", 0)])
+def test_partial_receipt_and_existing_name_search_keep_pagination(query, expected):
+    def handle(request):
+        assert request.url.params["bgn_de"] == "19990101"
+        assert request.url.params["end_de"] == "20261022"
+        return httpx.Response(200, json={"status": "000", "total_count": 1, "total_page": 1,
+            "list": [{"corp_code": "00398701", "corp_name": "엘앤에프", "rcept_no": "20251014800059",
+                "rcept_dt": "20251014", "report_nm": "풍문또는보도에대한해명", "rm": ""}]})
+
+    async def check():
+        async with OpenDartClient(Settings(_env_file=None, opendart_api_key='a'*40), transport=httpx.MockTransport(handle)) as client:
+            result = await DisclosureCatalog(client).search_disclosures("00398701", date(1999, 1, 1), date(2026, 10, 22), query=query)
+            assert len(result["items"]) == expected and result["has_more"] is False
+    asyncio.run(check())
