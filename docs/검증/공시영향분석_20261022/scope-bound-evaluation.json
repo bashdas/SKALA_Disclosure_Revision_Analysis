@@ -1,0 +1,130 @@
+{
+  "method": "모든 최종 sections를 원문 산출표 및 계약 대상과 대조한 수동 검토입니다. 숫자 검색은 보조 확인입니다.",
+  "conditions_match": true,
+  "runs": [
+    {
+      "run": 1,
+      "correct_applied_bps": true,
+      "correct_contract_amount_scope": true,
+      "note": "잔존 개별 종전 금액과 그 자체의 변동을 보류했습니다. 확인 범위 항목의 첫 문장은 금액 축소와 개별 증감 보류를 함께 적어 표현이 다소 어색합니다.",
+      "status": {
+        "FINANCE": "INSUFFICIENT_EVIDENCE"
+      },
+      "api_response_ids": [
+        "chatcmpl-Ebf6QEUGzC7zUdosefAbYWrrEbIBe",
+        "chatcmpl-Ebf6Wd2oRSltEDz0NO1qASI4HBAQl",
+        "chatcmpl-Ebf6ZMqZtHAUVhZTSxgtW4EexMpBQ",
+        "chatcmpl-Ebf6ddbC8FFNb0JloyooDnnxXmeCx"
+      ],
+      "actual_model": [
+        "gpt-5.4-mini-2026-03-17"
+      ],
+      "model_calls": 4,
+      "source_frames_sent": true,
+      "target_basis_review_retained": true,
+      "new_target_recommendation": false,
+      "unjustified_calculation_update": false
+    },
+    {
+      "run": 2,
+      "correct_applied_bps": true,
+      "correct_contract_amount_scope": true,
+      "note": "전체 계약금액 기준으로 서술하고 잔존 선박의 종전 금액과 증감은 보류했습니다.",
+      "status": {
+        "INDUSTRY_CONTRACT": "INSUFFICIENT_EVIDENCE",
+        "FINANCE": "INSUFFICIENT_EVIDENCE"
+      },
+      "api_response_ids": [
+        "chatcmpl-Ebf6j2jchgcGkpiG2d7n1FJJ7ih4M",
+        "chatcmpl-Ebf6qjbUL11vLtFX3z57S8nOZRAhj",
+        "chatcmpl-Ebf6qB7klCpws4tJbSgMrhgVizdp8",
+        "chatcmpl-Ebf6uK2cWnjSAgbvF2dyPTwMLIcSG",
+        "chatcmpl-Ebf6xBhdGTjgFuOuAKVe11BgXOSrG"
+      ],
+      "actual_model": [
+        "gpt-5.4-mini-2026-03-17"
+      ],
+      "model_calls": 5,
+      "source_frames_sent": true,
+      "target_basis_review_retained": true,
+      "new_target_recommendation": false,
+      "unjustified_calculation_update": false
+    },
+    {
+      "run": 3,
+      "correct_applied_bps": true,
+      "correct_contract_amount_scope": true,
+      "note": "대상 구성이 다른 비교임을 명시하고 잔존 1척의 개별 종전 금액 변경으로 해석하지 않았습니다.",
+      "status": {
+        "FINANCE": "INSUFFICIENT_EVIDENCE"
+      },
+      "api_response_ids": [
+        "chatcmpl-Ebf73cfSQ3Xl3mWRfkfoDbLAXNRNz",
+        "chatcmpl-Ebf7ANsyEbsmdFNSA2jK0s5A6z9BC",
+        "chatcmpl-Ebf7DVeohwUjosAaEbsWHR1jbUg7l",
+        "chatcmpl-Ebf7H8irZtR3ZxWrI1bixIfkSGaZG"
+      ],
+      "actual_model": [
+        "gpt-5.4-mini-2026-03-17"
+      ],
+      "model_calls": 4,
+      "source_frames_sent": true,
+      "target_basis_review_retained": true,
+      "new_target_recommendation": false,
+      "unjustified_calculation_update": false
+    },
+    {
+      "run": 4,
+      "correct_applied_bps": true,
+      "correct_contract_amount_scope": true,
+      "note": "전체 총액 정정으로 서술하고 잔존 선박 자체의 증감은 보류했습니다.",
+      "status": {
+        "INDUSTRY_CONTRACT": "INSUFFICIENT_EVIDENCE",
+        "FINANCE": "INSUFFICIENT_EVIDENCE"
+      },
+      "api_response_ids": [
+        "chatcmpl-Ebf7M0Gh6O8G3R1nzdzcnm2noXZOg",
+        "chatcmpl-Ebf7TstzLbluybGeU0LHbY1KBDhtc",
+        "chatcmpl-Ebf7TovHWytWc8Nk4DaNeYRtZ7gDb",
+        "chatcmpl-Ebf7VuN4FKz02Spu7pno0vdiql4Bh",
+        "chatcmpl-Ebf7YfguR3NYCjxXcqxbjcLu4rF6n"
+      ],
+      "actual_model": [
+        "gpt-5.4-mini-2026-03-17"
+      ],
+      "model_calls": 5,
+      "source_frames_sent": true,
+      "target_basis_review_retained": true,
+      "new_target_recommendation": false,
+      "unjustified_calculation_update": false
+    },
+    {
+      "run": 5,
+      "correct_applied_bps": true,
+      "correct_contract_amount_scope": true,
+      "note": "정정 전체 금액 비교와 잔존 개별 종전 금액 변동 여부를 구분했습니다.",
+      "status": {
+        "FINANCE": "INSUFFICIENT_EVIDENCE",
+        "INDUSTRY_CONTRACT": "INSUFFICIENT_EVIDENCE"
+      },
+      "api_response_ids": [
+        "chatcmpl-Ebf7dkhQzMtvKXCUML91wqepLoWzg",
+        "chatcmpl-Ebf7jFCYnDLPcfafnEPR8nv3yGmXT",
+        "chatcmpl-Ebf7j6o4NAL7UPBqTUsZeNP5suRTu",
+        "chatcmpl-Ebf7naWgafbgvbkZcC1NStjaKvqiV",
+        "chatcmpl-Ebf7qLTwgTPLKcNrnccJlTjgRQZMU"
+      ],
+      "actual_model": [
+        "gpt-5.4-mini-2026-03-17"
+      ],
+      "model_calls": 5,
+      "source_frames_sent": true,
+      "target_basis_review_retained": true,
+      "new_target_recommendation": false,
+      "unjustified_calculation_update": false
+    }
+  ],
+  "unique_api_responses": 23,
+  "main": "1515e75ed865df26fb0f159a4f21473c411d76cd",
+  "branch": "fix/disclosure-analysis-grounding"
+}

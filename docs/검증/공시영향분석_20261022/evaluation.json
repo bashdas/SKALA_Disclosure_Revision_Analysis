@@ -1,0 +1,143 @@
+{
+  "method": "모든 최종 sections를 원문 및 메모와 대조한 수동 평가입니다. 단어 검색만으로 통과시키지 않았습니다. 첫 항목은 검토의 보존 여부이며 산정값의 정확성은 여섯 번째 항목에도 반영했습니다.",
+  "criteria": [
+    "기존 목표주가 산정 근거 검토 보존",
+    "근거 없는 신규 목표주가와 하향 결론 회피",
+    "필요한 재무 관점과 선택 이유",
+    "취소 선박과 잔존 계약의 처리 및 금액 구분",
+    "근거 없는 계산값 수정 회피와 보류",
+    "회사 전망, 확인 사실과 AI 추론의 구분 및 근거 일치"
+  ],
+  "runs": [
+    {
+      "phase": "before",
+      "run": 1,
+      "criteria": [
+        false,
+        true,
+        false,
+        false,
+        true,
+        true
+      ],
+      "note": "산정 전제 검토와 재무 관점이 누락되었습니다. 두 선박의 인도 및 잔금 회수 범위 구분은 부분적입니다."
+    },
+    {
+      "phase": "before",
+      "run": 2,
+      "criteria": [
+        false,
+        true,
+        false,
+        false,
+        true,
+        true
+      ],
+      "note": "산정 전제 검토와 재무 관점이 누락되었습니다. 두 선박의 인도 및 잔금 회수 범위 구분은 부분적입니다."
+    },
+    {
+      "phase": "before",
+      "run": 3,
+      "criteria": [
+        false,
+        true,
+        false,
+        false,
+        true,
+        true
+      ],
+      "note": "산정 전제 검토와 재무 관점이 누락되었습니다. 두 선박의 인도 및 잔금 회수 범위 구분은 부분적입니다."
+    },
+    {
+      "phase": "before",
+      "run": 4,
+      "criteria": [
+        false,
+        true,
+        false,
+        false,
+        true,
+        true
+      ],
+      "note": "산정 전제 검토와 재무 관점이 누락되었습니다. 두 선박의 인도 및 잔금 회수 범위 구분은 부분적입니다."
+    },
+    {
+      "phase": "before",
+      "run": 5,
+      "criteria": [
+        false,
+        true,
+        false,
+        false,
+        true,
+        true
+      ],
+      "note": "산정 전제 검토와 재무 관점이 누락되었습니다. 두 선박의 인도 및 잔금 회수 범위 구분은 부분적입니다."
+    },
+    {
+      "phase": "final",
+      "run": 1,
+      "criteria": [
+        true,
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "note": "두 관점은 근거 부족 상태이며 질문과 판단 보류를 최종 보고서에 보존했습니다."
+    },
+    {
+      "phase": "final",
+      "run": 2,
+      "criteria": [
+        true,
+        true,
+        true,
+        true,
+        true,
+        false
+      ],
+      "note": "산출표의 적용 BPS 8,231원을 다른 표의 2027E BPS 8,784원으로 혼동했습니다. 메모에 직접 없는 계약 구조 전제도 연결했습니다."
+    },
+    {
+      "phase": "final",
+      "run": 3,
+      "criteria": [
+        true,
+        true,
+        true,
+        false,
+        true,
+        false
+      ],
+      "note": "전체 2척 계약금액의 변경을 잔존 1척 자체의 금액 변경처럼 표현했습니다."
+    },
+    {
+      "phase": "final",
+      "run": 4,
+      "criteria": [
+        true,
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "note": "재무 분석은 완료했고 계약 관점의 확인 질문은 보류했습니다."
+    },
+    {
+      "phase": "final",
+      "run": 5,
+      "criteria": [
+        true,
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "note": "출력 검사 입력 한도에 걸려 검사 모델을 실행하지 못했습니다. 가이드 실패를 표시하고 근거가 연결된 분석을 보존했습니다."
+    }
+  ]
+}

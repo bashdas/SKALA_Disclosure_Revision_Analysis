@@ -1,0 +1,15 @@
+{
+  "ai/disclosure_ai/harness/output.py": "31111b7d5a1c9f09410a7c1677f75f1e68b2c4b1011c2f1019909fc21b23e163",
+  "ai/disclosure_ai/harness/runtime.py": "792bca4feec550ca4658b072a3c7bc703c2c0d357fa038bb543ec318c2ad2bf0",
+  "ai/disclosure_ai/prompts/base.md": "b5b4bfa9f5298e416578c4b133d038b395810372868cfe6be0987363b98375bc",
+  "ai/disclosure_ai/prompts/common.md": "712b79729806c1c78b71ba6fc1f8f5268667fdd78385162b184cd2fe7043ebf3",
+  "ai/disclosure_ai/prompts/output_check.md": "a55cdadbfbd6a0d3c08d8d869046c39d738c3520d9b48e4a1ae66b81ebe9400a",
+  "ai/disclosure_ai/prompts/perspective.md": "6899eb9e7b7663275c1bea23cd3aa16ef45d499acee6367b9a1ca067dd3cfb97",
+  "ai/disclosure_ai/prompts/report.md": "29a20980118cdab8ca9258abe7c35ce0d6f428b69b2d3ce07e493a3d0f5fcb46",
+  "ai/disclosure_ai/schemas.py": "7fef6541cd6c6cdc357c01b166b54599bcfdccb29edd51a3d37d7909d6cfaa06",
+  "ai/disclosure_ai/services/documents.py": "b2dd56b8d6b794e05fd46cc489e6da9c9fc0541b971975332b2bf0d8b41ea561",
+  "ai/disclosure_ai/workflow/initial.py": "301623b0f10e15cc2d32e118fb8d33577fed0c93151945930349672f8b117857",
+  "ai/disclosure_ai/workflow/perspectives.py": "b1ff17f4eb291c80440461546b9389b25a70275452d3a2255096a046fc908939",
+  "ai/disclosure_ai/workflow/reporting.py": "5346239608f68d4f057a883bfcc64a7f8271e690adfa7d1dc84ad6eee2a828f2",
+  "ai/tests/test_valuation_review.py": "fc0f0fc9f35fd7f37a1147f61a5c8cac7989580a6c4e54c5921c49f757e4ad02"
+}

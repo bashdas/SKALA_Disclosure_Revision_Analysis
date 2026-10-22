@@ -1,0 +1,41 @@
+[
+  {
+    "perspective_type": "FINANCE",
+    "status": "INSUFFICIENT_EVIDENCE",
+    "result_json": {
+      "status": "INSUFFICIENT_EVIDENCE",
+      "sources": [],
+      "findings": "",
+      "requests": [],
+      "limitations": [
+        "현재 입력에는 계약 대상 축소와 계약금액 변경만 확인되며, 취소된 1척의 제3자 매각 진행 여부와 잔존 1척의 정상 인도 및 잔금 회수 여부는 확인되지 않았습니다.",
+        "기존 목표주가 산정은 2027 BPS 8,231원과 Target P/B 4.3배를 직접 입력으로 사용하였으나, 이번 정정이 그 BPS나 배수에 어떤 영향을 주는지는 공시와 메모의 연결 근거가 부족하여 판단을 보류합니다.",
+        "기수취 선수금이 이미 받은 금액인지, 향후 제3자 매각대금이 새로 유입될 금액인지 구분할 수 있는 근거가 현재 자료에 부족합니다.",
+        "context_truncated가 true이므로 공시의 나머지 정정 사유와 금액 회수 일정, 메모의 관련 문맥이 생략되었을 수 있어 추가 확인이 필요합니다."
+      ]
+    },
+    "failure_code": null,
+    "failure_message": null,
+    "started_at": "2026-10-22T05:07:36.551697+00:00",
+    "completed_at": "2026-10-22T05:07:40.245148+00:00"
+  },
+  {
+    "perspective_type": "INDUSTRY_CONTRACT",
+    "status": "INSUFFICIENT_EVIDENCE",
+    "result_json": {
+      "status": "INSUFFICIENT_EVIDENCE",
+      "sources": [],
+      "findings": "",
+      "requests": [],
+      "limitations": [
+        "현재 입력에는 계약금액 정정과 계약 대상이 2척에서 1척으로 축소되었다는 사실만 확인되며, 취소된 1척의 제3자 매각이 실제로 진행되었는지, 잔존 1척의 인도와 잔금 회수가 완료되었는지는 확인되지 않았습니다.",
+        "기존 메모의 목표주가 산정은 2027 BPS 8,231원과 Target P/B 4.3배를 사용한 것으로 확인되며, 이번 공시 정정만으로 적용 BPS나 목표주가 산정 근거의 변경 여부를 판단할 수 없습니다.",
+        "context_truncated가 true이므로 공시의 다른 문구나 후속 설명이 생략되었을 가능성이 있으며, 보이지 않는 부분은 추정하지 않았습니다."
+      ]
+    },
+    "failure_code": null,
+    "failure_message": null,
+    "started_at": "2026-10-22T05:07:36.553674+00:00",
+    "completed_at": "2026-10-22T05:07:40.156603+00:00"
+  }
+]

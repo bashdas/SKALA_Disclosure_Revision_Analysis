@@ -1,0 +1,104 @@
+[
+  {
+    "id": 1,
+    "kind": "STAGE",
+    "payload": "{\"stage\": \"REQUEST_VALIDATION\", \"payload\": {}}",
+    "at": 1792643860.920543
+  },
+  {
+    "id": 2,
+    "kind": "STAGE",
+    "payload": "{\"stage\": \"INPUT_COLLECTION\", \"payload\": {}}",
+    "at": 1792643860.921773
+  },
+  {
+    "id": 3,
+    "kind": "TOOL_END",
+    "payload": "{\"tool\": \"disclosure_get_document\", \"error\": null}",
+    "at": 1792643860.923121
+  },
+  {
+    "id": 4,
+    "kind": "TOOL_END",
+    "payload": "{\"tool\": \"business_get_memo\", \"error\": null}",
+    "at": 1792643860.923959
+  },
+  {
+    "id": 5,
+    "kind": "STAGE",
+    "payload": "{\"stage\": \"RAG_PREPARATION\", \"payload\": {}}",
+    "at": 1792643860.92482
+  },
+  {
+    "id": 6,
+    "kind": "TOOL_END",
+    "payload": "{\"tool\": \"ensure_analysis_index\", \"error\": null}",
+    "at": 1792643860.927485
+  },
+  {
+    "id": 7,
+    "kind": "TOOL_END",
+    "payload": "{\"tool\": \"search_evidence\", \"error\": null}",
+    "at": 1792643860.92832
+  },
+  {
+    "id": 8,
+    "kind": "STAGE",
+    "payload": "{\"stage\": \"BASE_ANALYSIS\", \"payload\": {}}",
+    "at": 1792643860.931106
+  },
+  {
+    "id": 9,
+    "kind": "MODEL_END",
+    "payload": "{\"role\": \"base\", \"tokens\": 7223, \"elapsed\": 5.822658249991946}",
+    "at": 1792643866.7615008
+  },
+  {
+    "id": 10,
+    "kind": "STAGE",
+    "payload": "{\"stage\": \"PERSPECTIVE_ANALYSIS\", \"payload\": {\"selected\": [{\"perspective_type\": \"INDUSTRY_CONTRACT\", \"selection_reason\": \"계약 척수와 계약금액 변경이 실제 계약 이행과 인도 여부에 미치는 영향을 확인할 필요가 있습니다.\", \"question\": \"취소된 1척은 제3자 매각으로 대체되는지, 잔존 1척은 정상 인도와 잔금 회수가 유지되는지 각각 확인해 주시겠습니까?\"}, {\"perspective_type\": \"FINANCE\", \"selection_reason\": \"계약금액 감소와 선수금 및 매각대금 회수 계획이 목표주가 산정과 재무 인식에 연결되는지 확인할 필요가 있습니다.\", \"question\": \"취소된 1척의 선수금 회수, 제3자 매각대금 회수, 잔존 1척의 인도대금 회수와 이익 인식 시점에 변동이 있는지 확인해 주시겠습니까?\"}]}}",
+    "at": 1792643866.769475
+  },
+  {
+    "id": 11,
+    "kind": "MODEL_END",
+    "payload": "{\"role\": \"perspective\", \"tokens\": 5797, \"elapsed\": 3.2350490000098944}",
+    "at": 1792643870.0246542
+  },
+  {
+    "id": 12,
+    "kind": "MODEL_END",
+    "payload": "{\"role\": \"perspective\", \"tokens\": 5915, \"elapsed\": 3.6685243329848163}",
+    "at": 1792643870.4733179
+  },
+  {
+    "id": 13,
+    "kind": "STAGE",
+    "payload": "{\"stage\": \"REPORT_GENERATION\", \"payload\": {}}",
+    "at": 1792643870.4822552
+  },
+  {
+    "id": 14,
+    "kind": "MODEL_END",
+    "payload": "{\"role\": \"report\", \"tokens\": 3939, \"elapsed\": 2.98408099997323}",
+    "at": 1792643873.470149
+  },
+  {
+    "id": 15,
+    "kind": "MODEL_END",
+    "payload": "{\"role\": \"output_check\", \"tokens\": 5016, \"elapsed\": 4.996089958003722}",
+    "at": 1792643878.480163
+  },
+  {
+    "id": 16,
+    "kind": "OUTPUT_CHECK_END",
+    "payload": "{\"candidates\": 19, \"accepted\": 19}",
+    "at": 1792643878.483221
+  },
+  {
+    "id": 17,
+    "kind": "TOOL_END",
+    "payload": "{\"tool\": \"business_save_report\", \"error\": null}",
+    "at": 1792643878.492748
+  }
+]

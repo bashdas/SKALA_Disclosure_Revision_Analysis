@@ -1,0 +1,19 @@
+{
+  "at": "2026-10-22T13:47:31.703165+09:00",
+  "branch": "fix/disclosure-analysis-grounding",
+  "main": "1515e75ed865df26fb0f159a4f21473c411d76cd",
+  "tests_passed": 51,
+  "ruff": "passed",
+  "git_diff_check": "passed",
+  "auth_values_found": 0,
+  "report_forbidden_symbols_found": 0,
+  "real_model_runs": 30,
+  "before_runs": 5,
+  "final_runs": 5,
+  "all_criteria_passed": false,
+  "remaining_errors": [
+    "final/run-2 BPS basis mismatch",
+    "final/run-3 remaining-vessel amount attribution"
+  ],
+  "integration_scope": "real model and production LangGraph, captured source tools, local report save"
+}

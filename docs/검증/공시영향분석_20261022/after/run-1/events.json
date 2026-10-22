@@ -1,0 +1,104 @@
+[
+  {
+    "id": 1,
+    "kind": "STAGE",
+    "payload": "{\"stage\": \"REQUEST_VALIDATION\", \"payload\": {}}",
+    "at": 1792643714.684944
+  },
+  {
+    "id": 2,
+    "kind": "STAGE",
+    "payload": "{\"stage\": \"INPUT_COLLECTION\", \"payload\": {}}",
+    "at": 1792643714.685961
+  },
+  {
+    "id": 3,
+    "kind": "TOOL_END",
+    "payload": "{\"tool\": \"disclosure_get_document\", \"error\": null}",
+    "at": 1792643714.687144
+  },
+  {
+    "id": 4,
+    "kind": "TOOL_END",
+    "payload": "{\"tool\": \"business_get_memo\", \"error\": null}",
+    "at": 1792643714.687755
+  },
+  {
+    "id": 5,
+    "kind": "STAGE",
+    "payload": "{\"stage\": \"RAG_PREPARATION\", \"payload\": {}}",
+    "at": 1792643714.688599
+  },
+  {
+    "id": 6,
+    "kind": "TOOL_END",
+    "payload": "{\"tool\": \"ensure_analysis_index\", \"error\": null}",
+    "at": 1792643714.690918
+  },
+  {
+    "id": 7,
+    "kind": "TOOL_END",
+    "payload": "{\"tool\": \"search_evidence\", \"error\": null}",
+    "at": 1792643714.691571
+  },
+  {
+    "id": 8,
+    "kind": "STAGE",
+    "payload": "{\"stage\": \"BASE_ANALYSIS\", \"payload\": {}}",
+    "at": 1792643714.693748
+  },
+  {
+    "id": 9,
+    "kind": "MODEL_END",
+    "payload": "{\"role\": \"base\", \"tokens\": 10148, \"elapsed\": 4.5804717089631595}",
+    "at": 1792643719.310028
+  },
+  {
+    "id": 10,
+    "kind": "STAGE",
+    "payload": "{\"stage\": \"PERSPECTIVE_ANALYSIS\", \"payload\": {\"selected\": [{\"perspective_type\": \"INDUSTRY_CONTRACT\", \"selection_reason\": \"정정된 원유운반선 계약 취소와 3자 매각 계획이 기존 메모의 수주와 인도 서술에 어떤 영향을 주는지 확인하기 위해 필요합니다.\", \"question\": \"이번 정정 대상인 원유운반선 1척의 취소가 메모의 2026년 수주 전망, 인도 일정 서술, 잔금 회수 가정에 어떤 영향을 주는지 확인이 필요합니다.\"}, {\"perspective_type\": \"FINANCE\", \"selection_reason\": \"선수금, 매각대금, 건조비 회수 계획이 재무적 영향과 수익 인식에 미치는 영향을 확인하기 위해 필요합니다.\", \"question\": \"기수취한 선수금 규모, 제3자 매각 대금, 건조비 회수 가능성이 2025년과 2026년 매출과 영업이익 인식에 어떻게 반영되는지 확인이 필요합니다.\"}]}}",
+    "at": 1792643719.315775
+  },
+  {
+    "id": 11,
+    "kind": "MODEL_END",
+    "payload": "{\"role\": \"perspective\", \"tokens\": 5643, \"elapsed\": 1.992290166032035}",
+    "at": 1792643721.342279
+  },
+  {
+    "id": 12,
+    "kind": "MODEL_END",
+    "payload": "{\"role\": \"perspective\", \"tokens\": 5724, \"elapsed\": 2.4990737499902025}",
+    "at": 1792643721.875199
+  },
+  {
+    "id": 13,
+    "kind": "STAGE",
+    "payload": "{\"stage\": \"REPORT_GENERATION\", \"payload\": {}}",
+    "at": 1792643721.8795671
+  },
+  {
+    "id": 14,
+    "kind": "MODEL_END",
+    "payload": "{\"role\": \"report\", \"tokens\": 3285, \"elapsed\": 3.381993875023909}",
+    "at": 1792643725.26436
+  },
+  {
+    "id": 15,
+    "kind": "MODEL_END",
+    "payload": "{\"role\": \"output_check\", \"tokens\": 4003, \"elapsed\": 3.633706791966688}",
+    "at": 1792643728.9095628
+  },
+  {
+    "id": 16,
+    "kind": "OUTPUT_CHECK_END",
+    "payload": "{\"candidates\": 9, \"accepted\": 9}",
+    "at": 1792643728.910635
+  },
+  {
+    "id": 17,
+    "kind": "TOOL_END",
+    "payload": "{\"tool\": \"business_save_report\", \"error\": null}",
+    "at": 1792643728.913921
+  }
+]

@@ -1,0 +1,299 @@
+[
+  {
+    "request": {
+      "analysis_task_id": "214b95cd-9a77-42a3-a3a5-b782ffb3ac2e",
+      "memo_id": "aa58e157-b7b1-4270-8c9f-efe30aabed8c",
+      "base_memo_version": 1,
+      "disclosure_receipt_no": "20260203800709",
+      "company_name_snapshot": "삼성중공업",
+      "corp_code": "00126478",
+      "thread_id": "214b95cd-9a77-42a3-a3a5-b782ffb3ac2e"
+    },
+    "base": {
+      "summary": "",
+      "proposals": [
+        {
+          "claim_id": "target_price_statement",
+          "impact_type": "INTERPRETATION_REVIEW",
+          "before_text": "삼성중공업의 투자의견 Buy를 유지하고 목표주가를 35,000원으로 16.7% 상향한다.",
+          "after_text": null,
+          "reason": "정정공시에서 원유운반선 2척 중 1척의 계약취소가 확인되었으나, 메모의 목표주가 산정은 2027 BPS 8,231원과 Target P/B 4.3배를 직접 입력값으로 사용하고 있어 해당 계약 변경이 목표주가 산정에 반영되었는지 확인되지 않습니다.\n따라서 목표주가 문장의 변경 여부는 보류하고, 계약취소 선박의 비용 회수와 잔존 선박의 인도 및 잔금 회수 여부를 추가 확인해야 합니다.",
+          "evidence": [
+            {
+              "document_id": "memo:aa58e157-b7b1-4270-8c9f-efe30aabed8c:v1",
+              "quote": "적용 BPS(원)                                                                        8,231        2027 BPS",
+              "location": "line:147",
+              "url": null,
+              "published_at": null
+            },
+            {
+              "document_id": "memo:aa58e157-b7b1-4270-8c9f-efe30aabed8c:v1",
+              "quote": "Target P/B(배)                                                                         4.3    과거 고점 P/B",
+              "location": "line:148",
+              "url": null,
+              "published_at": null
+            },
+            {
+              "document_id": "memo:aa58e157-b7b1-4270-8c9f-efe30aabed8c:v1",
+              "quote": "적정주가(원)                                                                         35,394",
+              "location": "line:149",
+              "url": null,
+              "published_at": null
+            },
+            {
+              "document_id": "memo:aa58e157-b7b1-4270-8c9f-efe30aabed8c:v1",
+              "quote": "목표주가(원)                                                                         35,000",
+              "location": "line:150",
+              "url": null,
+              "published_at": null
+            },
+            {
+              "document_id": "opendart:20260203800709:ed313b332a3523e971fe69da28ac11ccd4a42578bed6d27241d86ae46a091e24",
+              "quote": "1. 체결계약명\t원유운반선 2척\t원유운반선 1척",
+              "location": "20260203800709.xml:table-2:row:5",
+              "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260203800709",
+              "published_at": "2026-02-03"
+            },
+            {
+              "document_id": "opendart:20260203800709:ed313b332a3523e971fe69da28ac11ccd4a42578bed6d27241d86ae46a091e24",
+              "quote": "2. 계약금액(원)\t227,500,000,000\t114,800,000,000",
+              "location": "20260203800709.xml:table-2:row:6",
+              "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260203800709",
+              "published_at": "2026-02-03"
+            },
+            {
+              "document_id": "opendart:20260203800709:ed313b332a3523e971fe69da28ac11ccd4a42578bed6d27241d86ae46a091e24",
+              "quote": "9. 기타 투자판단과 관련한 \n 주요사항\t-\t3. 본 공시는 기존에 수주한 원유운반선 2척 중 1척에 대해 선주사가 최종 분할금 납입에 실패하여 계약상 당사에게 발생한 계약취소 권한을 행사함에 따라 정정공시를 실시하는 건입니다. \n\n4. 당사는 기수취한 선수금 및 해당 선박의 제3자 매각 추진을 통해 확보할 매각 대금으로 선박 건조 비용을 보전할 계획입니다. \n\n당사가 수취한 선수금 규모와 현재의 선가 수준을 고려할 때, 선박 건조 비용을 충분히 회수할 수 있다고 판단하고 있습니다. \n\n이에 따라 본 정정공시에 따른 회사의 재무적 영향은 미미할 전망입니다. \n\n5. 2호선의 인도일은 선주측의 사정에 따라 변경될 수 있습니다. 계약의 변경이 확정되는 시점에 재공시하도록 하겠습니다.",
+              "location": "20260203800709.xml:table-2:row:8",
+              "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260203800709",
+              "published_at": "2026-02-03"
+            }
+          ],
+          "calculation_basis": "적용 BPS(원) 8,231, Target P/B(배) 4.3, 적정주가(원) 35,394, 목표주가(원) 35,000"
+        }
+      ],
+      "selected": [
+        {
+          "perspective_type": "INDUSTRY_CONTRACT",
+          "selection_reason": "계약취소, 잔존 선박 인도, 제3자 매각 추진 여부를 확인하여 기존 계약 관련 서술의 수정 필요성을 판단하기 위함입니다.",
+          "question": "정정된 원유운반선 2척 중 1척 계약취소에 따라, 취소된 선박의 제3자 매각 진행 여부와 비용 회수 시점, 그리고 잔존 1척의 인도와 잔금 회수 여부가 각각 확인됩니까?",
+          "evidence": [
+            {
+              "document_id": "opendart:20260203800709:ed313b332a3523e971fe69da28ac11ccd4a42578bed6d27241d86ae46a091e24",
+              "quote": "1. 체결계약명\t원유운반선 2척\t원유운반선 1척",
+              "location": "20260203800709.xml:table-2:row:5",
+              "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260203800709",
+              "published_at": "2026-02-03"
+            },
+            {
+              "document_id": "opendart:20260203800709:ed313b332a3523e971fe69da28ac11ccd4a42578bed6d27241d86ae46a091e24",
+              "quote": "2. 계약금액(원)\t227,500,000,000\t114,800,000,000",
+              "location": "20260203800709.xml:table-2:row:6",
+              "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260203800709",
+              "published_at": "2026-02-03"
+            },
+            {
+              "document_id": "opendart:20260203800709:ed313b332a3523e971fe69da28ac11ccd4a42578bed6d27241d86ae46a091e24",
+              "quote": "5. 계약기간 종료일\t2026-02-28\t-",
+              "location": "20260203800709.xml:table-2:row:7",
+              "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260203800709",
+              "published_at": "2026-02-03"
+            },
+            {
+              "document_id": "opendart:20260203800709:ed313b332a3523e971fe69da28ac11ccd4a42578bed6d27241d86ae46a091e24",
+              "quote": "9. 기타 투자판단과 관련한 \n 주요사항\t-\t3. 본 공시는 기존에 수주한 원유운반선 2척 중 1척에 대해 선주사가 최종 분할금 납입에 실패하여 계약상 당사에게 발생한 계약취소 권한을 행사함에 따라 정정공시를 실시하는 건입니다. \n\n4. 당사는 기수취한 선수금 및 해당 선박의 제3자 매각 추진을 통해 확보할 매각 대금으로 선박 건조 비용을 보전할 계획입니다. \n\n당사가 수취한 선수금 규모와 현재의 선가 수준을 고려할 때, 선박 건조 비용을 충분히 회수할 수 있다고 판단하고 있습니다. \n\n이에 따라 본 정정공시에 따른 회사의 재무적 영향은 미미할 전망입니다. \n\n5. 2호선의 인도일은 선주측의 사정에 따라 변경될 수 있습니다. 계약의 변경이 확정되는 시점에 재공시하도록 하겠습니다.",
+              "location": "20260203800709.xml:table-2:row:8",
+              "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260203800709",
+              "published_at": "2026-02-03"
+            }
+          ]
+        },
+        {
+          "perspective_type": "FINANCE",
+          "selection_reason": "기수취 선수금과 향후 매각대금, 비용 회수 및 재무적 영향이 기존 목표주가 산정과 연결되는지 확인하기 위함입니다.",
+          "question": "기수취한 선수금 규모와 취소 선박의 향후 매각대금이 기존 실적 전망이나 목표주가 산정에 이미 반영되었는지, 반영되지 않았다면 재무적 영향 추정이 필요한지 확인됩니까?",
+          "evidence": [
+            {
+              "document_id": "opendart:20260203800709:ed313b332a3523e971fe69da28ac11ccd4a42578bed6d27241d86ae46a091e24",
+              "quote": "1. 체결계약명\t원유운반선 2척\t원유운반선 1척",
+              "location": "20260203800709.xml:table-2:row:5",
+              "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260203800709",
+              "published_at": "2026-02-03"
+            },
+            {
+              "document_id": "opendart:20260203800709:ed313b332a3523e971fe69da28ac11ccd4a42578bed6d27241d86ae46a091e24",
+              "quote": "2. 계약금액(원)\t227,500,000,000\t114,800,000,000",
+              "location": "20260203800709.xml:table-2:row:6",
+              "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260203800709",
+              "published_at": "2026-02-03"
+            },
+            {
+              "document_id": "opendart:20260203800709:ed313b332a3523e971fe69da28ac11ccd4a42578bed6d27241d86ae46a091e24",
+              "quote": "5. 계약기간 종료일\t2026-02-28\t-",
+              "location": "20260203800709.xml:table-2:row:7",
+              "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260203800709",
+              "published_at": "2026-02-03"
+            },
+            {
+              "document_id": "opendart:20260203800709:ed313b332a3523e971fe69da28ac11ccd4a42578bed6d27241d86ae46a091e24",
+              "quote": "9. 기타 투자판단과 관련한 \n 주요사항\t-\t3. 본 공시는 기존에 수주한 원유운반선 2척 중 1척에 대해 선주사가 최종 분할금 납입에 실패하여 계약상 당사에게 발생한 계약취소 권한을 행사함에 따라 정정공시를 실시하는 건입니다. \n\n4. 당사는 기수취한 선수금 및 해당 선박의 제3자 매각 추진을 통해 확보할 매각 대금으로 선박 건조 비용을 보전할 계획입니다. \n\n당사가 수취한 선수금 규모와 현재의 선가 수준을 고려할 때, 선박 건조 비용을 충분히 회수할 수 있다고 판단하고 있습니다. \n\n이에 따라 본 정정공시에 따른 회사의 재무적 영향은 미미할 전망입니다. \n\n5. 2호선의 인도일은 선주측의 사정에 따라 변경될 수 있습니다. 계약의 변경이 확정되는 시점에 재공시하도록 하겠습니다.",
+              "location": "20260203800709.xml:table-2:row:8",
+              "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260203800709",
+              "published_at": "2026-02-03"
+            }
+          ]
+        }
+      ],
+      "not_selected": [
+        {
+          "perspective_type": "FX_HEDGE",
+          "reason": "외환헤지 관련 변경이나 환율 민감도, 위험 관리 가정은 입력 자료에서 직접 확인되지 않아 추가 검토의 근거가 부족합니다."
+        }
+      ],
+      "no_additional_analysis_reason": null,
+      "limitations": []
+    },
+    "results": {
+      "INDUSTRY_CONTRACT": {
+        "perspective_type": "INDUSTRY_CONTRACT",
+        "status": "INSUFFICIENT_EVIDENCE",
+        "findings": "",
+        "sources": []
+      },
+      "FINANCE": {
+        "perspective_type": "FINANCE",
+        "status": "INSUFFICIENT_EVIDENCE",
+        "findings": "",
+        "sources": []
+      }
+    },
+    "summary_claims": [
+      {
+        "text": "정정공시에서 원유운반선 2척 계약이 원유운반선 1척으로 변경되었고, 계약금액도 227,500,000,000원에서 114,800,000,000원으로 변경되었습니다.\n계약기간 종료일은 2026-02-28에서 삭제되었습니다.",
+        "evidence": [
+          {
+            "document_id": "opendart:20260203800709:ed313b332a3523e971fe69da28ac11ccd4a42578bed6d27241d86ae46a091e24",
+            "quote": "1. 체결계약명\t원유운반선 2척\t원유운반선 1척",
+            "location": "20260203800709.xml:table-2:row:5",
+            "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260203800709",
+            "published_at": "2026-02-03"
+          },
+          {
+            "document_id": "opendart:20260203800709:ed313b332a3523e971fe69da28ac11ccd4a42578bed6d27241d86ae46a091e24",
+            "quote": "2. 계약금액(원)\t227,500,000,000\t114,800,000,000",
+            "location": "20260203800709.xml:table-2:row:6",
+            "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260203800709",
+            "published_at": "2026-02-03"
+          },
+          {
+            "document_id": "opendart:20260203800709:ed313b332a3523e971fe69da28ac11ccd4a42578bed6d27241d86ae46a091e24",
+            "quote": "5. 계약기간 종료일\t2026-02-28\t-",
+            "location": "20260203800709.xml:table-2:row:7",
+            "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260203800709",
+            "published_at": "2026-02-03"
+          }
+        ]
+      },
+      {
+        "text": "회사 공시에는 2척 중 1척에 대해 선주사가 최종 분할금 납입에 실패하여 계약취소 권한이 행사되었고, 취소 선박은 기수취한 선수금과 제3자 매각 대금으로 건조 비용을 보전할 계획이라고 적시되어 있습니다.\n다만 선수금이 실제로 얼마인지, 제3자 매각이 체결되었는지, 잔금 회수나 인도가 완료되었는지는 확인되지 않아 완료 사실로 쓸 수 없습니다.",
+        "evidence": [
+          {
+            "document_id": "opendart:20260203800709:ed313b332a3523e971fe69da28ac11ccd4a42578bed6d27241d86ae46a091e24",
+            "quote": "9. 기타 투자판단과 관련한 \n 주요사항\t-\t3. 본 공시는 기존에 수주한 원유운반선 2척 중 1척에 대해 선주사가 최종 분할금 납입에 실패하여 계약상 당사에게 발생한 계약취소 권한을 행사함에 따라 정정공시를 실시하는 건입니다. \n\n4. 당사는 기수취한 선수금 및 해당 선박의 제3자 매각 추진을 통해 확보할 매각 대금으로 선박 건조 비용을 보전할 계획입니다. \n\n당사가 수취한 선수금 규모와 현재의 선가 수준을 고려할 때, 선박 건조 비용을 충분히 회수할 수 있다고 판단하고 있습니다. \n\n이에 따라 본 정정공시에 따른 회사의 재무적 영향은 미미할 전망입니다. \n\n5. 2호선의 인도일은 선주측의 사정에 따라 변경될 수 있습니다. 계약의 변경이 확정되는 시점에 재공시하도록 하겠습니다.",
+            "location": "20260203800709.xml:table-2:row:8",
+            "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260203800709",
+            "published_at": "2026-02-03"
+          }
+        ]
+      },
+      {
+        "text": "기존 메모의 목표주가는 적용 BPS 8,231원과 Target P/B 4.3배를 직접 입력값으로 사용하여 산정되었고, 적정주가 35,394원과 목표주가 35,000원이 제시되어 있습니다.\n이번 정정공시가 이 산정 입력값이나 목표주가에 어떤 방식으로 반영되었는지는 확인되지 않아, 목표주가 변경 여부는 보류하는 것이 타당합니다.",
+        "evidence": [
+          {
+            "document_id": "memo:aa58e157-b7b1-4270-8c9f-efe30aabed8c:v1",
+            "quote": "적용 BPS(원)                                                                        8,231        2027 BPS",
+            "location": "line:147",
+            "url": null,
+            "published_at": null
+          },
+          {
+            "document_id": "memo:aa58e157-b7b1-4270-8c9f-efe30aabed8c:v1",
+            "quote": "Target P/B(배)                                                                         4.3    과거 고점 P/B",
+            "location": "line:148",
+            "url": null,
+            "published_at": null
+          },
+          {
+            "document_id": "memo:aa58e157-b7b1-4270-8c9f-efe30aabed8c:v1",
+            "quote": "적정주가(원)                                                                         35,394",
+            "location": "line:149",
+            "url": null,
+            "published_at": null
+          },
+          {
+            "document_id": "memo:aa58e157-b7b1-4270-8c9f-efe30aabed8c:v1",
+            "quote": "목표주가(원)                                                                         35,000",
+            "location": "line:150",
+            "url": null,
+            "published_at": null
+          },
+          {
+            "document_id": "opendart:20260203800709:ed313b332a3523e971fe69da28ac11ccd4a42578bed6d27241d86ae46a091e24",
+            "quote": "1. 체결계약명\t원유운반선 2척\t원유운반선 1척",
+            "location": "20260203800709.xml:table-2:row:5",
+            "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260203800709",
+            "published_at": "2026-02-03"
+          }
+        ]
+      }
+    ],
+    "future_impacts": [
+      {
+        "scenario": "조건: 취소된 원유운반선 1척의 제3자 매각이 성사되고 매각대금이 유입되는 경우입니다.\n예상 영향: 해당 선박의 건조 비용 회수 가능성에 대한 공시 해석이 구체화될 수 있습니다.",
+        "evidence": [
+          {
+            "document_id": "opendart:20260203800709:ed313b332a3523e971fe69da28ac11ccd4a42578bed6d27241d86ae46a091e24",
+            "quote": "9. 기타 투자판단과 관련한 \n 주요사항\t-\t3. 본 공시는 기존에 수주한 원유운반선 2척 중 1척에 대해 선주사가 최종 분할금 납입에 실패하여 계약상 당사에게 발생한 계약취소 권한을 행사함에 따라 정정공시를 실시하는 건입니다. \n\n4. 당사는 기수취한 선수금 및 해당 선박의 제3자 매각 추진을 통해 확보할 매각 대금으로 선박 건조 비용을 보전할 계획입니다. \n\n당사가 수취한 선수금 규모와 현재의 선가 수준을 고려할 때, 선박 건조 비용을 충분히 회수할 수 있다고 판단하고 있습니다. \n\n이에 따라 본 정정공시에 따른 회사의 재무적 영향은 미미할 전망입니다. \n\n5. 2호선의 인도일은 선주측의 사정에 따라 변경될 수 있습니다. 계약의 변경이 확정되는 시점에 재공시하도록 하겠습니다.",
+            "location": "20260203800709.xml:table-2:row:8",
+            "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260203800709",
+            "published_at": "2026-02-03"
+          }
+        ]
+      },
+      {
+        "scenario": "조건: 취소된 선박의 기수취 선수금과 제3자 매각대금으로 건조 비용을 충분히 보전하는 사실이 추후 확인되는 경우입니다.\n예상 영향: 정정공시가 회사가 언급한 재무적 영향 미미 판단의 근거를 보강하는 자료로 사용될 수 있습니다.",
+        "evidence": [
+          {
+            "document_id": "opendart:20260203800709:ed313b332a3523e971fe69da28ac11ccd4a42578bed6d27241d86ae46a091e24",
+            "quote": "9. 기타 투자판단과 관련한 \n 주요사항\t-\t3. 본 공시는 기존에 수주한 원유운반선 2척 중 1척에 대해 선주사가 최종 분할금 납입에 실패하여 계약상 당사에게 발생한 계약취소 권한을 행사함에 따라 정정공시를 실시하는 건입니다. \n\n4. 당사는 기수취한 선수금 및 해당 선박의 제3자 매각 추진을 통해 확보할 매각 대금으로 선박 건조 비용을 보전할 계획입니다. \n\n당사가 수취한 선수금 규모와 현재의 선가 수준을 고려할 때, 선박 건조 비용을 충분히 회수할 수 있다고 판단하고 있습니다. \n\n이에 따라 본 정정공시에 따른 회사의 재무적 영향은 미미할 전망입니다. \n\n5. 2호선의 인도일은 선주측의 사정에 따라 변경될 수 있습니다. 계약의 변경이 확정되는 시점에 재공시하도록 하겠습니다.",
+            "location": "20260203800709.xml:table-2:row:8",
+            "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260203800709",
+            "published_at": "2026-02-03"
+          }
+        ]
+      },
+      {
+        "scenario": "조건: 2호선의 인도일 변경 여부가 확정되어 재공시되는 경우입니다.\n예상 영향: 잔존 계약 선박의 일정과 계약 해석 기준이 다음 공시에서 새 비교 기준으로 사용될 수 있습니다.",
+        "evidence": [
+          {
+            "document_id": "opendart:20260203800709:ed313b332a3523e971fe69da28ac11ccd4a42578bed6d27241d86ae46a091e24",
+            "quote": "9. 기타 투자판단과 관련한 \n 주요사항\t-\t3. 본 공시는 기존에 수주한 원유운반선 2척 중 1척에 대해 선주사가 최종 분할금 납입에 실패하여 계약상 당사에게 발생한 계약취소 권한을 행사함에 따라 정정공시를 실시하는 건입니다. \n\n4. 당사는 기수취한 선수금 및 해당 선박의 제3자 매각 추진을 통해 확보할 매각 대금으로 선박 건조 비용을 보전할 계획입니다. \n\n당사가 수취한 선수금 규모와 현재의 선가 수준을 고려할 때, 선박 건조 비용을 충분히 회수할 수 있다고 판단하고 있습니다. \n\n이에 따라 본 정정공시에 따른 회사의 재무적 영향은 미미할 전망입니다. \n\n5. 2호선의 인도일은 선주측의 사정에 따라 변경될 수 있습니다. 계약의 변경이 확정되는 시점에 재공시하도록 하겠습니다.",
+            "location": "20260203800709.xml:table-2:row:8",
+            "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260203800709",
+            "published_at": "2026-02-03"
+          },
+          {
+            "document_id": "opendart:20260203800709:ed313b332a3523e971fe69da28ac11ccd4a42578bed6d27241d86ae46a091e24",
+            "quote": "5. 계약기간 종료일\t2026-02-28\t-",
+            "location": "20260203800709.xml:table-2:row:7",
+            "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20260203800709",
+            "published_at": "2026-02-03"
+          }
+        ]
+      }
+    ]
+  },
+  [
+    "출력 검사 가이드에서 추가 검토가 필요한 문장을 확인했습니다."
+  ]
+]

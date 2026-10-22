@@ -1,0 +1,98 @@
+[
+  {
+    "id": 1,
+    "kind": "STAGE",
+    "payload": "{\"stage\": \"REQUEST_VALIDATION\", \"payload\": {}}",
+    "at": 1792643592.310614
+  },
+  {
+    "id": 2,
+    "kind": "STAGE",
+    "payload": "{\"stage\": \"INPUT_COLLECTION\", \"payload\": {}}",
+    "at": 1792643592.311851
+  },
+  {
+    "id": 3,
+    "kind": "TOOL_END",
+    "payload": "{\"tool\": \"disclosure_get_document\", \"error\": null}",
+    "at": 1792643592.3133628
+  },
+  {
+    "id": 4,
+    "kind": "TOOL_END",
+    "payload": "{\"tool\": \"business_get_memo\", \"error\": null}",
+    "at": 1792643592.314228
+  },
+  {
+    "id": 5,
+    "kind": "STAGE",
+    "payload": "{\"stage\": \"RAG_PREPARATION\", \"payload\": {}}",
+    "at": 1792643592.315139
+  },
+  {
+    "id": 6,
+    "kind": "TOOL_END",
+    "payload": "{\"tool\": \"ensure_analysis_index\", \"error\": null}",
+    "at": 1792643592.318027
+  },
+  {
+    "id": 7,
+    "kind": "TOOL_END",
+    "payload": "{\"tool\": \"search_evidence\", \"error\": null}",
+    "at": 1792643592.318845
+  },
+  {
+    "id": 8,
+    "kind": "STAGE",
+    "payload": "{\"stage\": \"BASE_ANALYSIS\", \"payload\": {}}",
+    "at": 1792643592.321603
+  },
+  {
+    "id": 9,
+    "kind": "MODEL_END",
+    "payload": "{\"role\": \"base\", \"tokens\": 9967, \"elapsed\": 5.169416374992579}",
+    "at": 1792643597.506999
+  },
+  {
+    "id": 10,
+    "kind": "STAGE",
+    "payload": "{\"stage\": \"PERSPECTIVE_ANALYSIS\", \"payload\": {\"selected\": [{\"perspective_type\": \"INDUSTRY_CONTRACT\", \"selection_reason\": \"정정된 계약 규모와 취소 사유가 조선 수주 흐름과 계약 인식에 미치는 영향을 확인할 필요가 있습니다.\", \"question\": \"이번 정정으로 삼성중공업의 수주 인식과 조선업 수주 모멘텀 서술을 어느 범위까지 조정해야 합니까?\"}]}}",
+    "at": 1792643597.5114958
+  },
+  {
+    "id": 11,
+    "kind": "MODEL_END",
+    "payload": "{\"role\": \"perspective\", \"tokens\": 5330, \"elapsed\": 2.141931999998633}",
+    "at": 1792643599.684752
+  },
+  {
+    "id": 12,
+    "kind": "STAGE",
+    "payload": "{\"stage\": \"REPORT_GENERATION\", \"payload\": {}}",
+    "at": 1792643599.6936588
+  },
+  {
+    "id": 13,
+    "kind": "MODEL_END",
+    "payload": "{\"role\": \"report\", \"tokens\": 2887, \"elapsed\": 2.310690207988955}",
+    "at": 1792643602.007304
+  },
+  {
+    "id": 14,
+    "kind": "MODEL_END",
+    "payload": "{\"role\": \"output_check\", \"tokens\": 3370, \"elapsed\": 2.910191750037484}",
+    "at": 1792643604.929326
+  },
+  {
+    "id": 15,
+    "kind": "OUTPUT_CHECK_END",
+    "payload": "{\"candidates\": 7, \"accepted\": 7}",
+    "at": 1792643604.931893
+  },
+  {
+    "id": 16,
+    "kind": "TOOL_END",
+    "payload": "{\"tool\": \"business_save_report\", \"error\": null}",
+    "at": 1792643604.937865
+  }
+]

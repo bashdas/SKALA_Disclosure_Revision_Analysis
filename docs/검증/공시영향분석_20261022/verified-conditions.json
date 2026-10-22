@@ -1,0 +1,12 @@
+{
+  "model": "gpt-5.4-mini",
+  "temperature": "API default, omitted",
+  "seed": "omitted",
+  "input_sha256": "284089f9f4f82f8020c72c6385848c725799fc1e53d537155e1e6f2afec270b9",
+  "memo_version": 1,
+  "receipt": "20260203800709",
+  "source_commit": "1515e75ed865df26fb0f159a4f21473c411d76cd",
+  "settings": "production Harness budgets and output limits unchanged",
+  "tools": "captured actual filing/memo/RAG, deterministic local search, shared captured external responses, local report persistence",
+  "real_model": true
+}

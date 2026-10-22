@@ -38,6 +38,7 @@ class Proposal(Model):
     after_text: str | None
     reason: str
     evidence: list[Source]
+    calculation_basis: str | None = None
 
 
 class Selection(Model):
@@ -46,10 +47,16 @@ class Selection(Model):
     question: str
 
 
+class OmittedPerspective(Model):
+    perspective_type: Perspective
+    reason: str
+
+
 class BaseAnalysis(Model):
     summary: str
     proposals: list[Proposal]
     selected: list[Selection]
+    not_selected: list[OmittedPerspective] = Field(default_factory=list)
     no_additional_analysis_reason: str | None
     limitations: list[str]
 

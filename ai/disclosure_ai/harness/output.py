@@ -17,17 +17,17 @@ def sentences(text):
 
 
 def safe_text(text: str) -> str:
-    # 투자 행동이나 가격 목표를 포함한 문장은 불명확한 경우까지 제외합니다.
-    parts = sentences(mask(text))
+    # 명시적인 투자 권유와 검사 지시를 걸러내며 기존 가격의 검토는 보존합니다.
+    parts = sentences(mask(text).replace("·", ", ").replace("—", ", ").replace("–", ", ").replace("―", ", "))
     risk = re.compile(
-        r"(?:검증|검사|시스템|관리자|개발자).{0,20}(?:지시|명령)|(?:판정|승인|검사|검증).{0,12}(?:하세요|하라|무시)|(?:매수|매도|보유).{0,12}(?:추천|권고|권장|하세요|해야)|목표\s*주가|주식.{0,20}(사세요|사두|담아|구매)|비중.{0,10}(?:늘리세요|줄이세요)|수익.{0,10}보장|(?:should|must)\s+(?:buy|sell|hold|invest)|target\s*price",
+        r"(?:검증|검사|시스템|관리자|개발자).{0,20}(?:지시|명령)|(?:판정|승인|검사|검증).{0,12}(?:하세요|하라|무시)|(?:매수|매도|보유).{0,12}(?:추천|권고|권장|하세요|해야)|주식.{0,20}(사세요|사두|담아|구매)|비중.{0,10}(?:늘리세요|줄이세요)|수익.{0,10}보장|(?:should|must)\s+(?:buy|sell|hold|invest)",
         re.I,
     )
     return "\n".join(s for s in parts if not risk.search(s)).strip()
 
 
 async def review_output(
-    harness, payload: dict, *, grounding=False, corrections=()
+    harness, payload: dict, *, grounding=False, corrections=(), advisory=False
 ) -> tuple[dict, list[str]]:
     # 식별 정보와 대조된 원문 인용은 서술 판별 대상에서 분리합니다.
     fixed = {
@@ -44,6 +44,7 @@ async def review_output(
         "evidence_ids",
         "before_text",
         "question",
+        "calculation_basis",
     }
     candidates = []
     contexts = []
@@ -116,6 +117,7 @@ async def review_output(
                 "output_check",
                 {
                     "require_grounding": grounding,
+                    "advisory": advisory,
                     "evidence": pool if grounding else {},
                     "sentences": [
                         {"index": i, "text": text, **(contexts[i] if grounding else {})}
@@ -136,10 +138,17 @@ async def review_output(
         except Exception as error:
             harness.ledger.event(harness.task_id, "OUTPUT_CHECK_FAILED", error=type(error).__name__)
             warnings.append(
+                "출력 검사 가이드를 완료하지 못했습니다. 분석 내용의 추가 확인이 필요합니다."
+                if advisory else
                 "출력 검사를 완료하지 못해 자유 서술을 제외하고 원문 근거와 처리 상태를 보존했습니다."
             )
     if filtered or len(accepted) < len(candidates):
-        warnings.append("근거 또는 출력 안전성을 확인하지 못한 문장은 작성하지 않았습니다.")
+        warnings.append(
+            "출력 검사 가이드에서 추가 검토가 필요한 문장을 확인했습니다."
+            if advisory else "근거 또는 출력 안전성을 확인하지 못한 문장은 작성하지 않았습니다."
+        )
+    if advisory:
+        accepted = set(identities)
 
     def apply(value, key="", evidence=()):
         if key in fixed:

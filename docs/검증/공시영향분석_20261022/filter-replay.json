@@ -1,0 +1,17 @@
+[
+  {
+    "input": "기존 목표주가 35,000원의 산정 전제를 재검토할 필요가 있습니다.",
+    "before": "",
+    "after": "기존 목표주가 35,000원의 산정 전제를 재검토할 필요가 있습니다."
+  },
+  {
+    "input": "기존 목표주가 산정에 이번 계약 변경이 반영되었는지 확인되지 않아 금액 판단을 보류합니다.",
+    "before": "",
+    "after": "기존 목표주가 산정에 이번 계약 변경이 반영되었는지 확인되지 않아 금액 판단을 보류합니다."
+  },
+  {
+    "input": "Review the existing target price assumptions.",
+    "before": "",
+    "after": "Review the existing target price assumptions."
+  }
+]

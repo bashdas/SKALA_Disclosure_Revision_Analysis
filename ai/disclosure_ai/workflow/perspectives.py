@@ -4,7 +4,7 @@ from langgraph.types import Send
 from disclosure_ai.errors import LimitReached
 from disclosure_ai.schemas import PerspectiveAnswer
 from disclosure_ai.services.business import RunCancelled
-from disclosure_ai.services.documents import analysis_context, validated_sources
+from disclosure_ai.services.documents import model_context, validated_sources
 
 
 def selected(state):
@@ -37,15 +37,14 @@ async def perspective(run, state):
             {
                 "selection": selection,
                 "request": state["request"],
-                "memo": state.get("memo", {}),
-                "base": state["base"],
-                "context": analysis_context(state.get("filing", {}), state["context"]),
+                "base": {"selected": state["base"].get("selected", [])},
+                **model_context(state.get("filing", {}), state["context"], state.get("memo", {})),
                 "observations": observations,
             },
             PerspectiveAnswer,
         )
         result = answer.model_dump()
-        if result["status"] == "NEEDS_TOOLS" and result["requests"]:
+        if result["status"] in {"NEEDS_TOOLS", "INSUFFICIENT_EVIDENCE"} and result["requests"]:
             return {
                 "jobs": {
                     kind: {
@@ -61,6 +60,10 @@ async def perspective(run, state):
         result["sources"] = validated_sources(
             result["sources"], state["documents"], state["context"]
         )
+        if (result["status"] == "INSUFFICIENT_EVIDENCE"
+                and result["sources"] and result["findings"].strip()):
+            result["status"] = "COMPLETED"
+            limits = [*limits, "확인된 범위의 부분 분석을 작성했습니다. 미확인 사항은 추가 검토가 필요합니다."]
         if not result["sources"]:
             result["status"] = "INSUFFICIENT_EVIDENCE"
             limits = [*limits, "검증 가능한 출처가 없습니다."]
