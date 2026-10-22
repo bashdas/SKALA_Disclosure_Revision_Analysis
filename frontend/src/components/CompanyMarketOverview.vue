@@ -104,7 +104,6 @@ const chartDate = (value?: string) => (value ? value.slice(4, 6) + '.' + value.s
         </div>
         <button v-if="error" class="text-button small" @click="refresh">시세 다시 조회</button>
       </div>
-
     </div>
     <div class="company-market-panel">
       <div class="company-price-chart" :class="direction">
@@ -122,21 +121,52 @@ const chartDate = (value?: string) => (value ? value.slice(4, 6) + '.' + value.s
         </template>
       </div>
       <dl v-if="!loading" class="company-day-prices">
-        <div><dt>시가</dt><dd>{{ money(quote?.openPrice) }}</dd></div>
-        <div><dt>고가</dt><dd class="up">{{ money(quote?.highPrice) }}</dd></div>
-        <div><dt>저가</dt><dd class="down">{{ money(quote?.lowPrice) }}</dd></div>
+        <div>
+          <dt>시가</dt>
+          <dd>{{ money(quote?.openPrice) }}</dd>
+        </div>
+        <div>
+          <dt>고가</dt>
+          <dd class="up">{{ money(quote?.highPrice) }}</dd>
+        </div>
+        <div>
+          <dt>저가</dt>
+          <dd class="down">{{ money(quote?.lowPrice) }}</dd>
+        </div>
       </dl>
       <SkeletonState v-if="loading" variant="stats" />
       <template v-else>
         <dl class="company-market-stats">
-          <div><dt>거래대금</dt><dd>{{ amount(quote?.tradingValue) }}</dd></div>
-          <div><dt>1개월 최고 종가</dt><dd>{{ series.length ? money(Math.max(...series)) : '자료 없음' }}</dd></div>
-          <div><dt>거래량</dt><dd>{{ quote?.volume == null ? '자료 없음' : formatter.format(quote.volume) + '주' }}</dd></div>
+          <div>
+            <dt>거래대금</dt>
+            <dd>{{ amount(quote?.tradingValue) }}</dd>
+          </div>
+          <div>
+            <dt>1개월 최고 종가</dt>
+            <dd>{{ series.length ? money(Math.max(...series)) : '자료 없음' }}</dd>
+          </div>
+          <div>
+            <dt>거래량</dt>
+            <dd>
+              {{ quote?.volume == null ? '자료 없음' : formatter.format(quote.volume) + '주' }}
+            </dd>
+          </div>
         </dl>
         <dl class="company-market-stats">
-          <div><dt>시가총액</dt><dd>{{ amount(quote?.marketCap) }}</dd></div>
-          <div><dt>1개월 최저 종가</dt><dd>{{ series.length ? money(Math.min(...series)) : '자료 없음' }}</dd></div>
-          <div><dt>산업군</dt><dd>{{ sector || company.sector || '분류 없음' }}</dd></div>
+          <div>
+            <dt>시가총액</dt>
+            <dd>{{ amount(quote?.marketCap) }}</dd>
+          </div>
+          <div>
+            <dt>1개월 최저 종가</dt>
+            <dd>{{ series.length ? money(Math.min(...series)) : '자료 없음' }}</dd>
+          </div>
+          <div class="company-sector-row">
+            <dt>산업군</dt>
+            <dd :title="sector || company.sector || '분류 없음'">
+              {{ sector || company.sector || '분류 없음' }}
+            </dd>
+          </div>
         </dl>
       </template>
     </div>
@@ -144,73 +174,76 @@ const chartDate = (value?: string) => (value ? value.slice(4, 6) + '.' + value.s
 </template>
 <style scoped>
 .company-market {
-  display: grid;
-  grid-template-columns: minmax(260px, 0.85fr) minmax(0, 1.4fr);
-  align-items: start;
-  gap: 48px;
-}
-.company-name-row {
   display: flex;
-  align-items: center;
-  gap: 12px;
+  flex-direction: column;
+  gap: 16px;
 }
 .company-market-identity {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
   min-width: 0;
 }
 .company-market-name {
   display: flex;
-  gap: 18px;
   align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.company-market-name > div {
   min-width: 0;
 }
 .company-market-name .company-logo {
-  width: 64px;
-  height: 64px;
-  border-radius: 16px;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
 }
 .company-market-name h1 {
-  font-size: clamp(22px, 2.3vw, 30px);
-  line-height: 1.3;
+  font-size: 22px;
+  line-height: 1.25;
   overflow-wrap: anywhere;
 }
 .company-market-name p {
-  margin-bottom: 6px;
+  margin-bottom: 3px;
+  font-size: 11px;
+  line-height: 16px;
   font-variant-numeric: tabular-nums;
 }
-.company-market-panel {
-  min-width: 0;
-  display: grid;
-  grid-template-columns: 190px minmax(0, 1fr);
-  gap: 32px;
-  align-items: start;
-  padding-top: 4px;
+.company-name-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.company-name-row :deep(.favorite-button) {
+  width: 28px;
+  height: 28px;
 }
 .company-current-price {
-  margin-top: 24px;
   min-width: 0;
-}
-.company-metric-label {
-  color: var(--muted);
-  font-size: 12px;
-  margin-bottom: 8px;
+  flex-shrink: 0;
+  text-align: right;
 }
 .company-market-price {
   display: flex;
-  flex-wrap: wrap;
   align-items: baseline;
-  gap: 5px 10px;
+  justify-content: flex-end;
+  gap: 8px;
   font-variant-numeric: tabular-nums;
 }
 .company-market-price strong {
-  font-size: 38px;
+  font-size: 30px;
+  line-height: 1.2;
   letter-spacing: -0.035em;
   font-weight: 650;
   color: var(--ink);
   white-space: nowrap;
 }
 .company-market-price span {
-  font-size: 15px;
+  font-size: 13px;
+  line-height: 18px;
   font-weight: 600;
+  white-space: nowrap;
 }
 .up {
   color: var(--up);
@@ -218,24 +251,34 @@ const chartDate = (value?: string) => (value ? value.slice(4, 6) + '.' + value.s
 .down {
   color: var(--down);
 }
-.company-price-chart {
+.company-market-panel {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  align-items: center;
   min-width: 0;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
 }
-.company-chart-heading {
-  color: var(--muted);
-  font-size: 11px;
-  margin-bottom: 9px;
-  text-align: right;
+.company-market-panel > * {
+  min-width: 0;
+  padding-inline: 18px;
 }
-.company-chart-dates {
+.company-market-panel > :first-child {
+  padding-left: 0;
+}
+.company-market-panel > :last-child {
+  padding-right: 0;
+}
+.company-market-panel > :not(:first-child) {
+  border-left: 1px solid var(--line);
+}
+.company-price-chart {
   display: flex;
-  justify-content: space-between;
-  color: var(--muted);
-  font-size: 10px;
-  margin-top: 7px;
-  font-variant-numeric: tabular-nums;
+  flex-direction: column;
+  justify-content: center;
 }
-.company-price-chart :deep(.market-sparkline) {
+.company-price-chart :deep(.market-sparkline),
+.company-price-chart :deep(.sk-chart-area) {
   width: 100%;
   height: 88px;
 }
@@ -245,142 +288,145 @@ const chartDate = (value?: string) => (value ? value.slice(4, 6) + '.' + value.s
   height: 88px;
   font-size: 11px;
 }
+.company-chart-dates {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.company-day-prices,
 .company-market-stats {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 26px 28px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
   margin: 0;
 }
+.company-day-prices > div,
 .company-market-stats > div {
-  min-width: 0;
   display: grid;
-  gap: 5px;
+  grid-template-columns: minmax(0, 1fr) max-content;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
 }
+.company-day-prices dt,
 .company-market-stats dt {
   color: var(--muted);
-  font-size: 12px;
+  font-size: 11px;
+  line-height: 16px;
+  word-break: keep-all;
 }
+.company-day-prices dd,
 .company-market-stats dd {
   margin: 0;
-  color: var(--ink);
-  font-size: 17px;
+  font-size: 13px;
+  line-height: 20px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
-  overflow-wrap: anywhere;
+  text-align: right;
+  white-space: nowrap;
 }
-.company-market-stats .company-sector-stat {
-  grid-column: auto;
+.company-market-stats dd {
+  color: var(--ink);
 }
-@media (max-width: 1000px) {
+.company-market-stats .company-sector-row {
+  grid-template-columns: max-content minmax(0, 1fr);
+}
+.company-sector-row dd {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.company-market-panel > .skeleton-stats {
+  grid-column: 2 / -1;
+}
+@media (max-width: 900px) {
   .company-market {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 28px;
+    gap: 12px;
   }
   .company-market-panel {
-    grid-template-columns: 190px minmax(0, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    row-gap: 10px;
+  }
+  .company-market-panel > :nth-child(3) {
+    padding-left: 0;
+    border-left: 0;
+  }
+  .company-market-panel > :nth-child(even) {
+    padding-right: 0;
+  }
+  .company-day-prices,
+  .company-market-stats {
+    gap: 8px;
   }
 }
 @media (max-width: 650px) {
   .company-market {
-    gap: 24px;
+    gap: 12px;
+  }
+  .company-market-identity {
+    gap: 12px;
+  }
+  .company-market-name {
+    gap: 10px;
   }
   .company-market-name .company-logo {
-    width: 52px;
-    height: 52px;
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
   }
-  .company-market-panel {
-    grid-template-columns: 130px minmax(0, 1fr);
-    gap: 20px;
+  .company-market-name h1 {
+    font-size: 18px;
+  }
+  .company-name-row {
+    gap: 4px;
+  }
+  .company-market-price {
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0;
   }
   .company-market-price strong {
-    font-size: 32px;
+    font-size: 24px;
   }
-  .company-current-price {
-    margin-top: 20px;
+  .company-market-price span {
+    font-size: 12px;
+    line-height: 16px;
   }
-  .company-market-stats {
-    gap: 18px 16px;
+  .company-market-panel {
+    padding-top: 12px;
+    row-gap: 12px;
   }
+  .company-market-panel > * {
+    padding-inline: 10px;
+  }
+  .company-market-panel > :nth-child(odd) {
+    padding-left: 0;
+  }
+  .company-market-panel > :nth-child(even) {
+    padding-right: 0;
+  }
+  .company-day-prices > div,
+  .company-market-stats > div {
+    gap: 6px;
+  }
+  .company-day-prices dt,
   .company-market-stats dt {
-    font-size: 11px;
+    font-size: 10px;
+    line-height: 14px;
   }
+  .company-day-prices dd,
   .company-market-stats dd {
-    font-size: 14px;
+    font-size: 12px;
+    line-height: 18px;
   }
-  .company-price-chart :deep(.market-sparkline) {
+  .company-price-chart :deep(.market-sparkline),
+  .company-price-chart :deep(.market-chart-empty),
+  .company-price-chart :deep(.sk-chart-area) {
     height: 72px;
   }
-}
-.company-day-prices { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin: 24px 0 0; max-width: 380px; }
-.company-day-prices dt { color: var(--muted); font-size: 12px; margin-bottom: 7px; }
-.company-day-prices dd { margin: 0; font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums; }
-
-/* 기업 식별 정보와 가격을 상단에, 차트와 지표를 하단에 묶습니다. */
-.company-market { display: flex; flex-direction: column; gap: 32px; }
-.company-market-identity { display: flex; justify-content: space-between; align-items: flex-start; gap: 32px; width: 100%; }
-.company-current-price { margin: 0; text-align: right; }
-.company-market-price { justify-content: flex-end; }
-.company-market-panel { width: 100%; grid-template-columns: 190px 204px minmax(0, 1fr); gap: 32px; padding: 28px 0 8px; border-top: 1px solid var(--line); }
-.company-day-prices { display: grid; grid-template-columns: 1fr; gap: 16px; max-width: none; margin: 0; padding-left: 24px; padding-right: 28px; border-right: 1px solid var(--line); }
-.company-day-prices > div { display: grid; grid-template-columns: 32px auto; gap: 12px; align-items: baseline; }
-.company-day-prices dt { margin: 0; }
-.company-market-stats { gap: 18px 32px; }
-.company-market-stats > div { display: grid; grid-template-columns: 112px auto; justify-content: start; align-items: baseline; gap: 12px; }
-.company-market-stats dd { font-size: 15px; text-align: left; }
-@media (max-width: 1000px) {
- .company-market-panel { grid-template-columns: 190px minmax(0, 1fr); }
- .company-day-prices { padding-right: 0; border: 0; }
- .company-market-stats, .company-market-panel > .skeleton-stats { grid-column: 1 / -1; }
-}
-@media (max-width: 650px) {
- .company-market-identity { align-items: flex-start; flex-direction: column; gap: 24px; }
- .company-current-price { text-align: left; }
- .company-market-price { justify-content: flex-start; }
- .company-market-panel { grid-template-columns: 130px minmax(0, 1fr); gap: 24px; padding-top: 24px; }
- .company-market-stats { grid-column: 1 / -1; gap: 18px 24px; }
- .company-market-stats > div { grid-template-columns: 1fr; gap: 6px; }
- .company-market-stats dd { text-align: left; font-size: 15px; }
-}
-
-.company-market-panel { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; align-items: stretch; }
-.company-market-panel > * { padding-inline: 32px; min-width: 0; }
-.company-market-panel > :first-child { padding-left: 0; }
-.company-market-panel > :last-child { padding-right: 0; }
-.company-market-panel > :not(:first-child) { border-left: 1px solid var(--line); }
-.company-day-prices { border-right: 0; }
-.company-price-chart :deep(.market-sparkline), .company-chart-dates { width: 100%; max-width: 100%; }
-.company-market-stats { grid-template-columns: 1fr; gap: 16px; }
-@media(max-width: 1000px) {
- .company-market-panel { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 28px; }
- .company-market-stats { grid-column: auto; }
- .company-market-panel > :nth-child(3) { border-left: 0; padding-left: 0; }
-}
-@media(max-width: 650px) {
- .company-market-panel > * { padding-inline: 20px; }
- .company-market-panel > :first-child, .company-market-panel > :nth-child(3) { padding-left: 0; }
- .company-market-panel > :nth-child(even) { padding-right: 0; }
- .company-price-chart :deep(.market-sparkline), .company-chart-dates { width: 100%; }
- .company-market-stats > div { grid-template-columns: 1fr; }
-}
-
-.company-market-panel > .company-price-chart,
-.company-market-panel > .company-day-prices,
-.company-market-panel > .company-market-stats { padding-inline: 24px; }
-.company-price-chart { display: flex; flex-direction: column; justify-content: center; align-items: flex-start; }
-.company-market-panel > .company-price-chart { padding-left: 0; }
-.company-price-chart :deep(.market-sparkline), .company-chart-dates { margin-inline: 0; }
-.company-day-prices, .company-market-stats { justify-content: center; align-content: center; grid-template-columns: minmax(0, 1fr); }
-.company-day-prices > div, .company-market-stats > div { display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: 12px; width: 100%; }
-.company-day-prices dd, .company-market-stats dd { text-align: right; }
-.company-market-panel > .company-market-stats:last-child { padding-right: 24px; justify-content: end; }
-@media(max-width: 650px) {
- .company-market-panel > .company-price-chart,
- .company-market-panel > .company-day-prices,
- .company-market-panel > .company-market-stats { padding-inline: 12px; }
- .company-market-panel > .company-price-chart { padding-left: 0; }
- .company-market-panel > .company-market-stats:last-child { padding-right: 12px; }
- .company-day-prices > div { grid-template-columns: 28px minmax(0, 1fr); gap: 8px; }
- .company-market-stats > div { grid-template-columns: 1fr; gap: 6px; }
- .company-market-stats dd { text-align: left; }
 }
 </style>

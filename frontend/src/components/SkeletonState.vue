@@ -725,34 +725,47 @@ withDefaults(
 .skeleton-directory .sk-page-heading {
   margin-bottom: 17px;
 }
-.sk-day-prices { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 16px; margin-top: 24px; max-width: 380px; height: 40px; align-items: end; }
-
-.sk-company-main { display: flex; flex-direction: column; gap: 32px; }
-.sk-company-identity { display: flex; justify-content: space-between; align-items: flex-start; gap: 32px; width: 100%; }
+.sk-company-main { display: flex; flex-direction: column; gap: 16px; }
+.sk-company-identity { display: flex; justify-content: space-between; align-items: center; gap: 20px; width: 100%; }
+.sk-company-name { gap: 12px; min-width: 0; }
+.sk-company-name .sk-logo { width: 44px; height: 44px; border-radius: 12px !important; }
+.sk-company-name .sk-caption { width: 48px; height: 10px; }
+.sk-company-name .sk-page-title { width: 100px; height: 22px; }
 .sk-identity-price { margin: 0; }
-.sk-company-panel { width: 100%; grid-template-columns: 190px 204px minmax(0, 1fr); gap: 32px; padding: 28px 0 8px; border-top: 1px solid var(--line); }
-.sk-day-prices { display: grid; grid-template-columns: 1fr; gap: 16px; margin: 0; height: 113px; padding-left: 24px; padding-right: 28px; }
-@media(max-width: 1000px) { .sk-company-panel { grid-template-columns: 190px minmax(0, 1fr); } .sk-company-panel > .skeleton-stats { grid-column: 1 / -1; } }
-@media(max-width: 650px) { .sk-company-identity { align-items: flex-start; flex-direction: column; gap: 24px; } .sk-company-panel { grid-template-columns: 130px minmax(0,1fr); gap: 24px; padding-top: 24px; } }
-
-.sk-company-panel { grid-template-columns: repeat(4, minmax(0,1fr)); gap: 0; }
-.sk-company-panel > * { padding-inline: 32px; min-width: 0; }
+.sk-identity-price :deep(.sk-price-row) { margin-top: 0; gap: 8px; }
+.sk-identity-price :deep(.sk-price) { width: 130px; height: 30px; margin: 0; }
+.sk-identity-price :deep(.sk-delta) { width: 48px; height: 14px; }
+.sk-company-panel { width: 100%; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; align-items: center; padding: 14px 0 0; border-top: 1px solid var(--line); }
+.sk-company-panel > * { padding-inline: 18px; min-width: 0; }
 .sk-company-panel > :first-child { padding-left: 0; }
-.sk-company-panel > :last-child { padding-right: 24px; }
+.sk-company-panel > :last-child { padding-right: 0; }
 .sk-company-panel > :not(:first-child) { border-left: 1px solid var(--line); }
-.sk-company-panel :deep(.sk-chart-area), .sk-company-panel :deep(.sk-chart-dates) { width: 100%; max-width: 100%; }
-.sk-company-panel :deep(.sk-stats) { grid-template-columns: 1fr; }
-@media(max-width: 1000px) { .sk-company-panel { grid-template-columns: repeat(2,minmax(0,1fr)); row-gap: 28px; } .sk-company-panel > .skeleton-stats { grid-column: auto; } .sk-company-panel > :nth-child(3) { border: 0; padding-left: 0; } }
-@media(max-width: 650px) { .sk-company-panel > * { padding-inline: 20px; } .sk-company-panel > :first-child, .sk-company-panel > :nth-child(3) { padding-left: 0; } .sk-company-panel > :nth-child(even) { padding-right: 0; } .sk-company-panel :deep(.sk-chart-area), .sk-company-panel :deep(.sk-chart-dates) { width: 100%; } }
-
-.sk-company-panel > * { padding-inline: 24px; }
-.sk-company-panel :deep(.sk-chart-area), .sk-company-panel :deep(.sk-chart-dates) { margin-inline: 0; }
-.sk-company-panel :deep(.sk-stats), .sk-day-prices { justify-content: center; }
-@media(max-width: 650px) { .sk-company-panel > * { padding-inline: 12px; } }
-
-.sk-company-panel > :first-child { padding-left: 0; display: flex; flex-direction: column; justify-content: center; }
-.sk-company-panel > :last-child { padding-right: 24px; }
-.sk-company-panel > :last-child :deep(.sk-stats) { justify-content: end; }
-.sk-company-panel :deep(.sk-stats) { grid-template-columns: minmax(0,1fr); }
-@media(max-width: 650px) { .sk-company-panel > :last-child { padding-right: 12px; } }
+.sk-company-panel > .skeleton-stats { grid-column: auto; }
+.sk-company-panel :deep(.sk-chart-area) { width: 100%; height: 88px; }
+.sk-company-panel :deep(.sk-chart-dates) { margin-top: 4px; }
+.sk-company-panel :deep(.sk-stats) { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+.sk-company-panel :deep(.sk-stats .sk-copy) { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: center; gap: 8px; }
+.sk-company-panel :deep(.sk-stats .sk-copy .skeleton) { max-width: 100%; }
+.sk-day-prices { display: grid; grid-template-columns: 1fr; gap: 10px; margin: 0; height: 80px; align-content: space-between; }
+@media (max-width: 900px) {
+  .sk-company-main { gap: 12px; }
+  .sk-company-panel { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 10px; }
+  .sk-company-panel > :nth-child(3) { padding-left: 0; border-left: 0; }
+  .sk-company-panel > :nth-child(even) { padding-right: 0; }
+}
+@media (max-width: 650px) {
+  .sk-company-main { gap: 12px; }
+  .sk-company-identity { gap: 12px; }
+  .sk-company-name { gap: 10px; }
+  .sk-company-name .sk-logo { width: 36px; height: 36px; }
+  .sk-company-name .sk-page-title { width: 72px; height: 18px; }
+  .sk-identity-price :deep(.sk-price-row) { flex-direction: column; align-items: flex-end; gap: 4px; }
+  .sk-identity-price :deep(.sk-price) { width: 108px; height: 26px; }
+  .sk-company-panel { padding-top: 12px; row-gap: 12px; }
+  .sk-company-panel > * { padding-inline: 10px; }
+  .sk-company-panel > :nth-child(odd) { padding-left: 0; }
+  .sk-company-panel > :nth-child(even) { padding-right: 0; }
+  .sk-company-panel :deep(.sk-chart-area) { height: 72px; }
+  .sk-company-panel :deep(.sk-stats) { gap: 8px; }
+}
 </style>

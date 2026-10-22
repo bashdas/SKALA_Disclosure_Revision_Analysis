@@ -3062,29 +3062,24 @@ label > .ui-date {
 .analysis-field > .select-field, label > .select-field { margin-top: 7px; }
 .version-label .select-field { width: 100px; }
 
-/* 상세의 실제 화면과 대기 화면에 같은 상단 간격을 적용합니다. */
+/* 상세의 실제 화면과 대기 화면을 같은 높이의 간결한 상단으로 표시합니다. */
 .company-workspace-header,
 .company-main .skeleton-company .sk-company-header {
-  padding-top: 72px;
+  padding-block: 24px;
 }
 .findings-section + .source-list {
   margin-top: 32px;
 }
-@media (max-width: 650px) {
+@media (max-width: 900px) {
   .company-workspace-header,
   .company-main .skeleton-company .sk-company-header {
-    padding-top: 48px;
+    padding-block: 20px;
   }
 }
-
-.company-workspace-header,
-.company-main .skeleton-company .sk-company-header {
-  padding-bottom: 64px;
-}
 @media (max-width: 650px) {
   .company-workspace-header,
   .company-main .skeleton-company .sk-company-header {
-    padding-bottom: 48px;
+    padding-block: 16px;
   }
 }
 
