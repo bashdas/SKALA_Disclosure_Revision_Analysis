@@ -7,10 +7,18 @@ name = "disclosure-ai"
 version = "0.1.0"
 requires-python = ">=3.12"
 dependencies = [
-  "fastapi>=0.115,<1", "uvicorn>=0.34,<1", "httpx>=0.28,<1",
-  "pika>=1.3.2,<1.4", "mcp>=1.30,<2", "openai>=2,<3", "langgraph>=1,<2",
-  "langgraph-checkpoint-sqlite>=3,<4", "tiktoken>=0.9,<1",
-  "defusedxml>=0.7,<1", "beautifulsoup4>=4.13,<5"
+  "fastapi>=0.115,<1",
+  "uvicorn>=0.34,<1",
+  "httpx>=0.28,<1",
+  "pika>=1.3.2,<1.4",
+  "mcp>=1.30,<2",
+  "openai>=2,<3",
+  "langgraph>=1,<2",
+  "langgraph-checkpoint-sqlite>=3,<4",
+  "tiktoken>=0.9,<1",
+  "defusedxml>=0.7,<1",
+  "beautifulsoup4>=4.13,<5",
+  "langsmith>=0.14.11",
 ]
 [project.scripts]
 disclosure-ai-worker = "disclosure_ai.entrypoints.worker:main"

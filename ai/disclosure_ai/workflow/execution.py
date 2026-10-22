@@ -2,6 +2,8 @@ import asyncio
 import json
 from types import SimpleNamespace
 
+from langsmith import traceable
+
 from disclosure_ai.harness.transport import bind
 from disclosure_ai.services.business import RunCancelled
 from disclosure_ai.workflow import reporting
@@ -17,6 +19,29 @@ def checkpoint_values(snapshot, fallback):
 
 
 async def execute(graph, harness, tools, config, initial, request, scope):
+    metadata = {
+        **config.get("metadata", {}),
+        "task_id": harness.task_id,
+        "thread_id": harness.task_id,
+        "disclosure_receipt_no": request.get("disclosure_receipt_no"),
+    }
+    config = {**config, "metadata": metadata}
+    return await _execute(
+        graph, harness, tools, config, initial, request, scope,
+        langsmith_extra={"metadata": metadata, "tags": ["disclosure-ai"]},
+    )
+
+
+@traceable(
+    name="disclosure-analysis",
+    process_inputs=lambda inputs: {"task_id": inputs["harness"].task_id},
+    process_outputs=lambda output: {
+        "status": output.get("output", {}).get("status"),
+        "error": output.get("output", {}).get("error"),
+        "warnings": output.get("warnings", []),
+    },
+)
+async def _execute(graph, harness, tools, config, initial, request, scope):
     with bind(harness):
         try:
             async with asyncio.timeout(max(0.001, harness.remaining(True))):

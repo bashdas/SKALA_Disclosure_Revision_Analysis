@@ -79,6 +79,11 @@ services:
       context: ../ai
       dockerfile: Dockerfile
     environment:
+      LANGSMITH_TRACING: ${LANGSMITH_TRACING:-false}
+      LANGSMITH_API_KEY: ${LANGSMITH_API_KEY:-}
+      LANGSMITH_PROJECT: ${LANGSMITH_PROJECT:-disclosure-ai-dev}
+      LANGSMITH_ENDPOINT: ${LANGSMITH_ENDPOINT:-https://api.smith.langchain.com}
+      LANGSMITH_WORKSPACE_ID: ${LANGSMITH_WORKSPACE_ID:-}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       OPENAI_MODEL: ${OPENAI_MODEL:-gpt-5.4-mini}
       RABBITMQ_URL: ${RABBITMQ_URL:?Configure RabbitMQ}

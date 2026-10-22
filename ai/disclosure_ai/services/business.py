@@ -8,6 +8,7 @@ from contextlib import asynccontextmanager
 from uuid import UUID
 
 import httpx
+from langsmith import traceable
 from mcp import ClientSession
 from mcp.client.streamable_http import streamable_http_client
 
@@ -38,6 +39,7 @@ async def connect(url: str, headers: dict | None = None):
                 yield session
 
 
+@traceable(run_type="tool", name="mcp-call")
 async def mcp_call(service: str, name: str, args: dict) -> dict:
     ports = {"BUSINESS": 8081, "EXTERNAL": 8083, "RAG": 8082}
     url = os.environ.get(service + "_MCP_URL", f"http://127.0.0.1:{ports[service]}/mcp")

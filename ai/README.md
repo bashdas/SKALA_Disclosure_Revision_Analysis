@@ -1,5 +1,32 @@
 # 정정공시 메모 영향 분석
 
+## LangSmith 추적
+
+`ai/.env`에 `LANGSMITH_TRACING=true`, `LANGSMITH_API_KEY`,
+`LANGSMITH_PROJECT=disclosure-ai-dev`를 설정합니다. 키는 커밋하지 않습니다.
+워크스페이스나 리전에 따라 `LANGSMITH_WORKSPACE_ID`, `LANGSMITH_ENDPOINT`도 설정합니다.
+프로젝트 루트에서 다음 명령으로 환경변수를 전달해 worker를 실행합니다.
+
+```bash
+cd ai
+uv run --env-file .env python -m disclosure_ai.entrypoints.worker --state outputs/ai-state.sqlite
+```
+
+`.env`는 Python 진입점에서 자동으로 읽지 않습니다. 기존 worker는 환경변수를 적용해
+다시 실행해야 합니다. Docker Compose를 사용하면 `backend/.env`에도 LangSmith 설정을
+추가하고 `backend`에서 `docker compose up -d --build ai-worker`를 실행합니다.
+
+분석은 `disclosure-analysis` trace로 기록되고, 그래프 노드와 OpenAI 및 MCP 호출은
+하위 run으로 기록됩니다. `task_id` 메타데이터로 검색하고 같은 작업의 실행은
+`thread_id=task_id`로 묶습니다. 체크포인트 복구용 ID는 기존 값을 유지합니다.
+최상위 trace 출력에는 업무 상태와 경고를 기록합니다. 복구된 실패는 예외 대신
+`SAVE_FAILED` 같은 결과로 반환될 수 있으므로 trace 성공 여부와 업무 상태를 함께 확인합니다.
+MCP 서버 내부 처리와 분석을 생략한 별도 보고서 재저장 경로는 이 분석 trace 범위 밖입니다.
+
+그래프 상태, 모델 프롬프트와 도구 결과에는 메모와 공시 원문이 포함될 수 있습니다.
+본문을 전송하지 않으려면 `LANGSMITH_HIDE_INPUTS=true`, `LANGSMITH_HIDE_OUTPUTS=true`를
+설정합니다. 로컬 SQLite ledger와 체크포인트는 복구용으로 계속 사용합니다.
+
 ## 1. 실습 또는 과제 요구사항
 
 강의 자료 `AI-Agent Capstone(+MCP).pdf`의 69쪽부터 73쪽까지와 첨부 흐름도를 기준으로 구현했습니다. 고정된 메모와 정정공시를 분석하고, 필요한 관점만 병렬로 실행한 뒤 근거를 포함한 보고서를 자동 저장합니다. 원래 메모는 수정하지 않습니다.

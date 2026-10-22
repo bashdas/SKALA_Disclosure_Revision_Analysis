@@ -5,6 +5,7 @@ import time
 from pathlib import Path
 
 import tiktoken
+from langsmith.wrappers import wrap_openai
 from openai import APIConnectionError, APIStatusError, AsyncOpenAI, LengthFinishReasonError
 from pydantic import ValidationError
 
@@ -131,7 +132,7 @@ class Harness:
                         )
                     else:
                         if self.client is None:
-                            self.client = AsyncOpenAI(max_retries=0)
+                            self.client = wrap_openai(AsyncOpenAI(max_retries=0))
                         response = await self.client.chat.completions.parse(
                             model=os.environ.get("OPENAI_MODEL", "gpt-5.4-mini"),
                             messages=messages,
