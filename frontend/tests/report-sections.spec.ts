@@ -75,7 +75,7 @@ ${result}
 
 ## 향후 영향과 조건
 
-계약 이행 여부를 추가로 확인합니다.
+- 조건: 계약 이행 여부가 확인되는 경우입니다. 예상 영향: 회수 일정을 재검토합니다. [근거6]
 
 ## 확인 범위와 남은 질문
 
@@ -155,16 +155,33 @@ test.beforeEach(async ({ page }) => {
   })
 })
 
-test('하나의 보고서 안에서 관점과 메모수정 제안을 중복 없이 읽고 접고 펼칩니다', async ({
+test('보고서는 항상 펼치고 선택 관점 안내 없이 분석 결과와 출처 토글을 유지합니다', async ({
   page,
 }) => {
   await page.goto('/analyses/report-task')
   const reportView = page.locator('.unified-report')
   await expect(page.locator('.progress-section')).toHaveCount(0)
-  await expect(reportView.getByRole('heading', { name: '선택한 분석 관점' })).toBeVisible()
-  await expect(reportView.locator('.analysis-perspectives')).toContainText(selectionReason)
-  await expect(reportView.locator('.analysis-perspectives')).not.toContainText(result)
-  for (const text of [selectionReason, result, beforeText, afterText, reason])
+  const title = reportView.getByRole('heading', { name: '공시 영향 분석 보고서', exact: true })
+  await expect(title).toHaveCount(1)
+  await expect(title.locator('.report-section-title')).toHaveCSS('font-size', '26px')
+  await expect(reportView.locator('.markdown-body h1')).toHaveCount(0)
+  expect(
+    (await reportView.locator('.unified-report-content h2').allTextContents()).map((text) =>
+      text.trim(),
+    ),
+  ).toEqual([
+    '핵심 요약',
+    '확인된 공시 내용',
+    '관점별 분석',
+    '향후 영향과 조건',
+    '메모수정 제안 1',
+    '확인 범위와 남은 질문',
+    '출처와 원문 인용',
+  ])
+  await expect(reportView.getByRole('heading', { name: '선택한 분석 관점' })).toHaveCount(0)
+  await expect(reportView.locator('.analysis-perspectives')).toHaveCount(0)
+  await expect(reportView.getByText(selectionReason, { exact: true })).toHaveCount(0)
+  for (const text of [result, beforeText, afterText, reason])
     await expect(reportView.getByText(text, { exact: true })).toHaveCount(1)
   await expect(
     reportView.getByRole('heading', { name: '메모수정 제안 1', exact: true }),
@@ -178,9 +195,11 @@ test('하나의 보고서 안에서 관점과 메모수정 제안을 중복 없�
       '.source-list, .perspectives-section, .findings-section, .report-summary, .report-body',
     ),
   ).toHaveCount(0)
-  await expect(reportView.locator('.unified-report-content > :last-child')).toHaveClass(
-    /report-perspectives/,
-  )
+  const scenario = reportView
+    .locator('.markdown-body li')
+    .filter({ hasText: '계약 이행 여부가 확인되는 경우입니다.' })
+  await expect(scenario.locator('br')).toHaveCount(1)
+  await expect(scenario).toContainText('예상 영향: 회수 일정을 재검토합니다.')
   const chip = reportView.locator('.evidence-chips button').first()
   await expect(chip).toHaveText('근거 1')
   await chip.click()
@@ -201,20 +220,20 @@ test('하나의 보고서 안에서 관점과 메모수정 제안을 중복 없�
     'https://example.com/original',
   )
   await sourceToggle.click()
-  const toggle = reportView.getByRole('button', { name: '검토 보고서', exact: true })
-  await expect(toggle).toHaveCount(1)
-  await expect(toggle).toHaveAttribute('aria-expanded', 'true')
-  await toggle.click()
-  await expect(toggle).toHaveAttribute('aria-expanded', 'false')
-  await toggle.click()
-  await expect(toggle).toHaveAttribute('aria-expanded', 'true')
+  await expect(
+    reportView.getByRole('button', { name: '공시 영향 분석 보고서', exact: true }),
+  ).toHaveCount(0)
+  await expect(
+    reportView.getByRole('heading', { name: '공시 영향 분석 보고서', exact: true }),
+  ).toBeVisible()
+  await expect(reportView.getByRole('heading', { name: '핵심 요약', exact: true })).toBeVisible()
   await reportView.getByRole('button', { name: '원문 문맥 확인' }).click()
   const memo = page
     .getByRole('dialog')
     .filter({ has: page.getByRole('heading', { name: '기준 메모', exact: true }) })
   await expect(memo).toContainText('메모 원문 문맥')
   await memo.getByRole('button', { name: '원문 닫기' }).click()
-  await page.getByRole('button', { name: '검토 보고서', exact: true }).focus()
+  await page.getByRole('button', { name: 'MD 다운로드', exact: true }).focus()
   await page.evaluate(() => window.scrollTo(0, 0))
   for (const theme of ['light', 'dark']) {
     await page.evaluate((theme) => (document.documentElement.dataset.theme = theme), theme)
@@ -227,6 +246,49 @@ test('하나의 보고서 안에서 관점과 메모수정 제안을 중복 없�
         path: `${process.env.E2E_ARTIFACT_DIR}/통합보고서-${page.viewportSize()!.width}-${theme}.png`,
         fullPage: true,
       })
+  }
+})
+
+test('새롭게 확인한 사실의 원문 줄바꿈과 빈 줄을 유지합니다', async ({ page }) => {
+  const quote =
+    '2. 계약금액(원)\t227,500,000,000\t114,800,000,000\n5. 계약기간 종료일\t2026-02-28\t-\n\n9. 기타 투자판단과 관련한 주요사항\n계약취소 권한을 행사했습니다.'
+  const source = { ...sources[0]!, quote }
+  await page.route('**/api/v1/analyses/report-task/report', (route) =>
+    route.fulfill({
+      json: {
+        ...report,
+        report_json: {
+          ...report.report_json,
+          sources: [source, ...sources.slice(1)],
+          base: {
+            ...report.report_json.base,
+            proposals: report.report_json.base.proposals.map((p) => ({ ...p, evidence: [source] })),
+          },
+        },
+      },
+    }),
+  )
+  await page.goto('/analyses/report-task')
+  const fact = page.locator('.memo-proposals .after-block > p').first()
+  await expect(fact).toBeVisible()
+  expect(await fact.textContent()).toBe(quote)
+  for (const theme of ['light', 'dark']) {
+    await page.evaluate((theme) => (document.documentElement.dataset.theme = theme), theme)
+    await expect(fact).toHaveCSS('white-space', 'pre-wrap')
+    const lines = await fact.evaluate((element) => {
+      const node = element.firstChild!
+      const top = (label: string) => {
+        const range = document.createRange()
+        const start = node.textContent!.indexOf(label)
+        range.setStart(node, start)
+        range.setEnd(node, start + 1)
+        return range.getBoundingClientRect().top
+      }
+      return [top('2. 계약금액'), top('5. 계약기간'), top('9. 기타')]
+    })
+    expect(lines[1]!).toBeGreaterThan(lines[0]!)
+    expect(lines[2]!).toBeGreaterThan(lines[1]!)
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
   }
 })
 
@@ -250,9 +312,7 @@ test('최신 서버의 메모 유지 및 수정 제안도 비교 카드로 한 �
   await expect(
     reportView.getByRole('button', { name: '출처와 원문 인용', exact: true }),
   ).toHaveAttribute('aria-expanded', 'false')
-  await expect(reportView.locator('.unified-report-content > :last-child')).toHaveClass(
-    /report-perspectives/,
-  )
+  await expect(reportView.locator('.analysis-perspectives')).toHaveCount(0)
 })
 
 test('근거 미리보기, 키보드, 터치와 상세 패널을 정확한 자료에 연결합니다', async ({
@@ -265,7 +325,7 @@ test('근거 미리보기, 키보드, 터치와 상세 패널을 정확한 자�
   const first = page.getByRole('button', { name: '근거 1 상세 보기', exact: true }).first()
   const sixth = page.getByRole('button', { name: '근거 6 상세 보기', exact: true }).first()
   await expect(first).toBeVisible()
-  await expect(page.locator('.evidence-reference')).toHaveCount(4)
+  await expect(page.locator('.evidence-reference')).toHaveCount(5)
   await expect(page.getByRole('button', { name: '근거 99 상세 보기' })).toHaveCount(0)
   if (!isMobile) {
     for (const theme of ['light', 'dark']) {

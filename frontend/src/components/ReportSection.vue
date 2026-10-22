@@ -1,23 +1,33 @@
 <script setup lang="ts">
 import { ChevronDown } from 'lucide-vue-next'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from './ui/collapsible'
-withDefaults(defineProps<{ title: string; count?: number; defaultOpen?: boolean }>(), {
-  defaultOpen: true,
-})
+withDefaults(
+  defineProps<{ title: string; count?: number; defaultOpen?: boolean; collapsible?: boolean }>(),
+  { defaultOpen: true, collapsible: true },
+)
 </script>
 <template>
-  <Collapsible as="section" :default-open="defaultOpen" class="report-fold">
+  <component
+    :is="collapsible ? Collapsible : 'section'"
+    v-bind="collapsible ? { as: 'section', defaultOpen } : {}"
+    class="report-fold"
+  >
     <div class="report-fold-heading">
       <h2>
-        <CollapsibleTrigger class="report-fold-trigger"
+        <CollapsibleTrigger v-if="collapsible" class="report-fold-trigger"
           >{{ title }}<span v-if="count != null" class="count">{{ count }}</span
           ><ChevronDown
         /></CollapsibleTrigger>
+        <span v-else class="report-section-title"
+          >{{ title }}<span v-if="count != null" class="count">{{ count }}</span></span
+        >
       </h2>
       <div v-if="$slots.actions" class="row-actions"><slot name="actions" /></div>
     </div>
-    <CollapsibleContent class="report-fold-content"><slot /></CollapsibleContent>
-  </Collapsible>
+    <component :is="collapsible ? CollapsibleContent : 'div'" class="report-fold-content"
+      ><slot
+    /></component>
+  </component>
 </template>
 <style scoped>
 .report-fold-heading {
@@ -30,7 +40,8 @@ withDefaults(defineProps<{ title: string; count?: number; defaultOpen?: boolean 
 .report-fold-heading h2 {
   min-width: 0;
 }
-.report-fold-trigger {
+.report-fold-trigger,
+.report-section-title {
   display: inline-flex;
   align-items: center;
   gap: 10px;

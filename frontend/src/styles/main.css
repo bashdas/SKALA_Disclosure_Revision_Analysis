@@ -1219,6 +1219,8 @@ main.companies-main {
   line-height: 1.9;
   color: var(--secondary);
   word-break: keep-all;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 .finding-explanation {
   display: grid;
@@ -1257,7 +1259,7 @@ main.companies-main {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  background: var(--surface-strong);
+  background: transparent;
   border: 1px solid var(--line);
   border-radius: 4px;
   padding: 5px 8px;
@@ -1268,7 +1270,6 @@ main.companies-main {
   overflow-wrap: anywhere;
 }
 .evidence-chips button:hover {
-  background: var(--success-soft);
   color: var(--success);
 }
 .warning-section {

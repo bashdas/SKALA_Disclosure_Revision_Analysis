@@ -59,14 +59,13 @@ it('대체 가능한 선택 이유와 수정 제안만 제외하고 카드와 �
     { findings: [finding] },
   )
   const { layout, html } = displayedMarkdown(value, [perspective])
-  expect(layout.showPerspectives).toBe(true)
   expect(layout.blocks.map((b) => (b.type === 'markdown' ? b.heading : b.type))).toEqual([
     null,
     '핵심 요약',
     '확인된 공시 내용',
-    'memo-proposals',
     '관점별 분석',
     '향후 영향과 조건',
+    'memo-proposals',
     '별도 검토 사항',
   ])
   expect(html).not.toContain('선택 이유')
@@ -79,21 +78,20 @@ it('대체 가능한 선택 이유와 수정 제안만 제외하고 카드와 �
   expect(layout.fallbackResults).toEqual([])
 })
 
-it('대체 데이터가 없거나 불완전한 보고서에서는 원래 선택 이유와 메모 검토를 보존합니다', () => {
+it('선택 이유는 제외하고 대체 데이터가 없는 메모 검토는 보존합니다', () => {
   const value = report(
     '## 추가 분석을 선택한 이유\n\n예전 선택 이유\n\n## 메모 영향\n\n예전 판단 이유\n\n## 메모 수정 제안\n\n예전 수정 제안',
   )
   for (const findings of [[], [{ ...finding, reason: '' }]]) {
     const { layout, html } = displayedMarkdown({ ...value, findings })
-    expect(layout.showPerspectives).toBe(false)
     expect(layout.blocks.every((b) => b.type === 'markdown')).toBe(true)
-    expect(html).toContain('예전 선택 이유')
+    expect(html).not.toContain('예전 선택 이유')
     expect(html).toContain('예전 판단 이유')
     expect(html).toContain('예전 수정 제안')
   }
-  expect(
-    displayedMarkdown(value, [{ ...perspective, selectionReason: '' }]).layout.showPerspectives,
-  ).toBe(false)
+  expect(displayedMarkdown(value, [{ ...perspective, selectionReason: '' }]).html).not.toContain(
+    '예전 선택 이유',
+  )
 })
 
 it.each(['메모 수정 제안', '메모 유지 및 수정 제안'])(
@@ -128,13 +126,29 @@ it('본문에서 빠진 요약·변경 내용·관점 결과도 구조화된 데
     'summary',
     'markdown',
     'changes',
-    'memo-proposals',
     'perspective-results',
+    'memo-proposals',
     'markdown',
   ])
   expect(layout.fallbackResults).toEqual([perspective])
   expect(html).toContain('기존 형식의 본문')
   expect(html).toContain('남은 질문')
+})
+
+it('비교 카드가 없는 이전 보고서도 분석과 향후 영향을 메모 제안 위로 옮기고 원문을 보존합니다', () => {
+  const value = report(
+    '## 메모 수정 제안\n\n보존할 제안 [근거 1]\n\n## 향후 영향과 조건\n\n조건: 이행. 예상 영향: 확인.\n\n## 관점별 분석\n\n보존할 분석 [근거6]\n\n## 확인 범위와 남은 질문\n\n남은 질문',
+  )
+  const { layout, html } = displayedMarkdown(value)
+  expect(layout.blocks.map((b) => (b.type === 'markdown' ? b.heading : b.type))).toEqual([
+    '관점별 분석',
+    '향후 영향과 조건',
+    '메모 수정 제안',
+    '확인 범위와 남은 질문',
+  ])
+  for (const text of ['보존할 제안', '보존할 분석', '남은 질문']) expect(html).toContain(text)
+  expect(html).toContain('data-evidence-id="source-0"')
+  expect(html).toContain('data-evidence-id="source-5"')
 })
 
 it('코드·인용문 속 제목을 구역으로 오인하지 않고 구역 밖의 참조 링크도 유지합니다', () => {
@@ -154,11 +168,10 @@ it('코드·인용문 속 제목을 구역으로 오인하지 않고 구역 밖�
 it('선택 관점과 수정 제안이 없는 보고서에는 빈 카드 영역을 추가하지 않습니다', () => {
   const value = report('## 핵심 요약\n\n추가 수정이 필요하지 않습니다.')
   const layout = reportLayout(value, [])
-  expect(layout.showPerspectives).toBe(true)
   expect(layout.blocks.every((b) => b.type === 'markdown')).toBe(true)
 })
 
-it('출처 구역의 원문은 토글용으로 보존하고 대체할 수 없는 선택 이유도 마지막에 둡니다', () => {
+it('출처 구역의 원문은 토글용으로 보존하고 선택 이유는 제외합니다', () => {
   const value = report(
     '## 선택한 분석 관점\n\n예전 선택 이유\n\n## 핵심 요약\n\n요약\n\n## 출처와 원문 인용\n\n### 근거 1\n\n[출처][original]\n\n> 전체 인용\n\n[original]: https://example.com/source',
   )
@@ -170,5 +183,6 @@ it('출처 구역의 원문은 토글용으로 보존하고 대체할 수 없는
   expect(html).not.toContain('출처와 원문 인용')
   expect(html).toContain('전체 인용')
   expect(html).toContain('href="https://example.com/source"')
-  expect(layout.blocks.at(-1)).toMatchObject({ type: 'markdown', heading: '선택한 분석 관점' })
+  expect(layout.blocks.at(-1)).toMatchObject({ type: 'sources' })
+  expect(displayedMarkdown(value).html).not.toContain('예전 선택 이유')
 })

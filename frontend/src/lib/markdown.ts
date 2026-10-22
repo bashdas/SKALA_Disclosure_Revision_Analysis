@@ -1,6 +1,46 @@
 import MarkdownIt from 'markdown-it'
 
 const parser = new MarkdownIt({ html: false, linkify: false }).disable('image')
+// 저장된 본문은 유지하고, 향후 영향 구역의 조건과 예상 영향만 화면에서 줄을 나눕니다.
+parser.core.ruler.after('inline', 'future_impact_lines', (state) => {
+  let futureSection = false
+  for (const [index, block] of state.tokens.entries()) {
+    if (block.type === 'heading_open' && block.tag === 'h2' && block.level === 0) {
+      futureSection = state.tokens[index + 1]?.content.replace(/\s+/gu, '') === '향후영향과조건'
+      continue
+    }
+    if (
+      !futureSection ||
+      block.type !== 'inline' ||
+      !block.children ||
+      !/^\s*(?:\*\*|__)?조건\s*[:：]/u.test(block.content)
+    )
+      continue
+    let linkDepth = 0
+    block.children = block.children.flatMap((token, i, children) => {
+      if (token.type === 'link_open') linkDepth++
+      if (token.type === 'link_close') linkDepth--
+      if (token.type !== 'text' || linkDepth) return [token]
+      const match = /예상\s*영향\s*[:：]/u.exec(token.content)
+      if (!match) return [token]
+      const before = token.content.slice(0, match.index).trimEnd()
+      const previous = children[i - 1]
+      // 이미 줄이 나뉜 보고서는 추가 줄바꿈을 넣지 않습니다.
+      if (!before && previous?.type === 'hardbreak') return [token]
+      if (!before && previous?.type === 'softbreak') {
+        previous.type = 'hardbreak'
+        previous.tag = 'br'
+        return [token]
+      }
+      const prefix = new state.Token('text', '', 0)
+      prefix.content = before
+      const line = new state.Token('hardbreak', 'br', 0)
+      const suffix = new state.Token('text', '', 0)
+      suffix.content = token.content.slice(match.index)
+      return [prefix, line, suffix]
+    })
+  }
+})
 // 본문의 텍스트 토큰만 바꿉니다. 코드와 기존 링크 안의 표기는 그대로 둡니다.
 parser.core.ruler.after('inline', 'evidence_references', (state) => {
   const ids = new Set((state.env.evidenceIds ?? []) as readonly string[])
@@ -90,11 +130,23 @@ export function renderMarkdown(
   content: string,
   evidenceIds: readonly string[] = [],
   range?: MarkdownRange,
+  hideReportTitle = false,
 ) {
   const env = { evidenceIds }
   const tokens = parser.parse(content, env)
+  const title = tokens[1]?.children
+    ?.map((token) => token.content)
+    .join('')
+    .replace(/\s+/gu, '')
+  const titleEnd =
+    hideReportTitle &&
+    tokens[0]?.type === 'heading_open' &&
+    tokens[0].tag === 'h1' &&
+    title === '공시영향분석보고서'
+      ? 3
+      : 0
   return parser.renderer.render(
-    range ? tokens.slice(range.from, range.to) : tokens,
+    tokens.slice(Math.max(range?.from ?? 0, titleEnd), range?.to),
     parser.options,
     env,
   )

@@ -155,9 +155,10 @@ async function download(extension: 'md' | 'pdf') {
     </div>
     <ReportSection
       v-if="report && layout"
-      title="검토 보고서"
+      title="공시 영향 분석 보고서"
+      :collapsible="false"
       class="surface unified-report"
-      aria-label="검토 보고서"
+      aria-label="공시 영향 분석 보고서"
     >
       <template #actions>
         <span v-if="report.savedAt" class="saved-label"
@@ -180,6 +181,7 @@ async function download(extension: 'md' | 'pdf') {
             v-if="block.type === 'markdown'"
             :content="report.content"
             :range="block.range"
+            hide-report-title
             :evidence="report.evidence"
             @open-evidence="store.openEvidence"
           />
@@ -227,13 +229,6 @@ async function download(extension: 'md' | 'pdf') {
             </article>
           </section>
         </template>
-        <AnalysisPerspectives
-          v-if="layout.showPerspectives"
-          class="report-perspectives"
-          :perspectives="task.perspectives"
-          :reason="report.noAdditionalAnalysisReason"
-          :show-result="false"
-        />
       </div>
     </ReportSection>
     <div v-else-if="inProgress" class="analysis-wait" role="status">
@@ -261,16 +256,16 @@ async function download(extension: 'md' | 'pdf') {
 .unified-report {
   margin: 28px 0 30px;
 }
+.unified-report :deep(.report-section-title) {
+  font-size: 26px;
+  line-height: 1.5;
+  letter-spacing: -0.025em;
+}
 .unified-report-content {
   padding: 0 24px 24px;
 }
 .unified-report-content :deep(.markdown-body) {
   padding: 0;
-}
-.report-perspectives {
-  margin-top: 32px;
-  padding-top: 24px;
-  border-top: 1px solid var(--line);
 }
 .report-sources {
   margin-top: 32px;

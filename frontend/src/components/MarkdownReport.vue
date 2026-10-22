@@ -5,7 +5,12 @@ import { renderMarkdown, type MarkdownRange } from '../lib/markdown'
 import { date } from '../lib/format'
 import type { Evidence } from '../types/domain'
 const props = withDefaults(
-  defineProps<{ content: string; evidence?: Evidence[]; range?: MarkdownRange }>(),
+  defineProps<{
+    content: string
+    evidence?: Evidence[]
+    range?: MarkdownRange
+    hideReportTitle?: boolean
+  }>(),
   {
     evidence: () => [],
   },
@@ -16,6 +21,7 @@ const html = computed(() =>
     props.content,
     props.evidence.map((e) => e.id),
     props.range,
+    props.hideReportTitle,
   ),
 )
 const article = ref<HTMLElement | null>(null)
@@ -121,7 +127,7 @@ onBeforeUnmount(closePreview)
   border: 0;
   border-radius: 4px;
   color: var(--primary);
-  background: var(--primary-soft);
+  background: transparent;
   font: inherit;
   font-weight: 600;
   line-height: inherit;
@@ -130,7 +136,7 @@ onBeforeUnmount(closePreview)
   text-underline-offset: 3px;
 }
 .markdown-body :deep(.evidence-reference:hover) {
-  background: var(--surface-strong);
+  color: var(--primary-hover);
 }
 .markdown-body :deep(.evidence-reference:focus-visible) {
   outline: 2px solid var(--primary);

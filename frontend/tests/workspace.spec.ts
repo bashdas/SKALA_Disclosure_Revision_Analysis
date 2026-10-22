@@ -136,18 +136,22 @@ test('메인 UI에서 기업 검색, 즐겨찾기, 정정공시 분석을 연결
   expect(response.status()).toBe(202)
   const task = await response.json()
   await expect(page).toHaveURL(new RegExp(`/analyses/${task.task_id}$`))
-  await expect(page.getByRole('heading', { name: '검토 보고서', exact: true })).toBeVisible({
+  await expect(
+    page.getByRole('heading', { name: '공시 영향 분석 보고서', exact: true }),
+  ).toBeVisible({
     timeout: 150000,
   })
   await page.reload()
-  await expect(page.getByRole('heading', { name: '검토 보고서', exact: true })).toBeVisible({
+  await expect(
+    page.getByRole('heading', { name: '공시 영향 분석 보고서', exact: true }),
+  ).toBeVisible({
     timeout: 30000,
   })
   const blocks = await page
     .locator('.progress-section,.unified-report')
     .evaluateAll((nodes) => nodes.map((n) => n.className))
   expect(blocks.map((name) => name.replace('surface', '').trim())).toEqual(['unified-report'])
-  await expect(page.locator('.markdown-body h1')).toBeVisible()
+  await expect(page.locator('.markdown-body h1')).toHaveCount(0)
   await expect(page.locator('.markdown-body table').first()).toBeVisible()
   for (const extension of ['md', 'pdf']) {
     const file = page.waitForEvent('download')

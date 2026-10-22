@@ -20,9 +20,6 @@ export function reportLayout(report: ReviewReport, perspectives: Perspective[]) 
   const hasSection = (headings: Set<string>) =>
     sections.some((s) => headings.has(key(s.heading)) && s.body)
   const selected = perspectives.filter((p) => p.selected)
-  const hasSelection = hasSection(selectionHeadings)
-  const showPerspectives =
-    !hasSelection || (selected.length > 0 && selected.every((p) => p.selectionReason.trim()))
   const hasResults = hasSection(new Set(['관점별분석']))
   const fallbackResults = hasResults ? [] : selected.filter((p) => p.result?.trim())
   const replaceMemo =
@@ -34,7 +31,6 @@ export function reportLayout(report: ReviewReport, perspectives: Perspective[]) 
     !report.content.includes(report.summary.trim())
   const fallbackChanges = !hasSection(new Set(['확인된공시내용'])) && report.changes.length > 0
   const blocks: ReportBlock[] = []
-  const selectionBlocks: ReportBlock[] = []
   let memoAdded = false,
     resultsAdded = false,
     summaryAdded = false,
@@ -66,11 +62,7 @@ export function reportLayout(report: ReviewReport, perspectives: Perspective[]) 
   }
   for (const section of sections) {
     const heading = key(section.heading)
-    if (selectionHeadings.has(heading)) {
-      if (!showPerspectives)
-        selectionBlocks.push({ type: 'markdown', heading: section.heading, range: section.range })
-      continue
-    }
+    if (selectionHeadings.has(heading)) continue
     if (heading) addSummary()
     if (memoHeadings.has(heading) || lateHeadings.has(heading)) addChanges()
     if (replaceMemo && memoHeadings.has(heading)) {
@@ -102,6 +94,19 @@ export function reportLayout(report: ReviewReport, perspectives: Perspective[]) 
   addChanges()
   addMemo()
   addResults()
-  blocks.push(...selectionBlocks)
-  return { blocks, showPerspectives, fallbackResults }
+  const isMemo = (block: ReportBlock) =>
+    block.type === 'memo-proposals' ||
+    (block.type === 'markdown' && memoHeadings.has(key(block.heading)))
+  if (blocks.some(isMemo)) {
+    const isPerspective = (block: ReportBlock) =>
+      block.type === 'perspective-results' ||
+      (block.type === 'markdown' && key(block.heading) === '관점별분석')
+    const isFuture = (block: ReportBlock) =>
+      block.type === 'markdown' && key(block.heading) === '향후영향과조건'
+    const analysis = [...blocks.filter(isPerspective), ...blocks.filter(isFuture)]
+    const remaining = blocks.filter((block) => !isPerspective(block) && !isFuture(block))
+    remaining.splice(remaining.findIndex(isMemo), 0, ...analysis)
+    return { blocks: remaining, fallbackResults }
+  }
+  return { blocks, fallbackResults }
 }
