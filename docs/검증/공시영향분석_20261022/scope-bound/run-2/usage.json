@@ -1,0 +1,5 @@
+{
+  "turns": 5,
+  "tokens": 39803,
+  "tools": "{\"disclosure_get_document\": 1, \"business_get_memo\": 1, \"ensure_analysis_index\": 1, \"search_evidence\": 1, \"model:base\": 1, \"model:perspective:INDUSTRY_CONTRACT\": 1, \"model:perspective:FINANCE\": 1, \"model:report\": 1, \"model:output_check\": 1, \"business_save_report\": 1}"
+}

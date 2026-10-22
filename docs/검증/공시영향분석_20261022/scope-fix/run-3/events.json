@@ -1,0 +1,122 @@
+[
+  {
+    "id": 1,
+    "kind": "STAGE",
+    "payload": "{\"stage\": \"REQUEST_VALIDATION\", \"payload\": {}}",
+    "at": 1792644714.859786
+  },
+  {
+    "id": 2,
+    "kind": "STAGE",
+    "payload": "{\"stage\": \"INPUT_COLLECTION\", \"payload\": {}}",
+    "at": 1792644714.861079
+  },
+  {
+    "id": 3,
+    "kind": "TOOL_END",
+    "payload": "{\"tool\": \"disclosure_get_document\", \"error\": null}",
+    "at": 1792644714.862337
+  },
+  {
+    "id": 4,
+    "kind": "TOOL_END",
+    "payload": "{\"tool\": \"business_get_memo\", \"error\": null}",
+    "at": 1792644714.863252
+  },
+  {
+    "id": 5,
+    "kind": "STAGE",
+    "payload": "{\"stage\": \"RAG_PREPARATION\", \"payload\": {}}",
+    "at": 1792644714.864128
+  },
+  {
+    "id": 6,
+    "kind": "TOOL_END",
+    "payload": "{\"tool\": \"ensure_analysis_index\", \"error\": null}",
+    "at": 1792644714.866863
+  },
+  {
+    "id": 7,
+    "kind": "TOOL_END",
+    "payload": "{\"tool\": \"search_evidence\", \"error\": null}",
+    "at": 1792644714.867659
+  },
+  {
+    "id": 8,
+    "kind": "STAGE",
+    "payload": "{\"stage\": \"BASE_ANALYSIS\", \"payload\": {}}",
+    "at": 1792644714.871726
+  },
+  {
+    "id": 9,
+    "kind": "MODEL_END",
+    "payload": "{\"role\": \"base\", \"tokens\": 8121, \"elapsed\": 4.334760416997597}",
+    "at": 1792644719.215601
+  },
+  {
+    "id": 10,
+    "kind": "STAGE",
+    "payload": "{\"stage\": \"PERSPECTIVE_ANALYSIS\", \"payload\": {\"selected\": [{\"perspective_type\": \"INDUSTRY_CONTRACT\", \"selection_reason\": \"계약 취소와 잔존 선박의 인도 및 잔금 회수 여부를 확인하여 공시 정정의 계약 해석을 검토할 필요가 있습니다.\", \"question\": \"취소된 1척은 제3자 매각이 실제로 진행되었는지, 잔존 1척은 정상 인도와 잔금 회수가 확인되는지 각각 알려주실 수 있습니까?\"}, {\"perspective_type\": \"FINANCE\", \"selection_reason\": \"기수취 선수금과 향후 매각대금의 회수 가능성이 기존 목표주가 산정이나 재무 영향 판단에 연결되는지 확인할 필요가 있습니다.\", \"question\": \"기수취 선수금 규모와 제3자 매각대금 예상 시점이 목표주가 산정이나 2027 BPS에 이미 반영되었는지 확인할 수 있습니까?\"}]}}",
+    "at": 1792644719.218694
+  },
+  {
+    "id": 11,
+    "kind": "MODEL_END",
+    "payload": "{\"role\": \"perspective\", \"tokens\": 5578, \"elapsed\": 1.6690741669735871}",
+    "at": 1792644720.90024
+  },
+  {
+    "id": 12,
+    "kind": "MODEL_END",
+    "payload": "{\"role\": \"perspective\", \"tokens\": 5932, \"elapsed\": 2.6404622080153786}",
+    "at": 1792644721.885281
+  },
+  {
+    "id": 13,
+    "kind": "TOOL_END",
+    "payload": "{\"tool\": \"search_evidence\", \"error\": null}",
+    "at": 1792644721.897185
+  },
+  {
+    "id": 14,
+    "kind": "STAGE",
+    "payload": "{\"stage\": \"PERSPECTIVE_ANALYSIS\", \"payload\": {\"selected\": [{\"perspective_type\": \"INDUSTRY_CONTRACT\", \"selection_reason\": \"계약 취소와 잔존 선박의 인도 및 잔금 회수 여부를 확인하여 공시 정정의 계약 해석을 검토할 필요가 있습니다.\", \"question\": \"취소된 1척은 제3자 매각이 실제로 진행되었는지, 잔존 1척은 정상 인도와 잔금 회수가 확인되는지 각각 알려주실 수 있습니까?\"}, {\"perspective_type\": \"FINANCE\", \"selection_reason\": \"기수취 선수금과 향후 매각대금의 회수 가능성이 기존 목표주가 산정이나 재무 영향 판단에 연결되는지 확인할 필요가 있습니다.\", \"question\": \"기수취 선수금 규모와 제3자 매각대금 예상 시점이 목표주가 산정이나 2027 BPS에 이미 반영되었는지 확인할 수 있습니까?\"}]}}",
+    "at": 1792644721.899947
+  },
+  {
+    "id": 15,
+    "kind": "MODEL_END",
+    "payload": "{\"role\": \"perspective\", \"tokens\": 5469, \"elapsed\": 1.7300299169728532}",
+    "at": 1792644723.697681
+  },
+  {
+    "id": 16,
+    "kind": "STAGE",
+    "payload": "{\"stage\": \"REPORT_GENERATION\", \"payload\": {}}",
+    "at": 1792644723.702361
+  },
+  {
+    "id": 17,
+    "kind": "MODEL_END",
+    "payload": "{\"role\": \"report\", \"tokens\": 4514, \"elapsed\": 2.9320024169865064}",
+    "at": 1792644726.639609
+  },
+  {
+    "id": 18,
+    "kind": "MODEL_END",
+    "payload": "{\"role\": \"output_check\", \"tokens\": 5026, \"elapsed\": 4.454710500023793}",
+    "at": 1792644731.099712
+  },
+  {
+    "id": 19,
+    "kind": "OUTPUT_CHECK_END",
+    "payload": "{\"candidates\": 11, \"accepted\": 11}",
+    "at": 1792644731.101283
+  },
+  {
+    "id": 20,
+    "kind": "TOOL_END",
+    "payload": "{\"tool\": \"business_save_report\", \"error\": null}",
+    "at": 1792644731.105551
+  }
+]

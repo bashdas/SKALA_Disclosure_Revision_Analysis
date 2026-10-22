@@ -1,0 +1,6 @@
+{
+  "disclosure_ai/prompts/perspective.md": true,
+  "disclosure_ai/workflow/perspectives.py": true,
+  "disclosure_ai/workflow/reporting.py": true,
+  "disclosure_ai/harness/output.py": true
+}

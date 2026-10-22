@@ -1,0 +1,98 @@
+[
+  {
+    "id": 1,
+    "kind": "STAGE",
+    "payload": "{\"stage\": \"REQUEST_VALIDATION\", \"payload\": {}}",
+    "at": 1792643618.8120918
+  },
+  {
+    "id": 2,
+    "kind": "STAGE",
+    "payload": "{\"stage\": \"INPUT_COLLECTION\", \"payload\": {}}",
+    "at": 1792643618.813238
+  },
+  {
+    "id": 3,
+    "kind": "TOOL_END",
+    "payload": "{\"tool\": \"disclosure_get_document\", \"error\": null}",
+    "at": 1792643618.8147452
+  },
+  {
+    "id": 4,
+    "kind": "TOOL_END",
+    "payload": "{\"tool\": \"business_get_memo\", \"error\": null}",
+    "at": 1792643618.815547
+  },
+  {
+    "id": 5,
+    "kind": "STAGE",
+    "payload": "{\"stage\": \"RAG_PREPARATION\", \"payload\": {}}",
+    "at": 1792643618.816349
+  },
+  {
+    "id": 6,
+    "kind": "TOOL_END",
+    "payload": "{\"tool\": \"ensure_analysis_index\", \"error\": null}",
+    "at": 1792643618.81903
+  },
+  {
+    "id": 7,
+    "kind": "TOOL_END",
+    "payload": "{\"tool\": \"search_evidence\", \"error\": null}",
+    "at": 1792643618.819846
+  },
+  {
+    "id": 8,
+    "kind": "STAGE",
+    "payload": "{\"stage\": \"BASE_ANALYSIS\", \"payload\": {}}",
+    "at": 1792643618.822648
+  },
+  {
+    "id": 9,
+    "kind": "MODEL_END",
+    "payload": "{\"role\": \"base\", \"tokens\": 10073, \"elapsed\": 5.759887916967273}",
+    "at": 1792643624.598737
+  },
+  {
+    "id": 10,
+    "kind": "STAGE",
+    "payload": "{\"stage\": \"PERSPECTIVE_ANALYSIS\", \"payload\": {\"selected\": [{\"perspective_type\": \"INDUSTRY_CONTRACT\", \"selection_reason\": \"정정된 계약척수와 계약금액이 기존 수주 서술에 미치는 영향을 확인하는 것이 필요합니다.\", \"question\": \"이번 원유운반선 계약 정정이 기존 메모의 해양부문 수주 설명과 수주잔고 해석에 어떤 수정이 필요한지 확인해 주시겠습니까?\"}]}}",
+    "at": 1792643624.606387
+  },
+  {
+    "id": 11,
+    "kind": "MODEL_END",
+    "payload": "{\"role\": \"perspective\", \"tokens\": 5465, \"elapsed\": 2.6585817500017583}",
+    "at": 1792643627.302197
+  },
+  {
+    "id": 12,
+    "kind": "STAGE",
+    "payload": "{\"stage\": \"REPORT_GENERATION\", \"payload\": {}}",
+    "at": 1792643627.314377
+  },
+  {
+    "id": 13,
+    "kind": "MODEL_END",
+    "payload": "{\"role\": \"report\", \"tokens\": 3126, \"elapsed\": 2.993537665985059}",
+    "at": 1792643630.314465
+  },
+  {
+    "id": 14,
+    "kind": "MODEL_END",
+    "payload": "{\"role\": \"output_check\", \"tokens\": 3653, \"elapsed\": 3.3607227909960784}",
+    "at": 1792643633.683695
+  },
+  {
+    "id": 15,
+    "kind": "OUTPUT_CHECK_END",
+    "payload": "{\"candidates\": 10, \"accepted\": 10}",
+    "at": 1792643633.686808
+  },
+  {
+    "id": 16,
+    "kind": "TOOL_END",
+    "payload": "{\"tool\": \"business_save_report\", \"error\": null}",
+    "at": 1792643633.6931489
+  }
+]
