@@ -252,20 +252,101 @@ def normalize_disclosure(result: dict, receipt: str) -> dict:
 def analysis_context(filing, fragments):
     """모델에는 정정 전후를 구분해 전달하고 검증용 원문은 그대로 보존합니다."""
     changes = {(c["document_id"], c["location"]): c for c in filing.get("changes", [])}
+    scopes = {
+        (s["sources"][-1]["document_id"], s["sources"][-1]["location"]): s
+        for s in reference_frames(filing, {})["contract_amount_scopes"]
+    }
     result = []
     for source in fragments:
         change = changes.get((source["document_id"], source["location"]))
         if change:
+            scope = scopes.get((source["document_id"], source["location"]))
             result.append(
                 {
                     "document_id": source["document_id"],
                     "location": source["location"],
                     **{key: " ".join(change[key].split()) for key in ("label", "before", "after")},
+                    **({
+                        "before_scope": scope["before_contract_total"]["scope"],
+                        "after_scope": scope["after_contract_total"]["scope"],
+                        "comparison_basis": "CONTRACT_TOTAL_SAME_SCOPE" if scope["same_scope"]
+                        else "CONTRACT_TOTAL_DIFFERENT_SCOPE",
+                    } if scope else {}),
                 }
             )
         else:
             result.append({**source, "quote": " ".join(source["quote"].split())})
     return result
+
+
+def reference_frames(filing, memo):
+    """직접 적용된 산정 행과 계약금액의 비교 대상을 원문에 연결합니다."""
+    valuation = []
+    for index, line in enumerate(memo.get("text", "").splitlines(), 1):
+        if re.match(r"\s*(?:적용\s*BPS|Target\s*P/B|적정주가|목표주가\s*\()", line, re.I):
+            valuation.append({
+                "document_id": memo["document_id"], "location": f"line:{index}",
+                "quote": line, "url": memo.get("url"),
+            })
+    scopes = []
+    for amount in filing.get("changes", []):
+        if not re.search(r"계약\s*금액", amount["label"]):
+            continue
+        names = [c for c in filing["changes"]
+                 if re.search(r"(?:체결)?계약명", c["label"])
+                 and c["document_id"] == amount["document_id"]
+                 and c["location"].rsplit(":row:", 1)[0]
+                 == amount["location"].rsplit(":row:", 1)[0]]
+        if len(names) == 1:
+            name = names[0]
+            scopes.append({
+                "before_contract_total": {"scope": name["before"], "amount": amount["before"]},
+                "after_contract_total": {"scope": name["after"], "amount": amount["after"]},
+                "same_scope": name["before"] == name["after"],
+                "sources": [{k: c[k] for k in ("document_id", "location", "quote")}
+                            for c in (name, amount)],
+            })
+    return {"applied_valuation_rows": valuation, "contract_amount_scopes": scopes}
+
+
+def model_context(filing, fragments, memo):
+    """정정표와 메모의 관련 줄을 먼저 전달하고 검증용 원문은 상태에 보존합니다."""
+    lines = memo.get("text", "").splitlines()
+    priority = re.compile(
+        r"목표\s*주가|BPS|P/B|PBR|산정|산출|계산|잔여|선수금|회수|현금흐름|순자산|매출|이익|target|valuation|cash.flow|revenue",
+        re.I,
+    )
+    chosen, size = set(), 0
+    valuation = re.compile(r"목표\s*주가|BPS|P/B|PBR|산정|산출|target|valuation", re.I)
+    applied = re.compile(r"^\s*(?:적용\s*BPS|Target\s*P/B|적정주가|목표주가\s*\()", re.I)
+    ranked = [i for i, line in enumerate(lines) if applied.search(line)]
+    ranked += [i for i, line in enumerate(lines) if valuation.search(line) and i not in ranked]
+    ranked += [i for i, line in enumerate(lines) if priority.search(line) and i not in ranked]
+    for i in [*ranked, *range(len(lines))]:
+        group = [j for j in range(max(0, i - 1), min(len(lines), i + 2)) if j not in chosen]
+        length = sum(len(lines[j]) + 1 for j in group)
+        if size + length <= 6000:
+            chosen.update(group)
+            size += length
+    excerpt = "\n".join(lines[i] for i in sorted(chosen))
+    context = analysis_context(
+        filing, [s for s in fragments if s["document_id"] != memo.get("document_id")]
+    )
+    # 정정표는 모든 행을 우선 보존하며 중복 검색 조각이 이를 밀어내지 않게 합니다.
+    changes = [s for s in context if "before" in s and "after" in s]
+    rest, size = [], sum(len(json.dumps(s, ensure_ascii=False)) for s in changes)
+    for source in context:
+        if source in changes:
+            continue
+        length = len(json.dumps(source, ensure_ascii=False))
+        if size + length <= 5000:
+            rest.append(source)
+            size += length
+    return {
+        "memo": {**memo, "text": excerpt, "location": "memo", "excerpted": len(chosen) < len(lines)},
+        "context": changes + rest,
+        "reference_frames": reference_frames(filing, memo),
+    }
 
 
 def validated_sources(sources: list[dict], documents: list[dict], fragments=()) -> list[dict]:
@@ -302,12 +383,12 @@ def validated_sources(sources: list[dict], documents: list[dict], fragments=()) 
                 (f for f in matches if f.get("quote") == quote),
                 matches[0] if len(matches) == 1 else None,
             )
-        if fragment:
+        if fragment and (not doc or quote not in doc["text"]):
             quote = fragment["quote"]
         if doc and quote and (quote in doc["text"] or fragment):
             location = (
                 fragment["location"]
-                if fragment
+                if fragment and fragment["quote"] == quote
                 else f"line:{doc['text'][: doc['text'].index(quote)].count(chr(10)) + 1}"
             )
             accepted.append(

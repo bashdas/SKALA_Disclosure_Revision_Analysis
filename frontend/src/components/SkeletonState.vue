@@ -148,16 +148,16 @@ withDefaults(
             <Skeleton class="skeleton sk-star" /><Skeleton class="skeleton sk-caption" />
           </div>
         </div>
-        <div class="sk-report-summary">
-          <Skeleton class="skeleton sk-caption" /><Skeleton
-            class="skeleton sk-page-title"
-          /><Skeleton class="skeleton sk-line" />
-          <div class="sk-report-cards"><Skeleton v-for="i in 3" :key="i" class="skeleton" /></div>
-        </div>
       </template>
       <div class="sk-report-body">
         <div class="sk-section-heading">
           <Skeleton class="skeleton sk-title" /><Skeleton class="skeleton sk-submit" />
+        </div>
+        <div class="sk-report-selection">
+          <Skeleton class="skeleton sk-caption" /><Skeleton
+            class="skeleton sk-page-title"
+          /><Skeleton class="skeleton sk-line" />
+          <div class="sk-report-cards"><Skeleton v-for="i in 3" :key="i" class="skeleton" /></div>
         </div>
         <div v-for="i in 4" :key="i" class="sk-paragraph">
           <Skeleton class="skeleton sk-title" /><Skeleton
@@ -541,11 +541,10 @@ withDefaults(
   border: 1px solid var(--line);
   border-radius: 12px;
 }
-.sk-report-summary {
-  padding: 28px;
-  margin-top: 24px;
-  border: 1px solid var(--line);
-  border-radius: 12px;
+.sk-report-selection {
+  padding-bottom: 24px;
+  margin-bottom: 24px;
+  border-bottom: 1px solid var(--line);
   display: grid;
   gap: 18px;
 }

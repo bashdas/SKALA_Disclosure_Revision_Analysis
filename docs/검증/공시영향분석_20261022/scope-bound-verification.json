@@ -1,0 +1,13 @@
+{
+  "diff_check": true,
+  "auth_value_matches": 0,
+  "main": "1515e75ed865df26fb0f159a4f21473c411d76cd",
+  "branch": "fix/disclosure-analysis-grounding",
+  "final_actual_runs": 5,
+  "intermediate_actual_runs": 5,
+  "regression_tests_passed": 53,
+  "ruff": "passed",
+  "bps_scope_passed": 5,
+  "contract_amount_scope_passed": 5,
+  "input_sha256": "284089f9f4f82f8020c72c6385848c725799fc1e53d537155e1e6f2afec270b9"
+}

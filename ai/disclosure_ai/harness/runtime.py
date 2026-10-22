@@ -183,9 +183,11 @@ class Harness:
                 await asyncio.sleep(min(0.2 * retries, max(0, self.remaining(report))))
 
     async def review_output(
-        self, payload: dict, *, grounding=False, corrections=()
+        self, payload: dict, *, grounding=False, corrections=(), advisory=False
     ) -> tuple[dict, list[str]]:
-        return await review_output(self, payload, grounding=grounding, corrections=corrections)
+        return await review_output(
+            self, payload, grounding=grounding, corrections=corrections, advisory=advisory
+        )
 
     async def tool(self, name, args, invoke, *, report=False, scope=""):
         return await lookup.call(self, name, args, invoke, report=report, scope=scope)

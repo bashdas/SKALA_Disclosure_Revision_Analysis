@@ -3067,9 +3067,6 @@ label > .ui-date {
 .company-main .skeleton-company .sk-company-header {
   padding-block: 24px;
 }
-.findings-section + .source-list {
-  margin-top: 32px;
-}
 @media (max-width: 900px) {
   .company-workspace-header,
   .company-main .skeleton-company .sk-company-header {

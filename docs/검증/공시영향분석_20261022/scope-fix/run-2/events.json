@@ -1,0 +1,122 @@
+[
+  {
+    "id": 1,
+    "kind": "STAGE",
+    "payload": "{\"stage\": \"REQUEST_VALIDATION\", \"payload\": {}}",
+    "at": 1792644697.3832262
+  },
+  {
+    "id": 2,
+    "kind": "STAGE",
+    "payload": "{\"stage\": \"INPUT_COLLECTION\", \"payload\": {}}",
+    "at": 1792644697.384237
+  },
+  {
+    "id": 3,
+    "kind": "TOOL_END",
+    "payload": "{\"tool\": \"disclosure_get_document\", \"error\": null}",
+    "at": 1792644697.385429
+  },
+  {
+    "id": 4,
+    "kind": "TOOL_END",
+    "payload": "{\"tool\": \"business_get_memo\", \"error\": null}",
+    "at": 1792644697.386105
+  },
+  {
+    "id": 5,
+    "kind": "STAGE",
+    "payload": "{\"stage\": \"RAG_PREPARATION\", \"payload\": {}}",
+    "at": 1792644697.386828
+  },
+  {
+    "id": 6,
+    "kind": "TOOL_END",
+    "payload": "{\"tool\": \"ensure_analysis_index\", \"error\": null}",
+    "at": 1792644697.3891141
+  },
+  {
+    "id": 7,
+    "kind": "TOOL_END",
+    "payload": "{\"tool\": \"search_evidence\", \"error\": null}",
+    "at": 1792644697.390242
+  },
+  {
+    "id": 8,
+    "kind": "STAGE",
+    "payload": "{\"stage\": \"BASE_ANALYSIS\", \"payload\": {}}",
+    "at": 1792644697.395007
+  },
+  {
+    "id": 9,
+    "kind": "MODEL_END",
+    "payload": "{\"role\": \"base\", \"tokens\": 8181, \"elapsed\": 4.932186916004866}",
+    "at": 1792644702.33704
+  },
+  {
+    "id": 10,
+    "kind": "STAGE",
+    "payload": "{\"stage\": \"PERSPECTIVE_ANALYSIS\", \"payload\": {\"selected\": [{\"perspective_type\": \"INDUSTRY_CONTRACT\", \"selection_reason\": \"계약 취소와 잔존 선박 인도, 제3자 매각 및 비용 회수 계획이 공시 정정의 핵심이므로 계약 영향과 확인 필요사항을 점검합니다.\", \"question\": \"취소된 1척의 제3자 매각 진행 여부와 매각대금 회수 시점은 어떻게 되며, 잔존 1척의 인도와 잔금 회수는 확정되었습니까?\"}, {\"perspective_type\": \"FINANCE\", \"selection_reason\": \"기수취 선수금과 향후 매각대금이 현금흐름과 회수 인식에 영향을 줄 수 있어 재무 영향과 목표주가 근거 반영 여부를 확인합니다.\", \"question\": \"기수취 선수금 규모와 취소분 선박의 비용 회수 예정액이 기존 실적 추정과 2027 BPS 산정에 반영되었는지, 아니면 별도 회수 시점과 인식 기준 확인이 필요한지 알려주실 수 있습니까?\"}]}}",
+    "at": 1792644702.3408058
+  },
+  {
+    "id": 11,
+    "kind": "MODEL_END",
+    "payload": "{\"role\": \"perspective\", \"tokens\": 5787, \"elapsed\": 2.0762242500204593}",
+    "at": 1792644704.444944
+  },
+  {
+    "id": 12,
+    "kind": "MODEL_END",
+    "payload": "{\"role\": \"perspective\", \"tokens\": 5761, \"elapsed\": 2.1301908749737777}",
+    "at": 1792644704.484359
+  },
+  {
+    "id": 13,
+    "kind": "TOOL_END",
+    "payload": "{\"tool\": \"search_evidence\", \"error\": null}",
+    "at": 1792644704.4911602
+  },
+  {
+    "id": 14,
+    "kind": "STAGE",
+    "payload": "{\"stage\": \"PERSPECTIVE_ANALYSIS\", \"payload\": {\"selected\": [{\"perspective_type\": \"INDUSTRY_CONTRACT\", \"selection_reason\": \"계약 취소와 잔존 선박 인도, 제3자 매각 및 비용 회수 계획이 공시 정정의 핵심이므로 계약 영향과 확인 필요사항을 점검합니다.\", \"question\": \"취소된 1척의 제3자 매각 진행 여부와 매각대금 회수 시점은 어떻게 되며, 잔존 1척의 인도와 잔금 회수는 확정되었습니까?\"}, {\"perspective_type\": \"FINANCE\", \"selection_reason\": \"기수취 선수금과 향후 매각대금이 현금흐름과 회수 인식에 영향을 줄 수 있어 재무 영향과 목표주가 근거 반영 여부를 확인합니다.\", \"question\": \"기수취 선수금 규모와 취소분 선박의 비용 회수 예정액이 기존 실적 추정과 2027 BPS 산정에 반영되었는지, 아니면 별도 회수 시점과 인식 기준 확인이 필요한지 알려주실 수 있습니까?\"}]}}",
+    "at": 1792644704.493731
+  },
+  {
+    "id": 15,
+    "kind": "MODEL_END",
+    "payload": "{\"role\": \"perspective\", \"tokens\": 5721, \"elapsed\": 2.402889500022866}",
+    "at": 1792644706.928292
+  },
+  {
+    "id": 16,
+    "kind": "STAGE",
+    "payload": "{\"stage\": \"REPORT_GENERATION\", \"payload\": {}}",
+    "at": 1792644706.940293
+  },
+  {
+    "id": 17,
+    "kind": "MODEL_END",
+    "payload": "{\"role\": \"report\", \"tokens\": 5252, \"elapsed\": 2.8078469579922967}",
+    "at": 1792644709.762101
+  },
+  {
+    "id": 18,
+    "kind": "MODEL_END",
+    "payload": "{\"role\": \"output_check\", \"tokens\": 6144, \"elapsed\": 5.054979208041914}",
+    "at": 1792644714.8254058
+  },
+  {
+    "id": 19,
+    "kind": "OUTPUT_CHECK_END",
+    "payload": "{\"candidates\": 18, \"accepted\": 18}",
+    "at": 1792644714.828662
+  },
+  {
+    "id": 20,
+    "kind": "TOOL_END",
+    "payload": "{\"tool\": \"business_save_report\", \"error\": null}",
+    "at": 1792644714.837548
+  }
+]

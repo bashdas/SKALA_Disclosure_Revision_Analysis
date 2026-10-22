@@ -3,7 +3,8 @@ import asyncio
 from disclosure_ai.schemas import BaseAnalysis
 from disclosure_ai.services.business import RunCancelled
 from disclosure_ai.services.documents import (
-    analysis_context,
+    model_context,
+    reference_frames,
     search_documents,
     typo_only,
     validated_sources,
@@ -57,6 +58,7 @@ async def prepare(run, state):
         + " 계약 정정 금액 매출 기간 위험 earnings revenue profit EPS goodwill impairment forecast guidance",
         limit=12,
     )
+    context.extend(reference_frames(state["filing"], state["memo"])["applied_valuation_rows"])
     # 원문을 보존하고 모델에는 고정 버전의 메모와 정정표를 우선 전달합니다.
     context.append(
         {
@@ -120,8 +122,7 @@ async def impact(run, state):
             "base",
             {
                 "request": state["request"],
-                "memo": state["memo"],
-                "context": analysis_context(state["filing"], state["context"]),
+                **model_context(state["filing"], state["context"], state["memo"]),
             },
             BaseAnalysis,
         )
@@ -133,6 +134,16 @@ async def impact(run, state):
             if not (s["perspective_type"] in seen or seen.add(s["perspective_type"]))
         ]
         for proposal in data["proposals"]:
+            if proposal["impact_type"] == "CALCULATION_UPDATE" and (
+                not proposal.get("calculation_basis")
+                or proposal["calculation_basis"] not in state["memo"]["text"]
+            ):
+                proposal["impact_type"] = "INTERPRETATION_REVIEW"
+                proposal["after_text"] = None
+                proposal["reason"] = (
+                    "기존 계산식과 잔여 매출 반영액을 확인하지 못해 해석 재검토로 분류했습니다. "
+                    "금액 수정은 보류합니다."
+                )
             proposal["evidence"] = validated_sources(
                 proposal["evidence"], state["documents"], state["context"]
             )

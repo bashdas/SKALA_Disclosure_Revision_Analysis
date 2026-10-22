@@ -4,7 +4,6 @@ import { computed, nextTick, watch, ref } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import {
   ArrowLeft,
-  ArrowUpRight as ArrowUpRightIcon,
   Check,
   CheckCircle2,
   AlertTriangle,
@@ -12,31 +11,26 @@ import {
   FileText,
   Download,
   ArrowRight,
-  Link2,
-  ExternalLink,
-  Building2,
-  Calculator,
-  ShieldCheck,
 } from 'lucide-vue-next'
 import { useWorkspace } from '../stores/workspace'
 import { date } from '../lib/format'
-import {
-  stages,
-  stageLabels,
-  perspectiveLabels,
-  perspectiveStatusLabels,
-  impactLabels,
-} from '../types/domain'
+import { stages, stageLabels, perspectiveLabels } from '../types/domain'
 import ReportSection from '../components/ReportSection.vue'
 import SkeletonState from '../components/SkeletonState.vue'
 import StatusPill from '../components/StatusPill.vue'
 import EmptyState from '../components/EmptyState.vue'
 import MarkdownReport from '../components/MarkdownReport.vue'
+import AnalysisPerspectives from '../components/AnalysisPerspectives.vue'
+import MemoRevisionProposals from '../components/MemoRevisionProposals.vue'
+import { reportLayout } from '../lib/report-layout'
 import { downloadReport } from '../services/http'
 const store = useWorkspace(),
   route = useRoute()
 const task = computed(() => store.tasks.find((t) => t.id === route.params.taskId))
 const report = computed(() => store.reports.find((r) => r.taskId === task.value?.id))
+const layout = computed(() =>
+  report.value ? reportLayout(report.value, task.value?.perspectives ?? []) : null,
+)
 const memo = computed(() => store.memos.find((m) => m.id === task.value?.memoId))
 const filing = computed(() => store.filings.find((f) => f.id === task.value?.filingId))
 const stageIndex = computed(() =>
@@ -45,11 +39,6 @@ const stageIndex = computed(() =>
 const inProgress = computed(
   () => !!task.value && ['CREATED', 'QUEUED', 'RUNNING', 'SAVING'].includes(task.value.status),
 )
-const icons: Record<string, typeof Building2> = {
-  INDUSTRY_CONTRACT: Building2,
-  FINANCE: Calculator,
-  FX_HEDGE: ShieldCheck,
-}
 watch(
   () => [report.value?.id, report.value?.savedAt],
   async () => {
@@ -74,10 +63,6 @@ async function download(extension: 'md' | 'pdf') {
   } finally {
     exporting.value = ''
   }
-}
-function evidence(id: string) {
-  const e = report.value?.evidence.find((e) => e.id === id)
-  if (e) store.openEvidence(e)
 }
 </script>
 <template>
@@ -104,7 +89,11 @@ function evidence(id: string) {
         </button></span
       ><span>자료 기준 {{ date(task.asOf, true) }}</span>
     </div>
-    <section class="surface progress-section" aria-label="분석 진행">
+    <section
+      v-if="!['COMPLETED', 'COMPLETED_WITH_WARNINGS'].includes(task.status)"
+      class="surface progress-section"
+      aria-label="분석 진행"
+    >
       <div class="section-heading">
         <h2>{{ inProgress ? '근거를 연결하고 있습니다' : '분석 진행 기록' }}</h2>
         <span v-if="inProgress" class="running-text" role="status"
@@ -164,137 +153,100 @@ function evidence(id: string) {
         </p>
       </div>
     </div>
-    <template v-if="report">
-      <ReportSection title="검토 보고서" class="report-summary surface">
-        <template #actions
-          ><span v-if="report.savedAt" class="saved-label"
-            ><CheckCircle2 :size="14" />{{ date(report.savedAt, true) }} 저장</span
-          ><span v-else class="warning-text">미저장</span></template
+    <ReportSection
+      v-if="report && layout"
+      title="검토 보고서"
+      class="surface unified-report"
+      aria-label="검토 보고서"
+    >
+      <template #actions>
+        <span v-if="report.savedAt" class="saved-label"
+          ><CheckCircle2 :size="14" />{{ date(report.savedAt, true) }} 저장</span
         >
-        <h2>{{ report.title }}</h2>
-        <p class="summary-text">{{ report.summary }}</p>
-        <div class="change-grid">
-          <div v-for="change in report.changes" :key="change.label" class="change-item">
-            <span class="muted small">{{ change.label }}</span>
-            <div>
-              <span class="before-value">{{ change.before }}</span
-              ><ArrowRight :size="16" /><strong>{{ change.after }}</strong>
-            </div>
-          </div>
+        <span v-else class="warning-text">미저장</span>
+        <div class="row-actions">
+          <button class="button secondary" :disabled="!!exporting" @click="download('md')">
+            <Download :size="15" />MD 다운로드
+          </button>
+          <button class="button primary" :disabled="!!exporting" @click="download('pdf')">
+            <Download :size="15" />{{ exporting === 'pdf' ? 'PDF 생성 중…' : 'PDF 다운로드' }}
+          </button>
         </div>
-      </ReportSection>
-      <ReportSection title="보고서 본문" class="surface report-body" aria-label="보고서 본문">
-        <template #actions>
-          <div class="row-actions">
-            <button class="button secondary" :disabled="!!exporting" @click="download('md')">
-              <Download :size="15" />MD 다운로드
-            </button>
-            <button class="button primary" :disabled="!!exporting" @click="download('pdf')">
-              <Download :size="15" />{{ exporting === 'pdf' ? 'PDF 생성 중…' : 'PDF 다운로드' }}
-            </button>
-          </div></template
-        >
+      </template>
+      <div class="unified-report-content">
         <p v-if="exportError" class="inline-warning" role="alert">{{ exportError }}</p>
-        <MarkdownReport :content="report.content" />
-      </ReportSection>
-      <ReportSection
-        title="기존 논리의 재검토"
-        :count="report.findings.length"
-        class="surface findings-section"
-      >
-        <article
-          v-for="(finding, i) in report.findings"
-          :key="finding.id"
-          class="finding-card surface"
-        >
-          <div class="finding-header">
-            <span class="finding-number">{{ String(i + 1).padStart(2, '0') }}</span
-            ><span class="impact-tag" :class="finding.impactType.toLowerCase()">{{
-              impactLabels[finding.impactType]
-            }}</span>
-          </div>
-          <div class="finding-comparison">
-            <div class="before-block">
-              <span class="eyebrow">기존 메모의 문장</span>
-              <blockquote>{{ finding.beforeText }}</blockquote>
-              <button
-                class="text-button"
-                @click="store.openMemo(task.memoId, task.baseMemoVersion, finding.memoParagraph)"
-              >
-                원문 문맥 확인 <ArrowUpRightIcon :size="13" />
-              </button>
+        <template v-for="(block, i) in layout.blocks" :key="i">
+          <MarkdownReport
+            v-if="block.type === 'markdown'"
+            :content="report.content"
+            :range="block.range"
+            :evidence="report.evidence"
+            @open-evidence="store.openEvidence"
+          />
+          <ReportSection
+            v-else-if="block.type === 'sources'"
+            :title="block.heading ?? '출처와 원문 인용'"
+            :default-open="false"
+            class="report-sources"
+          >
+            <MarkdownReport
+              :content="report.content"
+              :range="block.range"
+              :evidence="report.evidence"
+              @open-evidence="store.openEvidence"
+            />
+          </ReportSection>
+          <MemoRevisionProposals
+            v-else-if="block.type === 'memo-proposals'"
+            :findings="report.findings"
+            :evidence="report.evidence"
+            @open-evidence="store.openEvidence"
+            @open-memo="store.openMemo(task.memoId, task.baseMemoVersion, $event)"
+          />
+          <section v-else-if="block.type === 'summary'" class="report-fallback">
+            <h2>핵심 요약</h2>
+            <p class="summary-text">{{ report.summary }}</p>
+          </section>
+          <section v-else-if="block.type === 'changes'" class="report-fallback">
+            <h2>확인된 공시 내용</h2>
+            <div class="change-grid">
+              <div v-for="change in report.changes" :key="change.label" class="change-item">
+                <span class="muted small">{{ change.label }}</span>
+                <div>
+                  <span class="before-value">{{ change.before }}</span
+                  ><ArrowRight :size="16" /><strong>{{ change.after }}</strong>
+                </div>
+              </div>
             </div>
-            <div class="after-block">
-              <span class="eyebrow">새롭게 확인한 사실</span>
-              <p>{{ finding.newFact }}</p>
-            </div>
-          </div>
-          <div class="finding-explanation">
-            <div>
-              <h3>판단 이유</h3>
-              <p>{{ finding.reason }}</p>
-            </div>
-            <div>
-              <h3>검토 제안</h3>
-              <p>{{ finding.suggestion }}</p>
-            </div>
-          </div>
-          <div class="evidence-chips">
-            <span class="small muted"><Link2 :size="13" /> 연결 근거</span
-            ><button v-for="id in finding.evidenceIds" :key="id" @click="evidence(id)">
-              {{ report.evidence.find((e) => e.id === id)?.title }}<ExternalLink :size="12" />
-            </button>
-          </div>
-        </article>
-      </ReportSection>
-      <ReportSection title="근거 자료" :count="report.evidence.length" class="surface source-list">
-        <button
-          v-for="source in report.evidence"
-          :key="source.id"
-          class="source-row"
-          @click="store.openEvidence(source)"
-        >
-          <FileText :size="17" /><span
-            ><strong>{{ source.title }}</strong
-            ><span class="small muted"
-              >{{ date(source.publishedAt) }} , {{ source.location }}</span
-            ></span
-          ><ExternalLink :size="15" />
-        </button>
-      </ReportSection>
-    </template>
+          </section>
+          <section v-else-if="block.type === 'perspective-results'" class="report-fallback">
+            <h2>관점별 분석</h2>
+            <article v-for="perspective in layout.fallbackResults" :key="perspective.type">
+              <h3>{{ perspectiveLabels[perspective.type] }}</h3>
+              <p class="fallback-result">{{ perspective.result }}</p>
+            </article>
+          </section>
+        </template>
+        <AnalysisPerspectives
+          v-if="layout.showPerspectives"
+          class="report-perspectives"
+          :perspectives="task.perspectives"
+          :reason="report.noAdditionalAnalysisReason"
+          :show-result="false"
+        />
+      </div>
+    </ReportSection>
     <div v-else-if="inProgress" class="analysis-wait" role="status">
       <SkeletonState variant="report" />
       <h2>기존 논리와 새로운 사실을 비교하고 있어요</h2>
       <p>단계가 완료되면 이곳에 서버 보고서가 표시됩니다.</p>
     </div>
     <ReportSection
-      v-if="task.currentStage && stageIndex >= 3"
+      v-if="!report && task.currentStage && stageIndex >= 3"
       title="선택한 분석 관점"
       class="surface perspectives-section"
     >
-      <div class="perspective-grid">
-        <article
-          v-for="p in task.perspectives"
-          :key="p.type"
-          class="perspective-card"
-          :class="{ unselected: !p.selected }"
-        >
-          <div class="perspective-header">
-            <component :is="icons[p.type] ?? ShieldCheck" :size="18" />
-            <h3>{{ perspectiveLabels[p.type] ?? p.type }}</h3>
-            <span
-              class="tag"
-              :class="{
-                warning: ['INSUFFICIENT_EVIDENCE', 'LIMIT_REACHED', 'FAILED'].includes(p.status),
-              }"
-              >{{ p.selected ? perspectiveStatusLabels[p.status] : '선택 안 함' }}</span
-            >
-          </div>
-          <p>{{ p.selectionReason }}</p>
-          <p v-if="p.result" class="perspective-result">{{ p.result }}</p>
-        </article>
-      </div>
+      <AnalysisPerspectives :perspectives="task.perspectives" :show-heading="false" />
     </ReportSection>
   </template>
   <EmptyState
@@ -304,3 +256,47 @@ function evidence(id: string) {
     ><RouterLink to="/companies" class="button secondary">기업 목록</RouterLink></EmptyState
   >
 </template>
+
+<style scoped>
+.unified-report {
+  margin: 28px 0 30px;
+}
+.unified-report-content {
+  padding: 0 24px 24px;
+}
+.unified-report-content :deep(.markdown-body) {
+  padding: 0;
+}
+.report-perspectives {
+  margin-top: 32px;
+  padding-top: 24px;
+  border-top: 1px solid var(--line);
+}
+.report-sources {
+  margin-top: 32px;
+  padding-top: 20px;
+  border-top: 1px solid var(--line);
+}
+.report-fallback {
+  margin-top: 32px;
+}
+.report-fallback > h2 {
+  margin: 0 0 14px;
+  font-size: 21px;
+}
+.report-fallback h3 {
+  margin: 24px 0 12px;
+  font-size: 17px;
+}
+.fallback-result,
+.summary-text {
+  white-space: pre-wrap;
+  line-height: 1.85;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 650px) {
+  .unified-report-content {
+    padding-inline: 20px;
+  }
+}
+</style>
