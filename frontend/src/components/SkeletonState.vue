@@ -87,7 +87,7 @@ withDefaults(
           </div>
         </div>
       </div>
-      <div class="sk-tabs"><Skeleton v-for="i in 4" :key="i" class="skeleton" /></div>
+      <div class="sk-tabs"><Skeleton v-for="i in 3" :key="i" class="skeleton" /></div>
       <div class="sk-section-heading"><Skeleton class="skeleton sk-title" /></div>
       <div class="sk-filters">
         <Skeleton class="skeleton" /><Skeleton class="skeleton" /><Skeleton

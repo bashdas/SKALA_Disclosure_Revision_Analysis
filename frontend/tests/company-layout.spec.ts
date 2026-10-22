@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test'
 import { readFileSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 
-test('기업 상세의 배경과 필터, 네 목록의 오른쪽 버튼 정렬을 확인합니다', async ({ page }) => {
+test('기업 상세의 배경과 필터, 세 목록의 오른쪽 버튼 정렬을 확인합니다', async ({ page }) => {
   test.skip(!process.env.E2E_TOKEN_FILE, '로그인 토큰 파일이 필요합니다.')
   test.setTimeout(120000)
   const { token } = JSON.parse(readFileSync(process.env.E2E_TOKEN_FILE!, 'utf8'))
@@ -20,11 +20,15 @@ test('기업 상세의 배경과 필터, 네 목록의 오른쪽 버튼 정렬�
     await page.setViewportSize({ width, height: 1100 })
     await page.goto(`/companies/${company}`)
     await expect(page.locator('.filing-filters')).toBeVisible()
+    await expect(page.locator('.tabs a')).toHaveCount(3)
+    await expect(page.locator('.tabs')).not.toContainText('분석 이력')
     for (const theme of ['dark', 'light']) {
       const toggle = page.getByRole('button', {
         name: theme === 'dark' ? '다크 모드로 전환' : '라이트 모드로 전환',
       })
       if (await toggle.count()) await toggle.click()
+      else await page.evaluate((theme) => (document.documentElement.dataset.theme = theme), theme)
+      await expect(page.locator('html')).toHaveAttribute('data-theme', theme)
       const backgrounds = await page.evaluate(() =>
         [
           document.body,
@@ -47,10 +51,10 @@ test('기업 상세의 배경과 필터, 네 목록의 오른쪽 버튼 정렬�
       if (width > 1150) expect(new Set(boxes.map((b) => Math.round(b.y))).size).toBe(1)
       expect(Math.abs(boxes[1]!.y - boxes[2]!.y)).toBeLessThan(1)
 
-      for (let tab = 0; tab < 4; tab++) {
+      for (let tab = 0; tab < 3; tab++) {
         await page.locator('.tabs a').nth(tab).click()
         await expect(page).toHaveURL(
-          new RegExp('tab=' + ['filings', 'memos', 'reports', 'history'][tab]),
+          new RegExp('tab=' + ['filings', 'memos', 'reports'][tab]),
         )
         await expect(page.locator('.company-tools')).toHaveCount(0)
         const rows = page.locator(
@@ -71,7 +75,7 @@ test('기업 상세의 배경과 필터, 네 목록의 오른쪽 버튼 정렬�
             const buttons = [...actions.children].map((b) => b.getBoundingClientRect())
             return {
               right: Math.abs(r.right - parseFloat(getComputedStyle(row).paddingRight) - a.right),
-              sameLine: buttons.every((b) => Math.abs(b.y - buttons[0]!.y) < 1),
+              sameLine: buttons.every((b) => Math.abs(b.y + b.height / 2 - buttons[0]!.y - buttons[0]!.height / 2) < 1),
               inside: a.left >= r.left && a.right <= r.right,
             }
           }),

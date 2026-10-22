@@ -8,7 +8,6 @@ import {
   Sparkles,
   ArrowUpRight,
   Check,
-  Activity,
   Trash2,
   Search,
 } from 'lucide-vue-next'
@@ -29,11 +28,11 @@ const store = useWorkspace(),
   selectedFiling = ref<Filing | null>(null),
   memoSearch = ref('')
 const company = computed(() => store.companies.find((c) => c.id === route.params.companyId))
-const tab = computed(() =>
-  ['filings', 'memos', 'reports', 'history'].includes(String(route.query.tab))
-    ? String(route.query.tab)
-    : 'filings',
-)
+const tab = computed(() => {
+  const requested = String(route.query.tab)
+  if (requested === 'history') return 'reports'
+  return ['filings', 'memos', 'reports'].includes(requested) ? requested : 'filings'
+})
 const totalFilings = ref<number | null>(null)
 const rows = ref<DisclosureRow[]>([]),
   loading = ref(false),
@@ -179,16 +178,10 @@ const filteredMemos = computed(() =>
   companyMemos.value.filter((m) => m.title.includes(memoSearch.value)),
 )
 const companyTasks = computed(() => store.tasks.filter((t) => t.companyId === company.value?.id))
-const companyReports = computed(() =>
-  store.savedReports.filter(
-    (r) => store.tasks.find((t) => t.id === r.taskId)?.companyId === company.value?.id,
-  ),
-)
 const tabs = computed(() => [
   { id: 'filings', name: '공시', icon: FileText, count: totalFilings.value },
   { id: 'memos', name: '메모 관리', icon: StickyNote, count: companyMemos.value.length },
-  { id: 'reports', name: 'AI 보고서', icon: Sparkles, count: companyReports.value.length },
-  { id: 'history', name: '분석 이력', icon: Activity, count: companyTasks.value.length },
+  { id: 'reports', name: 'AI 보고서', icon: Sparkles, count: companyTasks.value.length },
 ])
 </script>
 <template>
@@ -336,35 +329,7 @@ const tabs = computed(() => [
             message="검색 조건을 바꾸거나 이 종목의 기준 메모를 추가하세요."
           />
         </template>
-        <CompanyAnalysisHistory
-          v-else-if="tab === 'history'"
-          :key="company.id"
-          :company-id="company.id"
-        />
-        <template v-else>
-          <div class="list-heading">
-            <h2>저장된 분석 보고서</h2>
-          </div>
-          <article v-for="report in companyReports" :key="report.id" class="document-row">
-            <span class="document-icon mint"><Sparkles :size="20" /></span>
-            <div class="document-info">
-              <RouterLink class="document-title" :to="`/analyses/${report.taskId}`">{{
-                report.title
-              }}</RouterLink>
-              <p class="small muted">{{ date(report.savedAt) }} , 원본 메모 보존</p>
-            </div>
-            <div class="document-actions">
-              <RouterLink class="text-button" :to="`/analyses/${report.taskId}`"
-                >결과 확인 <ArrowUpRight :size="13"
-              /></RouterLink>
-            </div>
-          </article>
-          <EmptyState
-            v-if="!companyReports.length"
-            title="저장된 보고서가 없습니다"
-            message="공시와 메모를 선택해 첫 분석을 시작하세요."
-          />
-        </template>
+        <CompanyAnalysisHistory v-else :key="company.id" :company-id="company.id" />
       </section>
     </div>
     <AnalysisLauncher

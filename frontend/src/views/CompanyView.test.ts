@@ -87,10 +87,18 @@ it.each(['filings', 'memos', 'reports', 'history'])(
     await router.push('/companies/company?tab=' + tab)
     const wrapper = mount(CompanyView, { global: { plugins: [pinia, router] } })
     await flushPromises()
+    expect(wrapper.findAll('.tabs a')).toHaveLength(3)
+    expect(wrapper.get('.tabs').text()).not.toContain('분석 이력')
     expect(wrapper.find('.company-tools').exists()).toBe(false)
     expect(wrapper.text()).not.toContain('등록')
     const rows = wrapper.findAll('.document-row, .analysis-row')
     expect(rows.length).toBeGreaterThan(0)
+    if (tab === 'reports' || tab === 'history') {
+      expect(wrapper.get('.tabs a.selected').text()).toContain('AI 보고서')
+      expect(rows).toHaveLength(1)
+      expect(rows[0]!.text()).toContain('분석 보고서')
+      expect(rows[0]!.get('.text-button').text()).toContain('보고서 보기')
+    }
     for (const row of rows) {
       expect(row.find('.document-info .document-actions').exists()).toBe(false)
       expect(row.find(':scope > .document-actions').exists()).toBe(true)
