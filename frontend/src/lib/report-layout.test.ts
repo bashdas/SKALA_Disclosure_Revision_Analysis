@@ -96,6 +96,24 @@ it('대체 데이터가 없거나 불완전한 보고서에서는 원래 선택 
   ).toBe(false)
 })
 
+it.each(['메모 수정 제안', '메모 유지 및 수정 제안'])(
+  '%s 구역은 대체 카드가 있을 때만 제외합니다',
+  (heading) => {
+    const value = report(
+      `## 확인된 공시 내용\n\n변경 내용\n\n## ${heading}\n\n유지 또는 수정 원문\n\n## 관점별 분석\n\n분석 결과`,
+    )
+    const replaced = displayedMarkdown({ ...value, findings: [finding] })
+    expect(replaced.layout.blocks.filter((b) => b.type === 'memo-proposals')).toHaveLength(1)
+    expect(replaced.html).not.toContain('유지 또는 수정 원문')
+    expect(replaced.html).toContain('분석 결과')
+    for (const findings of [[], [{ ...finding, reason: '' }]]) {
+      const preserved = displayedMarkdown({ ...value, findings })
+      expect(preserved.html).toContain(heading)
+      expect(preserved.html).toContain('유지 또는 수정 원문')
+    }
+  },
+)
+
 it('본문에서 빠진 요약·변경 내용·관점 결과도 구조화된 데이터가 있으면 보여줍니다', () => {
   const value = report(
     '## 기타 내용\n\n기존 형식의 본문\n\n## 확인 범위와 남은 질문\n\n남은 질문',

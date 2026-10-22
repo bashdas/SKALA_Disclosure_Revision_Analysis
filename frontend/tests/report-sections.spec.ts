@@ -230,6 +230,31 @@ test('하나의 보고서 안에서 관점과 메모수정 제안을 중복 없�
   }
 })
 
+test('최신 서버의 메모 유지 및 수정 제안도 비교 카드로 한 번만 표시합니다', async ({ page }) => {
+  await page.route('**/api/v1/analyses/report-task/report', (route) =>
+    route.fulfill({
+      json: {
+        ...report,
+        content: report.content.replace('## 메모 수정 제안', '## 메모 유지 및 수정 제안'),
+      },
+    }),
+  )
+  await page.goto('/analyses/report-task')
+  const reportView = page.locator('.unified-report')
+  await expect(reportView.locator('.memo-proposals')).toHaveCount(1)
+  await expect(reportView.getByText(afterText, { exact: true })).toHaveCount(1)
+  await expect(reportView.getByText(beforeText, { exact: true })).toHaveCount(1)
+  await expect(
+    reportView.getByRole('heading', { name: '메모 유지 및 수정 제안', exact: true }),
+  ).toHaveCount(0)
+  await expect(
+    reportView.getByRole('button', { name: '출처와 원문 인용', exact: true }),
+  ).toHaveAttribute('aria-expanded', 'false')
+  await expect(reportView.locator('.unified-report-content > :last-child')).toHaveClass(
+    /report-perspectives/,
+  )
+})
+
 test('근거 미리보기, 키보드, 터치와 상세 패널을 정확한 자료에 연결합니다', async ({
   page,
   isMobile,

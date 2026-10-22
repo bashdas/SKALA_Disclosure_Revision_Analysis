@@ -6,7 +6,7 @@ export type ReportBlock =
   | { type: 'summary' | 'changes' | 'memo-proposals' | 'perspective-results' }
 
 const key = (heading: string | null) => heading?.replace(/\s+/g, '') ?? ''
-const memoHeadings = new Set(['메모영향', '메모수정제안'])
+const memoHeadings = new Set(['메모영향', '메모수정제안', '메모유지및수정제안'])
 const lateHeadings = new Set([
   '관점별분석',
   '향후영향과조건',
