@@ -37,3 +37,13 @@ def test_sec_originals_company_and_search():
     assert page['items'][0]['receipt_no']==ID
     with pytest.raises(Exception):
         asyncio.run(disclosure('SEC:../../etc:0001071739-25-000185',OpenDartDocumentParser(),settings,transport))
+
+
+def test_sec_amendment_keeps_official_form_type():
+    def amended(request):
+        response = handler(request)
+        if request.url.path.endswith('-index.html'):
+            return httpx.Response(200, text=response.text.replace('>8-K<', '>8-K/A<'))
+        return response
+    result = asyncio.run(disclosure(ID, OpenDartDocumentParser(), Settings(_env_file=None), httpx.MockTransport(amended)))
+    assert result['report_name'].startswith('8-K/A ')

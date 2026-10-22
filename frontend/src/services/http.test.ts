@@ -42,7 +42,7 @@ function respond(path: string, init?: RequestInit) {
                 company_name: '기업',
                 receipt_no: task.disclosure_receipt_no,
                 filing_type: '정정',
-              is_correction: true,
+                is_correction: true,
                 filed_at: now,
               },
             ]
@@ -120,6 +120,7 @@ it('파일을 multipart로 전송하고 서버의 기업 미확정 상태와 본
   expect(options?.body).toBeInstanceOf(FormData)
   expect((options!.headers as Headers).has('Content-Type')).toBe(false)
   expect((options!.body as FormData).get('title')).toBe('새 제목')
+  expect((options!.body as FormData).get('company_id')).toBe('기업')
 })
 it('서버 오류를 전파하고 만료된 인증을 해제합니다', async () => {
   vi.stubGlobal('fetch', vi.fn(respond))
@@ -189,21 +190,61 @@ it('비밀번호 변경의 204 응답을 처리하고 토큰을 폐기합니다'
   await login('user@example.test', 'password')
   fetcher.mockImplementation((path, options) => {
     if (path.endsWith('/password')) return Promise.resolve(new Response(null, { status: 204 }))
-    if (path.endsWith('/signup')) return Promise.resolve(new Response(JSON.stringify({ id: 'new-user' }), { status: 201 }))
+    if (path.endsWith('/signup'))
+      return Promise.resolve(new Response(JSON.stringify({ id: 'new-user' }), { status: 201 }))
     return respond(path, options)
   })
-  await signup('new@example.com', 'password-test-123', '새 조직')
+  await signup('new@example.com', 'password-test-123', '새 조직', '박건민')
   await changePassword('password', 'new-password-123')
   expect(hasSession()).toBe(false)
   const call = fetcher.mock.calls.find(([url]) => url.endsWith('/password'))!
   expect(call[1]?.method).toBe('PATCH')
-  expect(JSON.parse(call[1]?.body as string)).toEqual({ current_password: 'password', new_password: 'new-password-123' })
+  expect(JSON.parse(call[1]?.body as string)).toEqual({
+    current_password: 'password',
+    new_password: 'new-password-123',
+  })
 })
 
 it('로그인 거부 시 회원가입 안내를 표시합니다', async () => {
-  vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(new Response(
-    JSON.stringify({ error: { code: 'INVALID_CREDENTIALS', message: 'Invalid credentials' } }),
-    { status: 401 },
-  ))))
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(() =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({
+            error: { code: 'INVALID_CREDENTIALS', message: 'Invalid credentials' },
+          }),
+          { status: 401 },
+        ),
+      ),
+    ),
+  )
   await expect(login('unknown@example.com', 'password')).rejects.toThrow('처음 이용하시면 회원가입')
+})
+
+it('일반 공시는 분석 요청을 전송하기 전에 거부합니다', async () => {
+  const fetcher = vi.fn((path: string, init?: RequestInit) => {
+    if (path.startsWith('/api/v1/filings?'))
+      return Promise.resolve(
+        new Response(
+          JSON.stringify([
+            {
+              id: 'filing-id',
+              company_name: '기업',
+              receipt_no: task.disclosure_receipt_no,
+              filing_type: '신규공시',
+              is_correction: false,
+              filed_at: now,
+            },
+          ]),
+          { status: 200 },
+        ),
+      )
+    return respond(path, init)
+  })
+  vi.stubGlobal('fetch', fetcher)
+  await expect(
+    createHttpServices().analyses.start({ filingId: 'filing-id', memoId: memo.id, memoVersion: 1 }),
+  ).rejects.toThrow('정정공시만 분석')
+  expect(fetcher.mock.calls.some(([path]) => path === '/api/v1/analyses')).toBe(false)
 })

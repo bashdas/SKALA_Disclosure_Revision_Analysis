@@ -35,7 +35,7 @@ def test_favorites_corrections_and_analysis_gate(analysis_client,analysis_contex
         assert analysis_client.get('/api/v1/favorites',headers=other).json()==[]
         root=analysis_client.post('/api/v1/filings',headers=headers,json={'receipt_no':ROOT})
         assert root.status_code==200 and not root.json()['is_correction']
-        assert request(analysis_client,ctx,receipt=ROOT).status_code==202
+        assert request(analysis_client,ctx,receipt=ROOT).json()['error']['code']=='CORRECTION_REQUIRED'
         root_id=root.json()['id']
         path=f'/api/v1/filings/{root_id}/corrections/check'
         assert analysis_client.post(path,headers=other).status_code==404
@@ -49,7 +49,7 @@ def test_favorites_corrections_and_analysis_gate(analysis_client,analysis_contex
         assert not any(row['receipt_no'] in (ROOT,CORRECTION) for row in rows)
         with ctx.factory() as db:
             assert db.get(Filing,UUID(root_id)) is not None
-        assert request(analysis_client,ctx,receipt=CORRECTION).json()['error']['code']=='REGISTERED_FILING_REQUIRED'
+        assert request(analysis_client,ctx,receipt=CORRECTION).json()['error']['code']=='CORRECTION_REQUIRED'
         assert analysis_client.delete('/api/v1/favorites/00126380',headers=headers).status_code==204
     finally:
         if previous is None:app.dependency_overrides.pop(get_disclosure_source,None)

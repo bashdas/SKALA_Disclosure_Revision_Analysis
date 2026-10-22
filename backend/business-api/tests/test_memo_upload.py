@@ -231,13 +231,15 @@ def test_repository_only_flushes_memo_and_version(upload_context):
     assert_empty(upload_context)
 
 
-def test_upload_openapi_accepts_only_file_and_optional_title():
+def test_upload_openapi_accepts_file_title_and_company_identifier():
     schema = app.openapi()
     body = schema["paths"]["/api/v1/memos"]["post"]["requestBody"]["content"]["multipart/form-data"]["schema"]
     body = schema["components"]["schemas"][body["$ref"].split("/")[-1]]
-    assert set(body["properties"]) == {"file", "title"}
+    assert set(body["properties"]) == {"file", "title", "company_id"}
     assert body["required"] == ["file"]
-    assert "/api/v1/memos/{memo_id}/versions" not in schema["paths"] or "post" not in schema["paths"]["/api/v1/memos/{memo_id}/versions"]
+    edit = schema["paths"]["/api/v1/memos/{memo_id}/versions"]["post"]["requestBody"]["content"]["application/json"]["schema"]
+    edit = schema["components"]["schemas"][edit["$ref"].split("/")[-1]]
+    assert set(edit["required"]) == {"content", "base_version"}
 
 
 def test_upload_without_token_is_401():

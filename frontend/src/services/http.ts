@@ -1,3 +1,4 @@
+import { notifyError } from '../lib/notifications'
 import { disclosureUrl } from '../lib/format'
 import { ref } from 'vue'
 import type { Services } from './contracts'
@@ -18,6 +19,7 @@ export interface CurrentUser {
   id: string
   organization_id: string
   email: string
+  name?: string
   role: string
 }
 export const currentUser = ref<CurrentUser | null>(null)
@@ -63,7 +65,9 @@ export async function request<T>(
       signal: options.signal ?? AbortSignal.timeout(65000),
     })
   } catch {
-    throw new Error('서버에 연결하지 못했습니다. 연결 상태를 확인해 주세요.')
+    const error = new Error('서버에 연결하지 못했습니다. 연결 상태를 확인해 주세요.')
+    if (!options.signal?.aborted) notifyError(error)
+    throw error
   }
   if (!response.ok) {
     const body = await response.json().catch(() => ({}))
@@ -72,7 +76,7 @@ export async function request<T>(
       logout()
       if (hadToken) window.dispatchEvent(new Event('session-expired'))
     }
-    throw new ApiError(
+    const error = new ApiError(
       response.status,
       (body.error?.code === 'INVALID_CREDENTIALS'
         ? '이메일 또는 비밀번호를 확인해 주세요. 처음 이용하시면 회원가입을 진행해 주세요.'
@@ -84,6 +88,8 @@ export async function request<T>(
             : `요청에 실패했습니다 (${response.status}).`),
       body.error?.existing_task_id,
     )
+    if (response.status !== 409) notifyError(error)
+    throw error
   }
   if (response.status === 204) return undefined as T
   return (format === 'blob' ? response.blob() : response.json()) as Promise<T>
@@ -278,7 +284,11 @@ export function createHttpServices(): Services {
           )
           return {
             id: f.id,
-            companyId: f.corp_code ?? (f.receipt_no.startsWith('SEC:') ? f.receipt_no.split(':').slice(0, 2).join(':') : companyId(f.company_name)),
+            companyId:
+              f.corp_code ??
+              (f.receipt_no.startsWith('SEC:')
+                ? f.receipt_no.split(':').slice(0, 2).join(':')
+                : companyId(f.company_name)),
             isCorrection: f.is_correction ?? false,
             originReceiptNo: f.origin_receipt_no ?? null,
             receiptNo: f.receipt_no,
@@ -424,13 +434,29 @@ export function createHttpServices(): Services {
     },
     memos: {
       list: loadMemos,
-      async get(id) { return loadMemo(await request<MemoRow>(`/memos/${id}`)) },
-      async remove(id) { await request<void>(`/memos/${id}`, {method:'DELETE'}); memoLoad=undefined },
-      async upload(file, title) {
+      async get(id) {
+        return loadMemo(await request<MemoRow>(`/memos/${id}`))
+      },
+      async edit(id, content, baseVersion) {
+        await readMemoFile(new File([content], 'memo.txt', { type: 'text/plain' }))
+        const row = await request<MemoRow>(`/memos/${id}/versions`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ content, base_version: baseVersion }),
+        })
+        memoLoad = undefined
+        return loadMemo(row)
+      },
+      async remove(id) {
+        await request<void>(`/memos/${id}`, { method: 'DELETE' })
+        memoLoad = undefined
+      },
+      async upload(file, title, companyId) {
         await readMemoFile(file)
         const form = new FormData()
         form.append('file', file)
         if (title !== undefined) form.append('title', title)
+        if (companyId !== undefined) form.append('company_id', companyId)
         const row = await request<MemoRow>('/memos', { method: 'POST', body: form })
         const memo = await loadMemo(row)
         memoLoad = undefined
@@ -454,9 +480,12 @@ export function createHttpServices(): Services {
       },
       async start(input) {
         const filing = (await loadFilings()).find((f) => f.id === input.filingId)
-        if (!filing) throw new Error('등록한 공시를 선택하세요.')
+        if (!filing?.isCorrection) throw new Error('정정공시만 분석할 수 있습니다.')
         const receiptNo = filing.receiptNo
-        if (!receiptNo || !/^(?:[0-9]{14}|SEC:[0-9]{1,10}:[0-9]{10}-[0-9]{2}-[0-9]{6})$/.test(receiptNo))
+        if (
+          !receiptNo ||
+          !/^(?:[0-9]{14}|SEC:[0-9]{1,10}:[0-9]{10}-[0-9]{2}-[0-9]{6})$/.test(receiptNo)
+        )
           throw new Error('유효한 공시 접수번호가 필요합니다.')
         let id: string
         try {
@@ -532,16 +561,31 @@ export function createHttpServices(): Services {
   }
 }
 
-export function signup(email: string, password: string, organizationName: string) {
+export function signup(email: string, password: string, organizationName: string, name: string) {
   return request<CurrentUser>(
     '/auth/signup',
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password, organization_name: organizationName }),
+      body: JSON.stringify({ email, password, organization_name: organizationName, name }),
     },
     false,
   )
+}
+export async function changeName(name: string) {
+  currentUser.value = await request<CurrentUser>('/users/me', {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name }),
+  })
+}
+export async function deleteAccount(password: string) {
+  await request<void>('/users/me', {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ password }),
+  })
+  logout()
 }
 export async function changePassword(currentPassword: string, newPassword: string) {
   await request<void>('/users/me/password', {
@@ -557,7 +601,10 @@ export async function downloadReport(taskId: string, extension: 'md' | 'pdf') {
   const blob = await request<Blob>(`/analyses/${taskId}/report.${extension}`, {}, true, 'blob')
   const url = URL.createObjectURL(blob)
   const link = document.createElement('a')
-  link.href=url; link.download=`report-${taskId}.${extension}`
-  document.body.append(link); link.click(); link.remove()
-  setTimeout(()=>URL.revokeObjectURL(url), 1000)
+  link.href = url
+  link.download = `report-${taskId}.${extension}`
+  document.body.append(link)
+  link.click()
+  link.remove()
+  setTimeout(() => URL.revokeObjectURL(url), 1000)
 }

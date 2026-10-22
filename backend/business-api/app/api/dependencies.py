@@ -42,7 +42,7 @@ def get_current_user(
     user = UserRepository(session).get_by_id(payload.sub)
     if user is None:
         raise UserNotFound()
-    if (user.organization_id != payload.organization_id or user.role != payload.role
+    if (not user.is_active or user.organization_id != payload.organization_id or user.role != payload.role
             or user.token_version != payload.token_version):
         raise InvalidToken()
     return CurrentUser(id=user.id, organization_id=user.organization_id, email=user.email, role=user.role)

@@ -1,33 +1,62 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onUnmounted, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
-import { Star, FileText, Sparkles } from 'lucide-vue-next'
+import { FileText, Sparkles } from 'lucide-vue-next'
 import { useWorkspace } from '../stores/workspace'
-import { favoriteCompany, removeFavorite } from '../services/catalog'
+import { getCompanyUpdates, type CompanyUpdate } from '../services/catalog'
 import { getWatchlistQuotes, type WatchlistQuote } from '../services/market'
 import type { Company } from '../types/domain'
 import { date } from '../lib/format'
+import CompanyFavorite from './CompanyFavorite.vue'
+import CompanyLogo from './CompanyLogo.vue'
 import StatusPill from './StatusPill.vue'
 const props = withDefaults(defineProps<{ companies: Company[]; directory?: boolean }>(), {
   directory: false,
 })
-const store = useWorkspace(),
-  busy = ref(''),
-  error = ref('')
-const isFavorite = (id: string) => store.companies.some((c) => c.id === id && c.favorite)
-async function toggleFavorite(company: Company) {
-  if (busy.value) return
-  busy.value = company.id
-  error.value = ''
-  try {
-    if (isFavorite(company.id)) await removeFavorite(company.id)
-    else await favoriteCompany(company.id)
-    await store.refresh()
-  } catch (e) {
-    error.value = e instanceof Error ? e.message : '즐겨찾기를 변경하지 못했습니다.'
-  } finally {
-    busy.value = ''
-  }
+const store = useWorkspace()
+const updates = ref<Record<string, CompanyUpdate>>({})
+let updateGeneration = 0
+async function refreshUpdates() {
+  const generation = ++updateGeneration
+  await getCompanyUpdates(props.companies, (id, value) => {
+    if (generation === updateGeneration) updates.value[id] = value
+  })
+}
+watch(() => props.companies.map((c) => c.id + ':' + c.code).join(','), refreshUpdates, {
+  immediate: true,
+})
+const updateTimer = setInterval(refreshUpdates, 300_000)
+onUnmounted(() => {
+  clearInterval(updateTimer)
+  updateGeneration++
+})
+function updateCount(id: string, kind: 'filing' | 'memo' | 'report') {
+  if (kind === 'filing')
+    return (
+      updates.value[id]?.filingCount ??
+      (updates.value[id]?.filingStatus === 'error'
+        ? '조회 실패'
+        : updates.value[id]
+          ? '확인 불가'
+          : '조회 중')
+    )
+  if (kind === 'memo') return store.memosForCompany(id).length
+  return store.savedReports.filter(
+    (r) => store.tasks.find((t) => t.id === r.taskId)?.companyId === id,
+  ).length
+}
+function latestUpdate(id: string) {
+  const latest = [companyDetails.value[id]?.latest, updates.value[id]?.latest]
+    .filter(Boolean)
+    .sort()
+    .at(-1)
+  if (latest) return '최근 업데이트 ' + date(latest)
+  const update = updates.value[id]
+  return !update
+    ? '공시 조회 중'
+    : update.filingStatus === 'error'
+      ? '공시 조회 실패'
+      : '최근 90일 공시 없음'
 }
 const categories = [
   { kind: 'filing', tab: 'filings', label: '공시' },
@@ -54,30 +83,51 @@ const companyDetails = computed(() =>
   ),
 )
 const quotes = ref<Record<string, WatchlistQuote>>({})
-onMounted(async () => {
+const quoteError = ref(false)
+const quoteLoading = ref(false)
+let generation = 0
+async function refreshQuotes() {
+  const current = ++generation
+  quoteLoading.value = true
+  quoteError.value = false
   try {
-    quotes.value = await getWatchlistQuotes()
+    const result = await getWatchlistQuotes(props.companies)
+    if (current === generation) quotes.value = result
   } catch {
-    // Unavailable quotes stay empty; never turn missing market data into zero.
-    quotes.value = {}
+    if (current === generation) quoteError.value = true
+  } finally {
+    if (current === generation) quoteLoading.value = false
   }
-})
-const number = new Intl.NumberFormat('ko-KR', { maximumFractionDigits: 1 })
-function price(value?: number) {
-  return value == null ? '미제공' : `${number.format(value)}원`
 }
-function amount(value?: number) {
-  if (value == null) return '미제공'
+watch(() => props.companies.map((c) => c.id + ':' + c.code).join(','), refreshQuotes, {
+  immediate: true,
+})
+const refreshTimer = setInterval(refreshQuotes, 60_000)
+onUnmounted(() => {
+  clearInterval(refreshTimer)
+  generation++
+})
+const missingQuote = computed(() =>
+  quoteLoading.value ? '조회 중' : quoteError.value ? '조회 실패' : '시세 없음',
+)
+const number = new Intl.NumberFormat('ko-KR', { maximumFractionDigits: 1 })
+function price(value?: number | null) {
+  return value == null ? missingQuote.value : `${number.format(value)}원`
+}
+function amount(value?: number | null) {
+  if (value == null) return missingQuote.value
   return value >= 1_000_000_000_000
     ? `${number.format(value / 1_000_000_000_000)}조원`
     : `${number.format(value / 100_000_000)}억원`
 }
-function change(value?: number) {
-  return value == null ? '미제공' : `${value > 0 ? '+' : ''}${value.toFixed(2)}%`
+function change(value?: number | null) {
+  return value == null ? missingQuote.value : `${value > 0 ? '+' : ''}${value.toFixed(2)}%`
 }
 </script>
 <template>
-  <p v-if="error" class="field-error" role="alert">{{ error }}</p>
+  <p v-if="quoteError" class="field-error" role="alert">
+    시세 갱신에 실패했습니다. 기존 수신 값이 있으면 유지하며 1분 후 재시도합니다.
+  </p>
   <div
     v-if="companies.length"
     class="watchlist-table-scroll"
@@ -91,7 +141,6 @@ function change(value?: number) {
       :aria-label="directory ? '기업 목록 시세' : '관심종목 시세'"
     >
       <colgroup>
-        <col class="watchlist-favorite-col" />
         <col class="watchlist-name-col" />
         <col />
         <col />
@@ -99,10 +148,10 @@ function change(value?: number) {
         <col />
         <col v-if="directory" class="directory-updates-col" />
         <col class="watchlist-sector-col" />
+        <col class="watchlist-favorite-col" />
       </colgroup>
       <thead>
         <tr>
-          <th scope="col"><span class="sr-only">관심종목 설정</span></th>
           <th scope="col">종목</th>
           <th scope="col" class="numeric">현재가</th>
           <th scope="col" class="numeric">등락률</th>
@@ -110,6 +159,7 @@ function change(value?: number) {
           <th scope="col" class="numeric">시가총액</th>
           <th v-if="directory" scope="col">업데이트</th>
           <th scope="col">산업군</th>
+          <th scope="col"><span class="sr-only">관심종목 설정</span></th>
         </tr>
       </thead>
       <tbody>
@@ -120,23 +170,9 @@ function change(value?: number) {
           :class="{ 'company-row': directory }"
           :data-testid="`${directory ? 'company' : 'favorite'}-${company.id}`"
         >
-          <td>
-            <button
-              class="favorite-button"
-              :class="{ selected: isFavorite(company.id) }"
-              :aria-label="`${company.name} 관심종목 ${isFavorite(company.id) ? '해제' : '추가'}`"
-              :aria-pressed="isFavorite(company.id)"
-              :disabled="!!busy"
-              @click="toggleFavorite(company)"
-            >
-              <Star :size="16" />
-            </button>
-          </td>
           <th scope="row">
             <div class="watchlist-stock">
-              <span v-if="directory" class="company-logo" :class="company.id">{{
-                company.initials
-              }}</span>
+              <CompanyLogo :code="company.code" :name="company.name" />
               <div class="watchlist-company">
                 <div class="watchlist-stock-name">
                   <h2 class="watchlist-stock-title">
@@ -147,19 +183,16 @@ function change(value?: number) {
                   <span class="watchlist-code">{{ company.code }}</span>
                 </div>
                 <span
-                  v-if="directory"
+                  v-if="directory && !updates[company.id]"
+                  class="skeleton skeleton-value"
+                  aria-label="공시 업데이트 조회 중"
+                ></span>
+                <span
+                  v-else-if="directory"
                   class="directory-last-update"
-                  :title="
-                    companyDetails[company.id]?.latest
-                      ? '최근 업데이트 ' + date(companyDetails[company.id]?.latest)
-                      : '등록된 자료 없음'
-                  "
+                  :title="latestUpdate(company.id)"
                 >
-                  {{
-                    companyDetails[company.id]?.latest
-                      ? date(companyDetails[company.id]?.latest)
-                      : '등록된 자료 없음'
-                  }}
+                  {{ latestUpdate(company.id) }}
                 </span>
                 <div
                   v-if="
@@ -185,9 +218,22 @@ function change(value?: number) {
               </div>
             </div>
           </th>
-          <td class="numeric quote-price">{{ price(quotes[company.id]?.price) }}</td>
+          <td class="numeric quote-price">
+            <span
+              v-if="quoteLoading && !quotes[company.id]"
+              class="skeleton skeleton-value"
+              aria-label="현재가 조회 중"
+            ></span
+            ><template v-else>{{ price(quotes[company.id]?.price) }}</template>
+          </td>
           <td class="numeric">
             <span
+              v-if="quoteLoading && !quotes[company.id]"
+              class="skeleton skeleton-value"
+              aria-label="등락률 조회 중"
+            ></span>
+            <span
+              v-else
               class="quote-change"
               :class="{
                 up: (quotes[company.id]?.changePercent ?? 0) > 0,
@@ -196,8 +242,22 @@ function change(value?: number) {
               >{{ change(quotes[company.id]?.changePercent) }}</span
             >
           </td>
-          <td class="numeric">{{ amount(quotes[company.id]?.tradingValue) }}</td>
-          <td class="numeric">{{ amount(quotes[company.id]?.marketCap) }}</td>
+          <td class="numeric">
+            <span
+              v-if="quoteLoading && !quotes[company.id]"
+              class="skeleton skeleton-value"
+              aria-label="거래대금 조회 중"
+            ></span
+            ><template v-else>{{ amount(quotes[company.id]?.tradingValue) }}</template>
+          </td>
+          <td class="numeric">
+            <span
+              v-if="quoteLoading && !quotes[company.id]"
+              class="skeleton skeleton-value"
+              aria-label="시가총액 조회 중"
+            ></span
+            ><template v-else>{{ amount(quotes[company.id]?.marketCap) }}</template>
+          </td>
           <td v-if="directory">
             <div class="directory-update-links">
               <RouterLink
@@ -206,10 +266,15 @@ function change(value?: number) {
                 :to="{ path: `/companies/${company.id}`, query: { tab: category.tab } }"
                 class="directory-update"
                 :class="{ unread: store.countUnread(company.id, category.kind) > 0 }"
-                :aria-label="`${company.name} ${category.label} 업데이트 ${store.countUnread(company.id, category.kind)}건`"
+                :aria-label="`${company.name} ${category.label} ${updateCount(company.id, category.kind)}건`"
                 :data-testid="`${company.id}-${category.kind}-badge`"
                 >{{ category.label }}
-                <span>{{ store.countUnread(company.id, category.kind) }}</span></RouterLink
+                <span
+                  v-if="category.kind === 'filing' && !updates[company.id]"
+                  class="skeleton skeleton-value"
+                  style="width: 24px"
+                ></span
+                ><span v-else>{{ updateCount(company.id, category.kind) }}</span></RouterLink
               >
             </div>
             <StatusPill
@@ -218,7 +283,23 @@ function change(value?: number) {
             />
           </td>
           <td>
-            <span class="watchlist-sector">{{ company.sector }}</span>
+            <span
+              v-if="!updates[company.id]"
+              class="skeleton skeleton-value"
+              aria-label="산업군 조회 중"
+            ></span>
+            <span v-else class="watchlist-sector">{{
+              updates[company.id]?.sector ||
+              company.sector ||
+              (!updates[company.id]
+                ? '조회 중'
+                : updates[company.id]?.sectorStatus === 'error'
+                  ? '조회 실패'
+                  : '분류 없음')
+            }}</span>
+          </td>
+          <td>
+            <CompanyFavorite :company-id="company.id" :name="company.name" />
           </td>
         </tr>
       </tbody>

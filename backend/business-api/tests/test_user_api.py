@@ -65,7 +65,7 @@ def test_get_own_profile(user_client, graph, db, auth_settings, role):
     assert response.status_code == 200
     assert response.json()["id"] == str(graph.user.id)
     assert response.json()["organization_id"] == str(graph.org.id)
-    assert set(response.json()) == {"id", "organization_id", "email", "role", "created_at"}
+    assert set(response.json()) == {"id", "organization_id", "email", "name", "role", "created_at"}
 
 
 @pytest.mark.postgres
@@ -135,7 +135,7 @@ def test_concurrent_revoked_request_cannot_change_password(user_client, graph, d
 
 @pytest.mark.postgres
 def test_signup_login_and_profile(user_client, db):
-    response = user_client.post("/api/v1/auth/signup", json={"email":"signup@example.com", "password":NEW_PASSWORD, "organization_name":"  New organization  "})
+    response = user_client.post("/api/v1/auth/signup", json={"email":"signup@example.com", "password":NEW_PASSWORD, "name":"건민", "organization_name":"  New organization  "})
     assert response.status_code == 201
     body = response.json()
     assert body["organization_name"] == "New organization"
@@ -153,7 +153,7 @@ def test_signup_login_and_profile(user_client, db):
 @pytest.mark.postgres
 def test_duplicate_signup_does_not_create_orphan_organization(user_client, db, graph):
     count = db.scalar(select(func.count()).select_from(Organization))
-    response = user_client.post("/api/v1/auth/signup", json={"email":graph.user.email, "password":NEW_PASSWORD, "organization_name":"Never created"})
+    response = user_client.post("/api/v1/auth/signup", json={"email":graph.user.email, "password":NEW_PASSWORD, "name":"건민", "organization_name":"Never created"})
     assert response.status_code == 409
     assert response.json()["error"]["code"] == "EMAIL_ALREADY_REGISTERED"
     assert db.scalar(select(func.count()).select_from(Organization)) == count
@@ -163,11 +163,11 @@ def test_duplicate_signup_does_not_create_orphan_organization(user_client, db, g
 @pytest.mark.parametrize("changes", [
     {"role":"RA"}, {"organization_id":str(uuid4())}, {"user_id":str(uuid4())},
     {"email":"invalid-email"}, {"password":"short"}, {"password":" " * 12},
-    {"organization_name":" "}, {"organization_name":"x" * 256},
-    {"organization_name":"bad\x00name"}, {"password":"abc\x00defghijklmnop"},
+    {"name":"건민", "organization_name":" "}, {"name":"건민", "organization_name":"x" * 256},
+    {"name":"건민", "organization_name":"bad\x00name"}, {"password":"abc\x00defghijklmnop"},
 ])
 def test_signup_rejects_invalid_or_privileged_inputs(user_client, changes):
-    response = user_client.post("/api/v1/auth/signup", json={"email":"valid@example.com", "password":NEW_PASSWORD, "organization_name":"New", **changes})
+    response = user_client.post("/api/v1/auth/signup", json={"email":"valid@example.com", "password":NEW_PASSWORD, "name":"건민", "organization_name":"New", **changes})
     assert response.status_code == 422
     assert NEW_PASSWORD not in response.text
 
@@ -177,7 +177,7 @@ def test_signup_atomic_rollback(user_client, db):
     before = db.scalar(select(func.count()).select_from(Organization))
     with patch.object(UserRepository, "add", side_effect=RuntimeError("insert-failed")):
         with pytest.raises(RuntimeError, match="insert-failed"):
-            user_client.post("/api/v1/auth/signup", json={"email":"rollback@example.com", "password":NEW_PASSWORD, "organization_name":"Rollback"})
+            user_client.post("/api/v1/auth/signup", json={"email":"rollback@example.com", "password":NEW_PASSWORD, "name":"건민", "organization_name":"Rollback"})
     assert db.scalar(select(func.count()).select_from(Organization)) == before
     assert UserRepository(db).get_by_email("rollback@example.com") is None
 
@@ -221,3 +221,22 @@ def test_concurrent_signup_unique_email(migrated_engine):
                 session.flush()
                 session.delete(session.get(Organization, organization_id))
                 session.commit()
+
+
+@pytest.mark.postgres
+def test_name_update_and_withdraw_preserve_auth_boundary(user_client, request, db):
+    context = request.getfixturevalue("graph")
+    settings = request.getfixturevalue("auth_settings")
+    token = headers(context, settings)
+    response = user_client.patch("/api/v1/users/me", headers=token, json={"name": "  박건민  "})
+    assert response.status_code == 200 and response.json()["name"] == "박건민"
+    assert user_client.patch("/api/v1/users/me", headers=token, json={"name": "  "}).status_code == 422
+    old_email = context.user.email
+    rejected = user_client.request("DELETE", "/api/v1/users/me", headers=token, json={"password": "wrong"})
+    assert rejected.status_code == 400 and context.user.is_active
+    response = user_client.request("DELETE", "/api/v1/users/me", headers=token, json={"password": TEST_PASSWORD})
+    assert response.status_code == 204
+    assert not context.user.is_active and context.user.name == "" and context.user.email != old_email
+    assert db.get(type(context.memo), context.memo.id) is not None
+    assert user_client.get("/api/v1/users/me", headers=token).status_code == 401
+    assert user_client.post("/api/v1/auth/login", json={"email": old_email, "password": TEST_PASSWORD}).status_code == 401

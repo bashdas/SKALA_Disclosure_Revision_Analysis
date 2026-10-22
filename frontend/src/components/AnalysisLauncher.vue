@@ -1,101 +1,193 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { notifyError } from '../lib/notifications'
+import { computed, ref, watch, nextTick, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
-import { Sparkles, ArrowRight, LockKeyhole } from 'lucide-vue-next'
+import { Sparkles, ArrowRight, X } from 'lucide-vue-next'
+import UiSelect from './UiSelect.vue'
+import SkeletonState from './SkeletonState.vue'
 import { useWorkspace } from '../stores/workspace'
-const props = defineProps<{ companyId: string; preferredFiling?: string }>()
+import { registerDisclosure } from '../services/catalog'
+import type { Filing } from '../types/domain'
+
+const props = defineProps<{ companyId: string; filing: Filing | null }>()
+const emit = defineEmits<{ close: [] }>()
 const store = useWorkspace(),
   router = useRouter()
-const filingId = ref(''),
-  memoId = ref(''),
+const dialog = ref<HTMLDialogElement | null>(null)
+const memoId = ref(''),
   memoVersion = ref(1),
-  error = ref('')
-const availableFilings = computed(() =>
-  store.filings.filter((f) => f.companyId === props.companyId),
-)
-const availableMemos = computed(() =>
-  store.memos.filter(
-    (m) => m.companyName === store.companyName(props.companyId) || m.companyName === null,
-  ),
-)
-const memo = computed(() => store.memos.find((m) => m.id === memoId.value))
+  error = ref(''),
+  pending = ref(false)
+const availableMemos = computed(() => store.memosForCompany(props.companyId))
+const memo = computed(() => availableMemos.value.find((m) => m.id === memoId.value))
+let priorFocus: HTMLElement | null = null
+let returnReceipt: string | null | undefined
+function restoreTriggerFocus() {
+  requestAnimationFrame(() => {
+    if (dialog.value?.open) return
+    const target = [...document.querySelectorAll<HTMLElement>('[data-analysis-receipt]')].find(el => el.dataset.analysisReceipt === returnReceipt) ?? priorFocus
+    target?.focus()
+  })
+}
+function close() {
+  if (pending.value) return
+  returnReceipt = props.filing?.receiptNo
+  dialog.value?.close()
+  emit('close')
+}
 watch(
-  () => props.preferredFiling,
-  (id) => {
-    if (id) filingId.value = id
+  () => props.filing,
+  async (filing) => {
+    error.value = ''
+    memoId.value = ''
+    await nextTick()
+    if (filing && dialog.value && !dialog.value.open) {
+      priorFocus = document.activeElement as HTMLElement
+      dialog.value.showModal()
+    } else if (!filing && dialog.value?.open) dialog.value.close()
   },
-  { immediate: true },
+  { flush: 'post' },
+)
+watch(
+  () => props.companyId,
+  () => {
+    memoId.value = ''
+    memoVersion.value = 1
+  },
 )
 watch(memoId, () => {
   memoVersion.value = memo.value?.currentVersion ?? 1
 })
-watch(
-  () => props.companyId,
-  () => {
-    filingId.value = ''
-    memoId.value = ''
-    error.value = ''
-  },
-)
+onBeforeUnmount(() => {
+  if (dialog.value?.open) dialog.value.close()
+})
 async function start() {
-  if (!filingId.value || !memoId.value || store.busy) return
+  const filing = props.filing,
+    selectedMemo = memo.value,
+    version = memoVersion.value
+  if (!filing?.receiptNo || !filing.isCorrection || !selectedMemo || pending.value || store.busy)
+    return
+  pending.value = true
   error.value = ''
   try {
-    const task = await store.start({
-      filingId: filingId.value,
-      memoId: memoId.value,
-      memoVersion: memoVersion.value,
-    })
-    if (task) await router.push(`/analyses/${task.id}`)
+    let filingId = store.filings.find(
+      (f) => f.receiptNo === filing.receiptNo && f.companyId === props.companyId,
+    )?.id
+    if (!filingId) {
+      filingId = (await registerDisclosure(filing.receiptNo)).id
+      await store.refresh()
+    }
+    const task = await store.start({ filingId, memoId: selectedMemo.id, memoVersion: version })
+    if (task) {
+      dialog.value?.close()
+      emit('close')
+      await router.push(`/analyses/${task.id}`)
+    }
   } catch (e) {
+    notifyError(e)
     error.value = e instanceof Error ? e.message : '분석을 시작하지 못했습니다.'
+  } finally {
+    pending.value = false
   }
 }
 </script>
 <template>
-  <aside class="analysis-launcher">
-    <span class="launcher-icon"><Sparkles :size="21" /></span>
-    <h2>공시 체크</h2>
-    <p class="muted small">공시와 기준 메모를 선택하면 재검토가 필요한 논리를 살펴봅니다.</p>
-    <form @submit.prevent="start">
-      <label
-        >대상 공시<select v-model="filingId" aria-label="대상 공시" required>
-          <option value="" disabled>공시를 선택하세요</option>
-          <option v-for="filing in availableFilings" :key="filing.id" :value="filing.id">
-            {{ filing.title }}
-          </option>
-        </select></label
+  <dialog
+    ref="dialog"
+    class="analysis-dialog analysis-launcher"
+    aria-labelledby="analysis-dialog-title"
+    @cancel.prevent="close"
+    @close="restoreTriggerFocus"
+  >
+    <div class="analysis-dialog-heading">
+      <h2 id="analysis-dialog-title">공시 분석</h2>
+      <button
+        class="icon-button"
+        type="button"
+        aria-label="공시 분석 닫기"
+        :disabled="pending"
+        @click="close"
       >
-      <label
-        >기준 메모<select v-model="memoId" aria-label="기준 메모" required>
-          <option value="" disabled>메모를 선택하세요</option>
-          <option v-for="item in availableMemos" :key="item.id" :value="item.id">
-            {{ item.title }}{{ item.companyName ? '' : ' , 기업 미확정' }}
-          </option>
-        </select></label
-      >
-      <label v-if="memo"
-        >기준 버전<select v-model.number="memoVersion" aria-label="기준 버전">
-          <option v-for="v in memo.versions" :key="v.version" :value="v.version">
-            v{{ v.version }}{{ v.version === memo.currentVersion ? ' , 최신 버전' : '' }}
-          </option>
-        </select></label
-      >
-      <p v-if="memo?.companyName === null" class="inline-warning">
-        기업 미확정 메모입니다. 선택한 공시와 관련 있는지 확인하세요.
-      </p>
+        <X :size="20" />
+      </button>
+    </div>
+    <p class="analysis-target">{{ filing?.title }}</p>
+    <SkeletonState v-if="pending" variant="analysis-form" />
+    <form v-show="!pending" @submit.prevent="start">
+      <div class="analysis-field">
+        <span>기준 메모</span
+        ><UiSelect
+          v-model="memoId"
+          aria-label="기준 메모"
+          placeholder="메모를 선택하세요"
+          :disabled="pending"
+          :options="availableMemos.map((item) => ({ value: item.id, label: item.title }))"
+        />
+      </div>
+      <p v-if="!availableMemos.length" class="small muted">선택할 메모가 없습니다.</p>
+      <div v-if="memo" class="analysis-field">
+        <span>기준 버전</span
+        ><UiSelect
+          v-model="memoVersion"
+          aria-label="기준 버전"
+          :disabled="pending"
+          :options="
+            memo.versions.map((v) => ({
+              value: v.version,
+              label: `v${v.version}${v.version === memo?.currentVersion ? ' , 최신 버전' : ''}`,
+            }))
+          "
+        />
+      </div>
       <p v-if="error" role="alert" class="field-error">{{ error }}</p>
       <button
         class="button primary full-width"
-        :disabled="!filingId || !memoId || store.busy"
+        :disabled="!filing || !memo || pending || store.busy"
         type="submit"
       >
-        <Sparkles :size="16" />{{ store.busy ? '분석 접수 중…' : '영향 분석 시작'
+        <Sparkles :size="16" />{{ pending ? '분석 접수 중…' : '분석 시작'
         }}<ArrowRight :size="16" />
       </button>
     </form>
-    <div class="preserve-note">
-      <LockKeyhole :size="14" /><span>원본 메모는 변경되지 않습니다.</span>
-    </div>
-  </aside>
+  </dialog>
 </template>
+<style scoped>
+.analysis-dialog {
+  width: min(520px, calc(100vw - 32px));
+  max-height: calc(100dvh - 40px);
+  margin: auto;
+  padding: 24px;
+  color: var(--ink);
+  background: var(--card);
+  overflow-y: auto;
+  overscroll-behavior: none;
+}
+.analysis-dialog::backdrop {
+  background: rgb(0 0 0 / 55%);
+}
+.analysis-dialog-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.analysis-dialog-heading h2 {
+  margin: 0;
+}
+.analysis-target {
+  margin-top: 16px;
+  color: var(--secondary);
+  overflow-wrap: anywhere;
+}
+.analysis-dialog form {
+  display: block;
+  margin-top: 20px;
+}
+.analysis-dialog .analysis-field {
+  display: block;
+  margin-bottom: 20px;
+}
+.analysis-dialog form > .button {
+  margin-top: 20px;
+}
+</style>

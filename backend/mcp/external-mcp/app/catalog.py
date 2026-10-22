@@ -1,6 +1,7 @@
 """OpenDART 회사 및 공시 검색과 DART가 연결한 본문 이력을 조회합니다."""
 import asyncio
 import calendar
+from hashlib import sha256
 from datetime import date, datetime
 from io import BytesIO
 import json
@@ -22,7 +23,7 @@ class DisclosureCatalog:
         self.loaded_at = 0.0
         self.lock = asyncio.Lock()
 
-    async def search_companies(self, query: str, limit: int = 20, offset: int = 0) -> dict:
+    async def search_companies(self, query: str, limit: int = 20, offset: int = 0, seed: str = "") -> dict:
         async with self.lock:
             if not self.companies or time.monotonic() - self.loaded_at >= 86400:
                 raw = await self.client._get("corpCode.xml", {})
@@ -49,10 +50,13 @@ class DisclosureCatalog:
         key = query.strip().casefold()
         matches = [row for row in self.companies if key in row["company_name"].casefold() or key == row["stock_code"] or key == row["corp_code"]]
         matches.sort(key=lambda row: (row["company_name"] != query.strip(), not bool(row["stock_code"]), row["company_name"]))
+        # 같은 방문의 페이지는 동일한 무작위 순서를 유지해 기업 중복과 누락을 막습니다.
+        if seed and not key:
+            matches.sort(key=lambda row: sha256(f"{seed}:{row['corp_code']}".encode()).digest())
         return {"items": matches[offset:offset + limit], "total_count": len(matches), "has_more": offset + limit < len(matches)}
 
     async def search_disclosures(self, corp_code: str | None, start_date: date, end_date: date, page: int = 1, query: str = "") -> dict:
-        if start_date > end_date or (end_date - start_date).days > 366:
+        if start_date > end_date:
             raise OpenDartError("INVALID_SEARCH_RANGE")
         if corp_code is None:
             month = end_date.year * 12 + end_date.month - 4

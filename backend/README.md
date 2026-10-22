@@ -168,7 +168,7 @@ Content-Type: application/json
 
 응답은 Broker publisher confirm 성공 후 `202 Accepted`이며
 `{"task_id":"<task UUID>","status":"QUEUED","created_at":"..."}`를 반환합니다.
-접수번호는 14자리 ASCII 숫자이며 같은 조직에 등록한 정정공시여야 합니다. 신규 공시와 등록 해제된 공시는 CORRECTION_REQUIRED로 거부합니다.
+접수 식별자는 OpenDART 14자리 ASCII 숫자 또는 SEC:CIK:accession 형식이며 같은 조직에 등록한 정정공시여야 합니다. 신규 공시와 등록 해제된 공시는 CORRECTION_REQUIRED로 거부합니다.
 `organization_id`와 `requested_by`는 JWT를 DB User와 검증한 context에서만 가져옵니다.
 `Memo.current_version`에 해당하는 원문 버전을 확인하고 `base_memo_version`으로 고정합니다.
 회사 코드와 회사명은 등록 공시에서 고정합니다. memo_version을 지정하면 해당 메모 버전을 고정하고, 생략하면 현재 버전을 사용합니다.
@@ -399,7 +399,7 @@ Compose의 `ai-worker`는 같은 네트워크에서 분석을 처리하며 `ai-s
 
 ## SEC 공시와 분석 대상
 
-분석은 조직에 원문을 등록한 정정공시, 계약 체결과 해지, 실적 공시에 대해 가능합니다. 미등록 또는 등록 해제 공시는 REGISTERED_FILING_REQUIRED로 거부합니다.
+분석은 조직에 원문을 등록한 정정공시만 가능합니다. 일반 공시와 미등록 또는 등록 해제 공시는 CORRECTION_REQUIRED로 거부합니다. SEC는 공식 서식이 8-K/A인 수정 보고서만 정정공시로 분류합니다.
 
 SEC 8-K는 `SEC:{CIK}:{accession}`을 접수 식별자로 사용합니다. 예시는 `SEC:1071739:0001071739-25-000185`입니다. External MCP는 SEC 인덱스와 8-K 본문, EX-99.1 첨부를 조회하고 원문 URL과 공개일을 보존합니다. `SEC_USER_AGENT`에는 서비스 이름과 연락처를 지정합니다. 관심 기업은 `SEC:1071739` 형태로 등록하며 `0008_sec_favorites` migration이 식별자 길이를 확장합니다. 회사별 SEC 목록 조회는 최근 제출 목록에 포함된 8-K를 대상으로 합니다.
 

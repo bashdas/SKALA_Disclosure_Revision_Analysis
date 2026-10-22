@@ -1,7 +1,11 @@
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
+
+
+class MemoCompanyRequest(BaseModel):
+    company_id: str = Field(pattern=r"^(?:[0-9]{8}|SEC:[0-9]{1,10})$")
 
 
 class MemoSummaryResponse(BaseModel):
@@ -39,3 +43,9 @@ class MemoUploadResponse(MemoSummaryResponse):
     content_type: str
     size_bytes: int
     content_hash: str
+
+
+class MemoEditRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    content: str = Field(min_length=1, max_length=5 * 1024 * 1024)
+    base_version: int = Field(ge=1, le=2147483646)

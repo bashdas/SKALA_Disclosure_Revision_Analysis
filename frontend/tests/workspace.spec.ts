@@ -60,15 +60,16 @@ test('메인 UI에서 기업 검색, 즐겨찾기, 정정공시 분석을 연결
   ).toBeVisible()
   expect(
     Math.abs(
-      (await page.locator('.company-workspace-header .back-link').boundingBox())!.x - homeLeft,
+      (await page.locator('.company-market-name').boundingBox())!.x - homeLeft,
     ),
   ).toBeLessThan(2)
   const filings = page.locator('article.document-row')
   await expect(filings.first()).toBeVisible({ timeout: 60000 })
   const ordinary = filings.filter({ has: page.locator('.tag', { hasText: '신규공시' }) }).first()
   if (await ordinary.count())
-    await expect(ordinary.getByRole('button', { name: '분석에 사용' })).toBeEnabled()
+    await expect(ordinary.getByRole('button', { name: '분석하기' })).toHaveCount(0)
   await page.getByRole('link', { name: /^메모 관리/ }).click()
+  await page.getByRole('button', { name: '메모 추가', exact: true }).click()
   const title = `실제 연동 검사 ${Date.now()}`
   await page.getByLabel('메모 파일').setInputFiles({
     name: 'memo.txt',
@@ -84,7 +85,8 @@ test('메인 UI에서 기업 검색, 즐겨찾기, 정정공시 분석을 연결
   await page.getByRole('button', { name: title, exact: true }).click()
   await expect(page.getByRole('dialog')).toContainText('기존 계약금액과 기간')
   await page.getByRole('button', { name: '원문 닫기' }).click()
-  await page.getByRole('button', { name: '작성', exact: true }).click()
+  await page.getByRole('button', { name: '메모 추가', exact: true }).click()
+  await page.getByRole('tab', { name: '작성', exact: true }).click()
   const save = page.getByRole('button', { name: '저장', exact: true })
   await expect(save).toBeDisabled()
   await page.getByLabel('메모 내용', { exact: true }).fill('   ')
@@ -96,7 +98,7 @@ test('메인 UI에서 기업 검색, 즐겨찾기, 정정공시 분석을 연결
   const saved = page.waitForResponse(
     (r) => r.url().endsWith('/api/v1/memos') && r.request().method() === 'POST',
   )
-  await page.screenshot({path:'/tmp/disclosure-web-validation/memo-editor.png',fullPage:true})
+  await page.screenshot({ path: '/tmp/disclosure-web-validation/memo-editor.png', fullPage: true })
   await save.click()
   const savedResponse = await saved
   expect(savedResponse.status()).toBe(201)
@@ -116,17 +118,14 @@ test('메인 UI에서 기업 검색, 즐겨찾기, 정정공시 분석을 연결
     .click()
   const correction = filings
     .filter({
-      has: page.getByRole('button', { name: process.env.E2E_CORRECTION_TITLE!, exact: true }),
+      has: page.getByRole('link', { name: process.env.E2E_CORRECTION_TITLE!, exact: true }),
     })
     .first()
   await expect(correction).toBeVisible({ timeout: 60000 })
-  await correction
-    .getByRole('button', { name: process.env.E2E_CORRECTION_TITLE!, exact: true })
-    .click()
-  await expect(page.getByLabel('대상 공시')).not.toHaveValue('', { timeout: 60000 })
-  await page
-    .getByLabel('기준 메모', { exact: true })
-    .selectOption({ label: `${writtenTitle} , 기업 미확정` })
+  await correction.getByRole('button', { name: '분석하기', exact: true }).click()
+  await expect(page.getByRole('dialog', { name: '공시 분석', exact: true })).toBeVisible()
+  await page.getByRole('combobox', { name: '기준 메모', exact: true }).click()
+  await page.getByRole('option', { name: writtenTitle, exact: true }).click()
   await page.screenshot({
     path: '/tmp/disclosure-web-validation/restored-company.png',
     fullPage: true,
@@ -134,7 +133,7 @@ test('메인 UI에서 기업 검색, 즐겨찾기, 정정공시 분석을 연결
   const accepted = page.waitForResponse(
     (r) => r.url().endsWith('/api/v1/analyses') && r.request().method() === 'POST',
   )
-  await page.getByRole('button', { name: /영향 분석 시작/ }).click()
+  await page.getByRole('button', { name: '분석 시작', exact: true }).click()
   const response = await accepted
   expect(response.status()).toBe(202)
   const task = await response.json()
@@ -146,25 +145,43 @@ test('메인 UI에서 기업 검색, 즐겨찾기, 정정공시 분석을 연결
   await expect(page.getByRole('heading', { name: '보고서 본문', exact: true })).toBeVisible({
     timeout: 30000,
   })
-  const blocks=await page.locator('.progress-section,.report-summary,.report-body,.findings-section,.source-list,.perspectives-section').evaluateAll(nodes=>nodes.map(n=>n.className))
-  expect(blocks.map(name=>name.replace('surface','').trim())).toEqual(['progress-section','report-summary','report-body','findings-section','source-list','perspectives-section'])
+  const blocks = await page
+    .locator(
+      '.progress-section,.report-summary,.report-body,.findings-section,.source-list,.perspectives-section',
+    )
+    .evaluateAll((nodes) => nodes.map((n) => n.className))
+  expect(blocks.map((name) => name.replace('surface', '').trim())).toEqual([
+    'progress-section',
+    'report-summary',
+    'report-body',
+    'findings-section',
+    'source-list',
+    'perspectives-section',
+  ])
   await expect(page.locator('.markdown-body h1')).toBeVisible()
   await expect(page.locator('.markdown-body table').first()).toBeVisible()
-  for(const extension of ['md','pdf']) {
-    const file=page.waitForEvent('download')
-    await page.getByRole('button',{name:extension==='pdf'?'PDF 다운로드':'MD 다운로드',exact:true}).click()
-    const download=await file
+  for (const extension of ['md', 'pdf']) {
+    const file = page.waitForEvent('download')
+    await page
+      .getByRole('button', {
+        name: extension === 'pdf' ? 'PDF 다운로드' : 'MD 다운로드',
+        exact: true,
+      })
+      .click()
+    const download = await file
     expect(download.suggestedFilename()).toBe(`report-${task.task_id}.${extension}`)
     await download.saveAs(`/tmp/disclosure-web-validation/browser-report.${extension}`)
   }
   await page.goto(`/companies/${process.env.E2E_COMPANY_CODE}?tab=memos`)
-  page.once('dialog', dialog=>dialog.accept())
-  const deleted=page.waitForResponse(r=>r.url().endsWith(`/memos/${written.id}`)&&r.request().method()==='DELETE')
-  await page.getByRole('button',{name:`${writtenTitle} 삭제`,exact:true}).click()
+  page.once('dialog', (dialog) => dialog.accept())
+  const deleted = page.waitForResponse(
+    (r) => r.url().endsWith(`/memos/${written.id}`) && r.request().method() === 'DELETE',
+  )
+  await page.getByRole('button', { name: `${writtenTitle} 삭제`, exact: true }).click()
   expect((await deleted).status()).toBe(204)
-  await expect(page.getByRole('button',{name:writtenTitle,exact:true})).toHaveCount(0)
+  await expect(page.getByRole('button', { name: writtenTitle, exact: true })).toHaveCount(0)
   await page.reload()
-  await expect(page.getByRole('button',{name:writtenTitle,exact:true})).toHaveCount(0)
+  await expect(page.getByRole('button', { name: writtenTitle, exact: true })).toHaveCount(0)
   await page.goto(`/analyses/${task.task_id}`)
   await page.locator('.report-context button').click()
   await expect(page.getByRole('dialog')).toContainText('입찰 참여 가정을 정정공시와 비교합니다.')
@@ -184,7 +201,7 @@ test('회원가입과 비밀번호 변경 후 새 비밀번호로 로그인합�
   await expect(page.getByRole('status')).toContainText('회원가입을 완료했습니다')
   await page.getByLabel('비밀번호', { exact: true }).fill(password)
   await page.getByRole('button', { name: '로그인', exact: true }).click()
-  await page.getByRole('link', { name: '내 계정' }).click()
+  await page.getByRole('button', { name: '내 계정', exact: true }).click()
   await page.getByLabel('현재 비밀번호', { exact: true }).fill(password)
   await page.getByLabel('새 비밀번호', { exact: true }).fill(password + 'new')
   await page.getByLabel('새 비밀번호 확인', { exact: true }).fill(password + 'new')

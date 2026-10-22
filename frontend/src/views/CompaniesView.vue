@@ -3,6 +3,7 @@ import { ref, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { request } from '../services/http'
 import type { Company } from '../types/domain'
 import { useWorkspace } from '../stores/workspace'
+import SkeletonState from '../components/SkeletonState.vue'
 import EmptyState from '../components/EmptyState.vue'
 import CompanyQuotesTable from '../components/CompanyQuotesTable.vue'
 const store = useWorkspace(),
@@ -13,6 +14,7 @@ const store = useWorkspace(),
   loading = ref(false),
   error = ref(''),
   sentinel = ref<HTMLElement | null>(null)
+const seed = crypto.randomUUID()
 let offset = 0,
   generation = 0,
   observer: IntersectionObserver | undefined,
@@ -33,7 +35,9 @@ async function load(reset = false) {
       items: { corp_code: string; company_name: string; stock_code: string }[]
       total_count: number
       has_more: boolean
-    }>(`/disclosures/companies?query=${encodeURIComponent(query.value.trim())}&offset=${offset}`)
+    }>(
+      `/disclosures/companies?query=${encodeURIComponent(query.value.trim())}&offset=${offset}&seed=${seed}`,
+    )
     if (current !== generation) return
     const batch = data.items.map((c) => ({
       id: c.corp_code,
@@ -102,19 +106,20 @@ onBeforeUnmount(() => {
       />
     </form>
   </div>
+  <SkeletonState v-if="loading && !companies.length" variant="directory" :rows="8" />
   <section v-if="companies.length" class="surface company-directory" aria-label="리서치 기업 목록">
     <CompanyQuotesTable :companies="companies" directory />
   </section>
   <EmptyState
     v-if="!loading && !companies.length && !error"
-    title="등록된 기업이 없습니다"
+    title="조회된 기업이 없습니다"
     message="기업 자료가 준비되면 이곳에서 업데이트를 확인할 수 있습니다."
   />
   <p v-if="error" role="alert" class="inline-warning">
     {{ error }} <button class="text-button" @click="load(true)">다시 시도</button>
   </p>
   <div ref="sentinel" class="loading-state" role="status">
-    <span v-if="loading">기업을 불러오는 중입니다.</span
-    ><button v-else-if="hasMore" class="text-button" @click="load()">더 보기</button>
+    <SkeletonState v-if="loading && companies.length" variant="directory" :rows="2" />
+    <button v-if="!loading && hasMore" class="text-button" @click="load()">더 보기</button>
   </div>
 </template>

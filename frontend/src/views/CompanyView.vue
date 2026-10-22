@@ -1,8 +1,8 @@
 <script setup lang="ts">
+import { notifyError } from '../lib/notifications'
 import { computed, ref, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import {
-  ArrowLeft,
   FileText,
   StickyNote,
   Sparkles,
@@ -10,25 +10,23 @@ import {
   Check,
   Activity,
   Trash2,
+  Search,
 } from 'lucide-vue-next'
 import { useWorkspace } from '../stores/workspace'
 import { date, disclosureUrl } from '../lib/format'
 import { request } from '../services/http'
-import {
-  koreaDate,
-  searchDisclosures,
-  registerDisclosure,
-  unregisterDisclosure,
-  type DisclosureRow,
-} from '../services/catalog'
+import { koreaDate, searchDisclosures, type DisclosureRow } from '../services/catalog'
 import type { Filing } from '../types/domain'
+import UiDatePicker from '../components/UiDatePicker.vue'
+import CompanyMarketOverview from '../components/CompanyMarketOverview.vue'
+import SkeletonState from '../components/SkeletonState.vue'
 import AnalysisLauncher from '../components/AnalysisLauncher.vue'
 import EmptyState from '../components/EmptyState.vue'
 import MemoUpload from '../components/MemoUpload.vue'
 import CompanyAnalysisHistory from '../components/CompanyAnalysisHistory.vue'
 const store = useWorkspace(),
   route = useRoute(),
-  preferredFiling = ref(''),
+  selectedFiling = ref<Filing | null>(null),
   memoSearch = ref('')
 const company = computed(() => store.companies.find((c) => c.id === route.params.companyId))
 const tab = computed(() =>
@@ -36,6 +34,7 @@ const tab = computed(() =>
     ? String(route.query.tab)
     : 'filings',
 )
+const totalFilings = ref<number | null>(null)
 const rows = ref<DisclosureRow[]>([]),
   loading = ref(false),
   error = ref(''),
@@ -43,8 +42,8 @@ const rows = ref<DisclosureRow[]>([]),
   page = ref(1),
   search = ref(''),
   busy = ref('')
-const start = ref(koreaDate(new Date(Date.now() - 90 * 86400000))),
-  end = ref(koreaDate())
+const start = ref(''),
+  end = ref('')
 const sentinel = ref<HTMLElement | null>(null)
 let observer: IntersectionObserver | undefined,
   timer: ReturnType<typeof setInterval>,
@@ -76,6 +75,7 @@ async function load(reset = false) {
   if (reset) {
     generation++
     rows.value = []
+    totalFilings.value = null
     page.value = 1
     hasMore.value = true
   }
@@ -110,9 +110,11 @@ async function load(reset = false) {
     rows.value = [
       ...new Map([...rows.value, ...result.items].map((r) => [r.receipt_no, r])).values(),
     ]
+    totalFilings.value = result.total_count
     hasMore.value = result.has_more
     page.value = result.next_page ?? page.value + 1
   } catch (e) {
+    notifyError(e)
     if (current === generation) error.value = e instanceof Error ? e.message : '공시 조회 실패'
   } finally {
     if (current === generation) {
@@ -128,40 +130,21 @@ async function load(reset = false) {
     }
   }
 }
-async function selectFiling(filing: Filing, analyze = false) {
-  if (busy.value || !filing.receiptNo) return
-  busy.value = filing.id
-  error.value = ''
+async function deleteMemo(id: string, title: string) {
+  if (!window.confirm(`‘${title}’ 메모를 삭제할까요? 기존 분석의 기준 원문은 보존됩니다.`)) return
   try {
-    const existing = store.filings.find((f) => f.receiptNo === filing.receiptNo)
-    const registered = existing ?? (await registerDisclosure(filing.receiptNo))
-    await store.refresh()
-    if (analyze) preferredFiling.value = registered.id
-    else store.openFiling(registered.id)
+    await store.deleteMemo(id)
   } catch (e) {
-    error.value = e instanceof Error ? e.message : '공시를 불러오지 못했습니다.'
-  } finally {
-    busy.value = ''
-  }
-}
-async function deleteMemo(id:string, title:string) {
-  if(!window.confirm(`‘${title}’ 메모를 삭제할까요? 기존 분석의 기준 원문은 보존됩니다.`))return
-  try { await store.deleteMemo(id) }
-  catch(e) { error.value=e instanceof Error?e.message:'메모 삭제 실패' }
-}
-async function remove(filing: Filing) {
-  try {
-    await unregisterDisclosure(filing.id)
-    await store.refresh()
-    if (preferredFiling.value === filing.id) preferredFiling.value = ''
-  } catch (e) {
-    error.value = e instanceof Error ? e.message : '등록 해제 실패'
+    notifyError(e)
+    error.value = e instanceof Error ? e.message : '메모 삭제 실패'
   }
 }
 watch(
   () => route.params.companyId,
   () => {
-    preferredFiling.value = ''
+    selectedFiling.value = null
+    store.visitCompany(String(route.params.companyId))
+    start.value = end.value = ''
     void load(true)
   },
   { immediate: true },
@@ -191,9 +174,7 @@ onBeforeUnmount(() => {
   clearTimeout(debounce)
   clearInterval(timer)
 })
-const companyMemos = computed(() =>
-  store.memos.filter((m) => m.companyName === company.value?.name || m.companyName === null),
-)
+const companyMemos = computed(() => store.memosForCompany(String(route.params.companyId)))
 const filteredMemos = computed(() =>
   companyMemos.value.filter((m) => m.title.includes(memoSearch.value)),
 )
@@ -204,7 +185,7 @@ const companyReports = computed(() =>
   ),
 )
 const tabs = computed(() => [
-  { id: 'filings', name: '공시', icon: FileText, count: companyFilings.value.length },
+  { id: 'filings', name: '공시', icon: FileText, count: totalFilings.value },
   { id: 'memos', name: '메모 관리', icon: StickyNote, count: companyMemos.value.length },
   { id: 'reports', name: 'AI 보고서', icon: Sparkles, count: companyReports.value.length },
   { id: 'history', name: '분석 이력', icon: Activity, count: companyTasks.value.length },
@@ -213,14 +194,7 @@ const tabs = computed(() => [
 <template>
   <section v-if="company" class="company-workspace" aria-labelledby="company-title">
     <header class="company-workspace-header">
-      <RouterLink to="/companies" class="back-link"><ArrowLeft :size="15" /> 기업 목록</RouterLink>
-      <div class="company-detail-heading">
-        <span class="company-logo" :class="company.id">{{ company.initials }}</span>
-        <div>
-          <p class="eyebrow">{{ [company.sector, company.code].filter(Boolean).join(', ') }}</p>
-          <h1 id="company-title">{{ company.name }}</h1>
-        </div>
-      </div>
+      <CompanyMarketOverview :key="company.id" :company="company" />
     </header>
     <nav class="tabs" aria-label="기업 자료 종류">
       <RouterLink
@@ -233,108 +207,108 @@ const tabs = computed(() => [
         }}<span>{{ item.count }}</span></RouterLink
       >
     </nav>
-    <p v-if="error && tab!=='filings'" class="inline-warning" role="alert">{{error}}</p>
-    <div class="detail-layout">
+    <p v-if="error && tab !== 'filings'" class="inline-warning" role="alert">{{ error }}</p>
+    <div class="detail-layout without-tools">
       <section class="document-section" aria-label="기업 자료">
         <template v-if="tab === 'filings'">
-          <div class="list-heading">
+          <div class="list-heading filing-heading">
             <h2>공시 업데이트</h2>
-            <span class="small muted">최신순 , {{ companyFilings.length }}건</span>
           </div>
-          <form class="list-heading" @submit.prevent="load(true)">
-            <label class="sr-only" for="filing-search">공시 검색</label
-            ><input
-              id="filing-search"
-              v-model="search"
-              class="compact-search"
-              type="search"
-              placeholder="공시 검색"
-              maxlength="100"
-            />
-            <label>시작일<input v-model="start" type="date" :max="end" /></label
-            ><label
-              >종료일<input v-model="end" type="date" :min="start" :max="koreaDate()"
+          <form class="filing-filters" aria-label="공시 검색 필터" @submit.prevent="load(true)">
+            <label class="filing-search" for="filing-search">
+              <span>공시 검색</span>
+              <span class="filing-search-control">
+                <Search :size="16" aria-hidden="true" />
+                <input
+                  id="filing-search"
+                  v-model="search"
+                  type="search"
+                  placeholder="공시명으로 검색"
+                  maxlength="100"
+                />
+              </span>
+            </label>
+            <label
+              ><span>시작일</span><UiDatePicker v-model="start" :max="end" label="시작일"
             /></label>
-            <button class="text-button" type="submit" :disabled="loading">검색</button>
+            <label
+              ><span>종료일</span
+              ><UiDatePicker v-model="end" :min="start" :max="koreaDate()" label="종료일"
+            /></label>
+            <button class="button secondary" type="submit" :disabled="loading">검색</button>
           </form>
           <p v-if="error" class="inline-warning" role="alert">{{ error }}</p>
+          <SkeletonState v-if="loading && !companyFilings.length" :rows="5" />
           <article v-for="filing in companyFilings" :key="filing.id" class="document-row">
             <span class="document-icon"><FileText :size="20" /></span>
             <div class="document-info">
               <div class="inline-meta">
-                <span class="tag">{{ filing.filingType }}</span
-                ><span
+                <span
+                  class="tag"
+                  :class="filing.isCorrection ? 'filing-tag-correction' : 'filing-tag-new'"
+                  >{{ filing.filingType }}</span
+                >
+                <span class="small muted filing-date">{{ date(filing.filedAt) }}</span>
+                <span class="small muted filing-receipt">{{
+                  filing.receiptNo ?? '접수번호 미확인'
+                }}</span>
+                <span
                   v-if="
-                    store.unread({ kind: 'filing', id: filing.id, version: filing.currentVersion })
+                    !store.unread({ kind: 'filing', id: filing.id, version: filing.currentVersion })
                   "
-                  class="new-dot"
-                  >NEW</span
-                ><span v-else class="read-label"><Check :size="12" /> 확인함</span>
+                  class="read-label"
+                  ><Check :size="12" /> 확인함</span
+                >
               </div>
-              <button
+              <a
                 class="document-title"
-                :disabled="!!busy"
-                @click="selectFiling(filing, true)"
+                :href="disclosureUrl(filing.receiptNo!)"
+                target="_blank"
+                rel="noopener noreferrer"
               >
                 {{ filing.title }}
+              </a>
+            </div>
+            <div class="document-actions">
+              <button
+                v-if="filing.isCorrection"
+                class="text-button"
+                :disabled="!!busy"
+                :data-analysis-receipt="filing.receiptNo"
+                @click="selectedFiling = filing"
+              >
+                분석하기 <Sparkles :size="13" />
               </button>
-              <p class="small muted">
-                {{ date(filing.filedAt) }} <span class="dot-separator">,</span>
-                {{ filing.receiptNo ?? '접수번호 미확인' }}
-              </p>
-              <div class="row-actions">
-                <button class="text-button" :disabled="!!busy" @click="selectFiling(filing)">
-                  내용 확인 <ArrowUpRight :size="13" /></button
-                ><button
-                  class="text-button"
-                  :disabled="!!busy"
-                  @click="selectFiling(filing, true)"
-                >
-                  분석에 사용 <Sparkles :size="13" />
-                </button>
-                <button
-                  v-if="store.filings.some((f) => f.id === filing.id)"
-                  class="text-button"
-                  @click="remove(filing)"
-                >
-                  등록 해제
-                </button>
-              </div>
             </div>
           </article>
           <div ref="sentinel" class="loading-state" role="status">
-            <span v-if="loading">공시를 불러오는 중입니다.</span
-            ><button v-else-if="hasMore" class="text-button" @click="load()">더 보기</button>
+            <SkeletonState v-if="loading && companyFilings.length" :rows="2" />
+            <button v-if="!loading && hasMore" class="text-button" @click="load()">더 보기</button>
           </div>
           <EmptyState
             v-if="!loading && !companyFilings.length"
-            title="등록된 공시가 없습니다"
-            message="새 공시가 등록되면 이곳에 표시됩니다."
+            title="조회된 공시가 없습니다"
+            message="검색 조건이나 조회 기간을 확인해 주세요."
           />
         </template>
         <template v-else-if="tab === 'memos'">
           <div class="list-heading">
             <h2>기존 기업분석 메모</h2>
-            <label class="sr-only" for="company-memo-search">메모 검색</label>
-            <input
-              id="company-memo-search"
-              v-model="memoSearch"
-              type="search"
-              class="compact-search"
-              placeholder="이 종목의 메모 검색"
-            />
+            <div class="memo-heading-actions">
+              <label class="sr-only" for="company-memo-search">메모 검색</label>
+              <input
+                id="company-memo-search"
+                v-model="memoSearch"
+                type="search"
+                class="compact-search"
+                placeholder="이 종목의 메모 검색"
+              />
+              <MemoUpload :key="company.id" :company-id="company.id" :company-name="company.name" />
+            </div>
           </div>
           <article v-for="memo in filteredMemos" :key="memo.id" class="document-row">
             <span class="document-icon"><StickyNote :size="20" /></span>
             <div class="document-info">
-              <div class="inline-meta">
-                <span class="tag">사내 메모</span
-                ><span
-                  v-if="store.unread({ kind: 'memo', id: memo.id, version: memo.currentVersion })"
-                  class="new-dot"
-                  >NEW</span
-                >
-              </div>
               <button class="document-title" @click="store.openMemo(memo.id)">
                 {{ memo.title }}
               </button>
@@ -342,10 +316,18 @@ const tabs = computed(() => [
                 {{ date(memo.updatedAt) }} , v{{ memo.currentVersion }} ,
                 {{ memo.versions.length }}개 버전
               </p>
+            </div>
+            <div class="document-actions">
               <button class="text-button" @click="store.openMemo(memo.id)">
                 본문,버전 확인 <ArrowUpRight :size="13" />
               </button>
-              <button class="text-button" :aria-label="`${memo.title} 삭제`" @click="deleteMemo(memo.id,memo.title)"><Trash2 :size="13" />삭제</button>
+              <button
+                class="text-button"
+                :aria-label="`${memo.title} 삭제`"
+                @click="deleteMemo(memo.id, memo.title)"
+              >
+                <Trash2 :size="13" />삭제
+              </button>
             </div>
           </article>
           <EmptyState
@@ -362,23 +344,16 @@ const tabs = computed(() => [
         <template v-else>
           <div class="list-heading">
             <h2>저장된 분석 보고서</h2>
-            <span class="small muted">서버에 저장된 분석 결과</span>
           </div>
           <article v-for="report in companyReports" :key="report.id" class="document-row">
             <span class="document-icon mint"><Sparkles :size="20" /></span>
             <div class="document-info">
-              <div class="inline-meta">
-                <span class="tag">AI 보고서</span
-                ><span
-                  v-if="store.unread({ kind: 'report', id: report.id, version: report.version })"
-                  class="new-dot"
-                  >NEW</span
-                >
-              </div>
               <RouterLink class="document-title" :to="`/analyses/${report.taskId}`">{{
                 report.title
               }}</RouterLink>
               <p class="small muted">{{ date(report.savedAt) }} , 원본 메모 보존</p>
+            </div>
+            <div class="document-actions">
               <RouterLink class="text-button" :to="`/analyses/${report.taskId}`"
                 >결과 확인 <ArrowUpRight :size="13"
               /></RouterLink>
@@ -391,22 +366,15 @@ const tabs = computed(() => [
           />
         </template>
       </section>
-      <aside class="company-tools" :aria-label="tab === 'memos' ? '메모 추가' : '분석 도구'">
-        <MemoUpload
-          v-if="tab === 'memos'"
-          :key="`upload-${company.id}`"
-          :company-id="company.id"
-          :company-name="company.name"
-        />
-        <AnalysisLauncher
-          v-else
-          :key="company.id"
-          :company-id="company.id"
-          :preferred-filing="preferredFiling"
-        />
-      </aside>
     </div>
+    <AnalysisLauncher
+      :key="company.id"
+      :company-id="company.id"
+      :filing="selectedFiling"
+      @close="selectedFiling = null"
+    />
   </section>
+  <SkeletonState v-else-if="loading" variant="company" :rows="5" />
   <EmptyState v-else title="기업을 찾을 수 없습니다" message="기업 목록에서 다시 선택해 주세요."
     ><RouterLink to="/companies" class="button secondary">기업 목록</RouterLink></EmptyState
   >

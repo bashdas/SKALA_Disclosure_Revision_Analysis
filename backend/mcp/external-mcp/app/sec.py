@@ -75,6 +75,7 @@ async def disclosure(identifier, parser, settings, transport=None):
         name = re.sub(r"\s*\(Filer\).*", "", name)
         archive = io.BytesIO()
         selected = 0
+        report_form = None
         with zipfile.ZipFile(archive, "w") as package:
             for row in root.xpath('//table[@class="tableFile"]//tr'):
                 cells = row.findall('td')
@@ -83,6 +84,8 @@ async def disclosure(identifier, parser, settings, transport=None):
                 form = ''.join(cells[3].itertext()).strip()
                 if form not in {"8-K", "8-K/A", "EX-99.1"}:
                     continue
+                if form in {"8-K", "8-K/A"}:
+                    report_form = form
                 hrefs = cells[2].xpath('.//a/@href')
                 if not hrefs:
                     continue
@@ -96,11 +99,11 @@ async def disclosure(identifier, parser, settings, transport=None):
                     raise ValueError("SEC attachment limit exceeded")
                 package.writestr(filename, await download(http, 'https://www.sec.gov' + href))
                 selected += 1
-        if not selected:
+        if not selected or report_form is None:
             raise ValueError("No SEC 8-K documents")
     document = parser.parse(archive.getvalue())
     return {"receipt_no": identifier, "corp_code": None, "company_name": name,
-        "report_name": "8-K 실적 및 주요사항 보고서", "filed_at": filed,
+        "report_name": f"{report_form} 실적 및 주요사항 보고서", "filed_at": filed,
         "document": document, "metadata_status": "FOUND",
         "source": {"provider": "SEC", "source_type": "REGULATORY_FILING", "identifier": identifier,
             "published_at": filed, "retrieved_at": datetime.now(timezone.utc).isoformat(),

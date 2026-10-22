@@ -15,6 +15,7 @@ export interface Services {
   memos: {
     list(): Promise<Memo[]>
     get(id: string): Promise<Memo>
+    edit(id: string, content: string, baseVersion: number): Promise<Memo>
     remove(id: string): Promise<void>
     upload(file: File, title?: string, companyId?: string): Promise<Memo>
   }
