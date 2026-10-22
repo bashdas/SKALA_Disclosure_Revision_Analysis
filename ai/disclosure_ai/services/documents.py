@@ -154,19 +154,6 @@ def parse_filing(data: bytes, receipt: str) -> dict:
     }
 
 
-def typo_only(filing: dict) -> bool:
-    changes = filing.get("changes", [])
-    if not changes or not filing.get("complete_correction_table"):
-        return False
-    # 자동 생략은 공백 차이로 한정하며 계약 핵심 항목은 정상 분석합니다.
-    protected = re.compile(r"금액|날짜|일자|회사|기업|계약|기간|조건|상호|수량|단가|부정")
-    return all(
-        not protected.search(c["label"])
-        and re.sub(r"\s+", "", c["before"]) == re.sub(r"\s+", "", c["after"])
-        for c in changes
-    )
-
-
 def search_documents(documents: list[dict], query: str, limit=8) -> list[dict]:
     terms = set(re.findall(r"[가-힣A-Za-z0-9]+", query.lower()))
     rows = []
@@ -192,16 +179,6 @@ def search_documents(documents: list[dict], query: str, limit=8) -> list[dict]:
                     )
                 )
     return [row for _, row in sorted(rows, key=lambda pair: -pair[0])[:limit]]
-
-
-def schedule_notice(filing):
-    """실적 자료를 향후 공개한다고 명시한 순수 IR 일정 안내를 확인합니다."""
-    title = re.sub(r"\s+", "", filing.get("report_name") or "")
-    text = re.sub(r"\s+", "", "\n".join(d["text"] for d in filing.get("documents", [])))
-    return ("기업설명회" in title and "안내공시" in title
-            and bool(re.search(r"IR자료는실적발표일공시(?:를통하여|로)갈음", text))
-            and not re.search(r"(?:매출액?|영업이익|순이익|수주금액|계약금액|BPS|목표주가)"
-                              r"(?:\([^)]*\))?[:：=]?약?[0-9]", text, re.I))
 
 
 def disclosure_type(filing, declared="UNKNOWN"):
@@ -336,16 +313,12 @@ def reference_frames(filing, memo):
 def model_context(filing, fragments, memo):
     """정정표와 메모의 관련 줄을 먼저 전달하고 검증용 원문은 상태에 보존합니다."""
     lines = memo.get("text", "").splitlines()
-    priority = re.compile(
-        r"목표\s*주가|BPS|P/B|PBR|산정|산출|계산|잔여|선수금|회수|현금흐름|순자산|매출|이익|target|valuation|cash.flow|revenue",
-        re.I,
-    )
     chosen, size = set(), 0
-    valuation = re.compile(r"목표\s*주가|BPS|P/B|PBR|산정|산출|target|valuation", re.I)
-    applied = re.compile(r"^\s*(?:적용\s*BPS|Target\s*P/B|적정주가|목표주가\s*\()", re.I)
-    ranked = [i for i, line in enumerate(lines) if applied.search(line)]
-    ranked += [i for i, line in enumerate(lines) if valuation.search(line) and i not in ranked]
-    ranked += [i for i, line in enumerate(lines) if priority.search(line) and i not in ranked]
+    ranked = []
+    for source in fragments:
+        if source.get("document_id") == memo.get("document_id"):
+            ranked.extend(i for i, line in enumerate(lines)
+                          if line.strip() and line in source.get("quote", "") and i not in ranked)
     for i in [*ranked, *range(len(lines))]:
         group = [j for j in range(max(0, i - 1), min(len(lines), i + 2)) if j not in chosen]
         length = sum(len(lines[j]) + 1 for j in group)
@@ -369,7 +342,6 @@ def model_context(filing, fragments, memo):
     return {
         "disclosure": {"analysis_type": filing.get("analysis_type", "UNKNOWN"),
                        "title": filing.get("report_name"),
-                       "schedule_only": filing.get("schedule_only", False),
                        "document_ids": [d["document_id"] for d in filing.get("documents", [])]},
         "memo": {**memo, "text": excerpt, "location": "memo", "excerpted": len(chosen) < len(lines)},
         "context": changes + rest,

@@ -13,7 +13,7 @@ const lateHeadings = new Set([
   '확인범위와남은질문',
   '출처와원문인용',
 ])
-const selectionHeadings = new Set(['추가분석을선택한이유', '선택한분석관점'])
+const selectionHeadings = new Set(['추가분석을선택한이유', '선택한분석관점', '추가분석을선택하지않은이유', '관점선택과이유'])
 
 export function reportLayout(report: ReviewReport, perspectives: Perspective[]) {
   const sections = splitMarkdownSections(report.content)

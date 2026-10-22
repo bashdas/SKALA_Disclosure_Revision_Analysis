@@ -129,6 +129,7 @@ export interface ReviewReport {
   summary: string
   content: string
   changes: { label: string; before: string; after: string }[]
+  perspectiveDecisions?: { type: Perspective['type']; selected: boolean; reason: string }[]
   memoReview?: { status: 'KEEP' | 'HOLD'; reason: string; evidenceIds: string[] }
   findings: Finding[]
   evidence: Evidence[]

@@ -264,3 +264,17 @@ it('빈 제안의 유지 판단과 연결 근거를 보존합니다', () => {
   expect(report.evidence[0]?.quote).toBe(source.quote)
   expect(mapReport({ ...row, report_json: { base: { proposals: [] } } }).memoReview?.status).toBe('HOLD')
 })
+
+it('보고서에 저장된 관점 선택과 미선택 이유를 함께 읽습니다', () => {
+  const report = mapReport({ id: 'r', analysis_task_id: task.task_id, content: '보고서', generated_at: now,
+    saved_at: now, no_additional_analysis_reason: null, report_json: { base: {
+      selected: [{ perspective_type: 'FINANCE', selection_reason: '현금흐름 확인' }],
+      not_selected: [{ perspective_type: 'INDUSTRY_CONTRACT', reason: '계약 영향 없음' },
+                     { perspective_type: 'FX_HEDGE', reason: '환율 영향 없음' }],
+    } } })
+  expect(report.perspectiveDecisions).toHaveLength(3)
+  expect(report.perspectiveDecisions?.find((p) => p.type === 'FINANCE')).toEqual({
+    type: 'FINANCE', selected: true, reason: '현금흐름 확인',
+  })
+  expect(report.perspectiveDecisions?.filter((p) => !p.selected).map((p) => p.reason)).toEqual(['계약 영향 없음', '환율 영향 없음'])
+})

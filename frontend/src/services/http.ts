@@ -189,7 +189,9 @@ interface ReportRow {
   report_json: {
     sources?: Source[]
     memo_review?: { status: 'KEEP' | 'HOLD'; reason: string; evidence: Source[] } | null
-    base?: { summary?: string; proposals?: Proposal[] }
+    base?: { summary?: string; proposals?: Proposal[];
+      selected?: { perspective_type: Perspective['type']; selection_reason: string }[];
+      not_selected?: { perspective_type: Perspective['type']; reason: string }[] }
     summary_claims?: { text: string }[]
     corrections?: ReviewReport['changes']
     warnings?: string[]
@@ -236,6 +238,10 @@ export function mapReport(row: ReportRow): ReviewReport {
     warnings: data.warnings ?? [],
     noAdditionalAnalysisReason: row.no_additional_analysis_reason,
     evidence,
+    perspectiveDecisions: data.base?.selected || data.base?.not_selected ? [
+      ...(data.base.selected ?? []).map((p) => ({ type: p.perspective_type, selected: true, reason: p.selection_reason })),
+      ...(data.base.not_selected ?? []).map((p) => ({ type: p.perspective_type, selected: false, reason: p.reason })),
+    ] : undefined,
     memoReview: proposals.length ? undefined : {
       status: data.memo_review?.status ?? 'HOLD',
       reason: data.memo_review?.reason || '이 보고서에는 유지 또는 수정 여부를 확인할 판단 근거가 저장되지 않았습니다. 재분석이 필요합니다.',

@@ -167,7 +167,7 @@ def test_emergency_preserves_selected_perspective_without_unchecked_findings(led
     state["results"] = {"FINANCE": {"status": "COMPLETED", "findings": "UNSUPPORTED"}}
     body = emergency(SimpleNamespace(h=Harness("task", ledger)), state, TimeoutError())
     assert "UNSUPPORTED" not in json.dumps(body)
-    assert "재무 수치와 메모의 연결 여부" in body["content"]
+    assert "이 관점의 판단 이유가 저장되지 않았습니다." in body["content"]
     assert body["report_json"]["results"]["FINANCE"]["findings"] == ""
 
 

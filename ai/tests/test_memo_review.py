@@ -6,7 +6,6 @@ from langgraph.checkpoint.memory import InMemorySaver
 from test_analysis import FakeTools, fake_model, initial, ledger  # noqa: F401
 
 from disclosure_ai.harness.runtime import Harness
-from disclosure_ai.services.documents import schedule_notice
 from disclosure_ai.workflow.graph import AnalysisGraph
 
 
@@ -79,13 +78,3 @@ def test_ir_announcement_and_empty_proposal_decision(ledger, decision, selected)
         assert tools.calls.count("search_evidence") == 1
 
     asyncio.run(check())
-
-
-def test_ir_notice_with_actual_figures_can_use_perspectives():
-    title = "기업설명회(IR)개최(안내공시)"
-    notice = "IR 자료는 실적발표일 공시를 통하여 갈음할 예정임"
-    filing = {"report_name": title, "documents": [{"text": notice}]}
-    assert schedule_notice(filing)
-    filing["documents"][0]["text"] += "\n매출액(억원):40000"
-    assert not schedule_notice(filing)
-    assert not schedule_notice({"report_name": "공급계약", "documents": [{"text": notice}]})

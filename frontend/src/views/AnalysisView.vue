@@ -185,6 +185,13 @@ async function download(extension: 'md' | 'pdf') {
             </button>
           </div>
         </section>
+        <AnalysisPerspectives
+          class="report-perspectives"
+          :perspectives="task.perspectives"
+          :decisions="report.perspectiveDecisions"
+          :reason="report.noAdditionalAnalysisReason"
+          :show-result="false"
+        />
         <template v-for="(block, i) in layout.blocks" :key="i">
           <MarkdownReport
             v-if="block.type === 'markdown'"

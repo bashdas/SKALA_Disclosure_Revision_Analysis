@@ -372,45 +372,20 @@ def compose(data):
             "확인된 공시 내용과 처리 상태를 표시합니다. 근거가 부족한 해석은 작성하지 않았습니다.",
             "",
         ]
-    if selected:
-        lines += [
-            "## 추가 분석을 선택한 이유",
-            "",
-            "| 관점 | 선택 이유 | 처리 결과 |",
-            "| --- | --- | --- |",
-        ]
-        for item in selected:
-            kind = item["perspective_type"]
-            reason = (
-                " ".join(item.get("selection_reason", "").split())[:140]
-                or {
-                    "FINANCE": "재무 수치와 메모의 연결 여부를 추가로 확인하기 위해 선택했습니다.",
-                    "INDUSTRY_CONTRACT": "산업 및 계약 조건과 메모의 연결 여부를 추가로 확인하기 위해 선택했습니다.",
-                    "FX_HEDGE": "외부 환경과 위험에 관한 추가 근거를 확인하기 위해 선택했습니다.",
-                }[kind]
-            )
-            lines.append(
-                "| "
-                + PERSPECTIVE_NAMES[kind]
-                + " | "
-                + escape(reason)
-                + " | "
-                + STATUS_NAMES.get(results.get(kind, {}).get("status"), "미작성")
-                + (" (추가 확인 항목 있음)" if results.get(kind, {}).get("status") == "COMPLETED"
-                   and results[kind].get("limitations") else "")
-                + " |"
-            )
-        lines.append("")
-    else:
-        lines += ["추가 관점은 선택되지 않았습니다.", ""]
-    omitted = base.get("not_selected", [])
-    if omitted:
-        lines += ["## 추가 분석을 선택하지 않은 이유", ""]
-        lines += [
-            "- " + PERSPECTIVE_NAMES[item["perspective_type"]] + ": " + escape(item["reason"])
-            for item in omitted
-        ]
-        lines.append("")
+    chosen = {item["perspective_type"]: item for item in selected}
+    omitted = {item["perspective_type"]: item for item in base.get("not_selected", [])}
+    lines += ["## 관점 선택과 이유", "", "| 관점 | 선택 여부 | 이유 | 처리 결과 |", "| --- | --- | --- | --- |"]
+    for kind, label in PERSPECTIVE_NAMES.items():
+        item = chosen.get(kind) or omitted.get(kind)
+        selected_here = kind in chosen
+        reason = (item.get("selection_reason" if selected_here else "reason") if item else None)
+        reason = reason or "이 관점의 판단 이유가 저장되지 않았습니다."
+        status = STATUS_NAMES.get(results.get(kind, {}).get("status"), "미작성") if selected_here else "해당 없음"
+        if selected_here and results.get(kind, {}).get("status") == "COMPLETED" and results[kind].get("limitations"):
+            status += " (추가 확인 항목 있음)"
+        lines.append("| " + label + " | " + ("선택" if selected_here else "미선택" if item else "판단 기록 없음")
+                     + " | " + escape(reason) + " | " + status + " |")
+    lines.append("")
     for name, value in sections.items():
         if value:
             lines += ["## " + SECTION_TITLES[name], "", value, ""]

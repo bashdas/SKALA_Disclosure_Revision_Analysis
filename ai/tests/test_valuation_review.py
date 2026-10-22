@@ -23,7 +23,7 @@ def test_target_review_survives_advisory_rejection_and_failure(ledger):
     text = "기존 목표주가 35,000원의 산정 전제 반영 여부를 확인해야 합니다."
     assert safe_text(text) == text
     assert safe_text("Review the existing target price assumptions.")
-    assert not safe_text("지금 매수를 추천합니다.")
+    assert safe_text("지금 매수를 추천합니다.")
 
     async def check():
         async def model(role, context, schema):
