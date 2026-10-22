@@ -61,6 +61,11 @@ class Harness:
     async def model(self, role: str, context: dict, schema, report: bool = False):
         prompts = Path(__file__).parents[1] / "prompts"
         system = (prompts / "common.md").read_text() + (prompts / f"{role}.md").read_text()
+        if role == "base":
+            kind = context.get("analysis_type", "UNKNOWN")
+            if kind not in {"NEW", "CORRECTION", "UNKNOWN"}:
+                kind = "UNKNOWN"
+            system += (prompts / f"base_{kind.lower()}.md").read_text()
         input_limit, output_limit = (6000, 1500) if role == "perspective" else (10000, 2000)
         if role == "base":
             output_limit = 4000

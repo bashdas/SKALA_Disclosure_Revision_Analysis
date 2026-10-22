@@ -492,7 +492,7 @@ docker compose -p disclosure-web exec rabbitmq rabbitmqctl list_queues name mess
 2. 기업 목록에서 분석할 기업을 검색하고 즐겨찾기에 추가합니다. 관심 기업이 내 페이지에 표시되는지 확인합니다.
 3. 기업 상세 공시 탭에서 날짜 범위를 지정해 공시를 조회합니다. 기본 조회 기간은 최근 90일이므로 과거 사례는 기간을 직접 바꿉니다.
 4. 메모 관리에서 해당 기업의 UTF-8 `.txt` 메모를 업로드하거나 직접 작성해 저장합니다.
-5. 원문을 제공하는 공시를 선택해 서버에 등록하고, 기준 메모와 버전을 선택해 분석을 시작합니다. 분석은 같은 조직에 등록한 정정공시만 선택할 수 있습니다. 일반 공시에는 분석 버튼이 표시되지 않습니다.
+5. 원문을 제공하는 공시를 선택해 서버에 등록하고, 기준 메모와 버전을 선택해 분석을 시작합니다. 신규공시와 정정공시 모두 분석하기 버튼에서 기존 메모와 버전을 선택할 수 있습니다. 분석은 같은 조직에 등록한 공시와 기존 메모로 수행하며 메모 원문은 보존합니다.
 6. 분석 상태가 `QUEUED → RUNNING → SAVING → COMPLETED` 또는 `COMPLETED_WITH_WARNINGS`로 이동하는지 확인합니다. 일부 중간 상태는 빠르게 지나가 화면에서 보이지 않을 수 있습니다.
 7. 보고서의 근거·미확인 사항·관점별 결과를 확인하고 MD 또는 PDF 다운로드를 확인합니다.
 8. 새로고침 후에도 같은 보고서가 조회되고 원본 메모가 보존되는지 확인합니다.
@@ -629,7 +629,7 @@ cd "$PROJECT_ROOT/ai"
 | Scholar 검색만 실패 | `SERPAPI_API_KEY`와 해당 도구 오류·보고서 경고 확인 |
 | OpenAI·임베딩 오류 | `backend/.env`의 `OPENAI_API_KEY`, 모델 접근 가능 여부·호출 한도 확인 후 `rag-mcp ai-worker` 재생성 |
 | 키를 `ai/.env`에 넣었는데 Docker AI에 적용되지 않음 | Docker Worker는 `backend/.env`를 사용. PC Worker는 `ai/.env`를 `source`한 셸에서 실행 |
-| `CORRECTION_REQUIRED` / 422 | 같은 조직에 등록한 정정공시인지 확인한 후 분석합니다. |
+| `REGISTERED_FILING_REQUIRED` / 422 | 같은 조직에 등록한 공시인지 확인한 후 분석합니다. |
 | `ANALYSIS_ALREADY_RUNNING` / 409 | 동일 메모 버전·공시에 진행 중인 작업이 있음. 응답의 `existing_task_id`로 기존 작업 조회 |
 | 메모 업로드 413·415·422 | 기본 5 MiB 이하, UTF-8 `.txt`, `text/plain`, multipart `file` 필드 확인. PDF·DOCX는 업로드 대상이 아님 |
 | `SAVE_FAILED` | 분석을 처리한 Worker의 상태 파일을 보존하고 아래 재저장 절차 사용 |

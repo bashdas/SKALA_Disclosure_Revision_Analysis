@@ -65,7 +65,7 @@ async function start() {
   const filing = props.filing,
     selectedMemo = memo.value,
     version = memoVersion.value
-  if (!filing?.receiptNo || !filing.isCorrection || !selectedMemo || pending.value || store.busy)
+  if (!filing?.receiptNo || !selectedMemo || pending.value || store.busy)
     return
   pending.value = true
   error.value = ''

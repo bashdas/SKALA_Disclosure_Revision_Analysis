@@ -194,6 +194,29 @@ def search_documents(documents: list[dict], query: str, limit=8) -> list[dict]:
     return [row for _, row in sorted(rows, key=lambda pair: -pair[0])[:limit]]
 
 
+def schedule_notice(filing):
+    """실적 자료를 향후 공개한다고 명시한 순수 IR 일정 안내를 확인합니다."""
+    title = re.sub(r"\s+", "", filing.get("report_name") or "")
+    text = re.sub(r"\s+", "", "\n".join(d["text"] for d in filing.get("documents", [])))
+    return ("기업설명회" in title and "안내공시" in title
+            and bool(re.search(r"IR자료는실적발표일공시(?:를통하여|로)갈음", text))
+            and not re.search(r"(?:매출액?|영업이익|순이익|수주금액|계약금액|BPS|목표주가)"
+                              r"(?:\([^)]*\))?[:：=]?약?[0-9]", text, re.I))
+
+
+def disclosure_type(filing, declared="UNKNOWN"):
+    """등록 메타데이터와 공식 제목을 확인하며 정정표 유무로 유형을 추정하지 않습니다."""
+    title = filing.get("report_name")
+    metadata = "UNKNOWN"
+    if filing.get("metadata_status") == "FOUND" and isinstance(title, str) and title.strip():
+        metadata = "CORRECTION" if re.match(
+            r"^(?:\[(?:기재|첨부)?정정\]|8-K/A(?:\s|$))", title.strip(), re.I
+        ) else "NEW"
+    if declared in {"NEW", "CORRECTION"}:
+        return declared if metadata in {"UNKNOWN", declared} else "UNKNOWN"
+    return metadata
+
+
 def normalize_disclosure(result: dict, receipt: str) -> dict:
     """백엔드 get_disclosure의 원문 표를 AI의 정정 전후 문맥으로 연결합니다."""
     try:
@@ -244,6 +267,7 @@ def normalize_disclosure(result: dict, receipt: str) -> dict:
             "company_name": result.get("company_name"),
             "filed_at": result.get("filed_at"),
             "metadata_status": result.get("metadata_status"),
+            "report_name": result.get("report_name"),
         }
     except (KeyError, TypeError, ValueError, AttributeError):
         return {"error": "INVALID_DISCLOSURE_RESPONSE"}
@@ -343,6 +367,10 @@ def model_context(filing, fragments, memo):
             rest.append(source)
             size += length
     return {
+        "disclosure": {"analysis_type": filing.get("analysis_type", "UNKNOWN"),
+                       "title": filing.get("report_name"),
+                       "schedule_only": filing.get("schedule_only", False),
+                       "document_ids": [d["document_id"] for d in filing.get("documents", [])]},
         "memo": {**memo, "text": excerpt, "location": "memo", "excerpted": len(chosen) < len(lines)},
         "context": changes + rest,
         "reference_frames": reference_frames(filing, memo),

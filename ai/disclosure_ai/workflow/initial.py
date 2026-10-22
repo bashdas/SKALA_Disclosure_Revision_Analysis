@@ -3,8 +3,10 @@ import asyncio
 from disclosure_ai.schemas import BaseAnalysis
 from disclosure_ai.services.business import RunCancelled
 from disclosure_ai.services.documents import (
+    disclosure_type,
     model_context,
     reference_frames,
+    schedule_notice,
     search_documents,
     typo_only,
     validated_sources,
@@ -45,6 +47,18 @@ async def collect(run, state):
             request["corp_code"] = filing["corp_code"]
     if req["company_name_snapshot"] == "기업명 미확정" and filing.get("company_name"):
         request["company_name_snapshot"] = filing["company_name"]
+    kind = disclosure_type(filing, req.get("disclosure_type", "UNKNOWN"))
+    request["disclosure_type"] = kind
+    filing = {**filing, "analysis_type": kind, "schedule_only": schedule_notice(filing)}
+    if kind == "UNKNOWN":
+        filing["analysis_type_reason"] = (
+            "등록 메타데이터와 공식 공시 제목의 유형이 서로 다릅니다."
+            if req.get("disclosure_type") in {"NEW", "CORRECTION"}
+            and disclosure_type(filing) in {"NEW", "CORRECTION"}
+            else "등록 메타데이터 또는 공식 제목에서 공시 유형을 확인할 정보가 부족합니다."
+        )
+    if kind != "CORRECTION":
+        filing = {**filing, "changes": [], "complete_correction_table": False}
     return {"request": request, "filing": filing, "memo": memo, "warnings": warnings}
 
 
@@ -52,6 +66,14 @@ async def prepare(run, state):
     await run.stage(state, "RAG_PREPARATION")
     documents = state["filing"]["documents"] + [state["memo"]]
     context = list(state["filing"].get("changes", []))
+    if state["filing"].get("analysis_type") != "CORRECTION" or not context:
+        # 검색 점수가 낮은 일정 안내도 실제 공시 원문이 모델 입력에 남도록 합니다.
+        context.extend(
+            {"document_id": doc["document_id"], "location": "line:1:overview",
+             "quote": doc["text"][:2500], "url": doc.get("url"),
+             "published_at": doc.get("published_at")}
+            for doc in state["filing"]["documents"] if doc.get("text", "").strip()
+        )
     context += search_documents(
         documents,
         state["request"]["company_name_snapshot"]
@@ -80,7 +102,9 @@ async def prepare(run, state):
             "search_evidence",
             {
                 "task_id": run.h.task_id,
-                "query": "정정 내용과 기존 메모의 계약 금액, 기간 및 위험",
+                "query": ("정정 내용과 기존 메모의 계약 금액, 기간 및 위험"
+                          if state["filing"].get("analysis_type") == "CORRECTION"
+                          else "공시 사실과 기존 메모의 수치, 전망 및 가정"),
                 "top_k": 5,
             },
             run.tools.call,
@@ -107,7 +131,8 @@ async def prepare(run, state):
 
 async def impact(run, state):
     await run.stage(state, "BASE_ANALYSIS")
-    if typo_only(state["filing"]):
+    kind = state["filing"].get("analysis_type", "UNKNOWN")
+    if kind == "CORRECTION" and typo_only(state["filing"]):
         return {
             "base": {
                 "summary": "공백 차이만 확인했습니다. 영향 분석은 미수행했습니다.",
@@ -122,11 +147,20 @@ async def impact(run, state):
             "base",
             {
                 "request": state["request"],
+                "analysis_type": kind,
                 **model_context(state["filing"], state["context"], state["memo"]),
             },
             BaseAnalysis,
         )
         data = base.model_dump()
+        if kind == "UNKNOWN":
+            data["limitations"].append(
+                "공시 유형을 확정하지 못했습니다. "
+                + state["filing"].get("analysis_type_reason", "유형을 확인할 메타데이터가 부족합니다.")
+                + " 정정 전후 비교는 보류했습니다."
+            )
+        elif kind == "CORRECTION" and not state["filing"].get("complete_correction_table"):
+            data["limitations"].append("정정공시의 정정표 전체를 확인하지 못했습니다. 확인한 본문 범위에서 검토했습니다.")
         seen = set()
         data["selected"] = [
             s

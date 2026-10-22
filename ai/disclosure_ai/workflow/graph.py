@@ -72,14 +72,18 @@ class AnalysisGraph:
 
     def build(self, checkpointer):
         initial = StateGraph(State)
-        for name, function in [("COLLECT", collect), ("PREPARE", prepare), ("IMPACT", impact)]:
+        for name, function in [("COLLECT", collect), ("PREPARE", prepare),
+                               ("IMPACT_NEW", impact), ("IMPACT_CORRECTION", impact),
+                               ("IMPACT_UNKNOWN", impact)]:
             initial.add_node(name, partial(self.protected, name, function))
         initial.add_edge(START, "COLLECT")
         initial.add_conditional_edges("COLLECT", lambda s: END if s.get("warnings") else "PREPARE")
         initial.add_conditional_edges(
-            "PREPARE", lambda s: END if s.get("stage_failed") else "IMPACT"
+            "PREPARE", lambda s: END if s.get("stage_failed") else
+            "IMPACT_" + s["filing"].get("analysis_type", "UNKNOWN")
         )
-        initial.add_edge("IMPACT", END)
+        for name in ("IMPACT_NEW", "IMPACT_CORRECTION", "IMPACT_UNKNOWN"):
+            initial.add_edge(name, END)
         parallel = StateGraph(State)
         parallel.add_node("REGISTER", partial(self.protected, "REGISTER", perspectives.register))
         parallel.add_node("perspective", partial(perspectives.perspective, self))

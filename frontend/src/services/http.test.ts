@@ -222,7 +222,7 @@ it('로그인 거부 시 회원가입 안내를 표시합니다', async () => {
   await expect(login('unknown@example.com', 'password')).rejects.toThrow('처음 이용하시면 회원가입')
 })
 
-it('일반 공시는 분석 요청을 전송하기 전에 거부합니다', async () => {
+it('신규공시도 선택한 메모 버전으로 분석을 접수합니다', async () => {
   const fetcher = vi.fn((path: string, init?: RequestInit) => {
     if (path.startsWith('/api/v1/filings?'))
       return Promise.resolve(
@@ -243,8 +243,24 @@ it('일반 공시는 분석 요청을 전송하기 전에 거부합니다', asyn
     return respond(path, init)
   })
   vi.stubGlobal('fetch', fetcher)
-  await expect(
-    createHttpServices().analyses.start({ filingId: 'filing-id', memoId: memo.id, memoVersion: 1 }),
-  ).rejects.toThrow('정정공시만 분석')
-  expect(fetcher.mock.calls.some(([path]) => path === '/api/v1/analyses')).toBe(false)
+  const result = await createHttpServices().analyses.start({ filingId: 'filing-id', memoId: memo.id, memoVersion: 1 })
+  expect(result.id).toBe(task.task_id)
+  const sent = fetcher.mock.calls.find(([path]) => path === '/api/v1/analyses')!
+  expect(JSON.parse(sent[1]!.body as string)).toEqual({ memo_id: memo.id, memo_version: 1, disclosure_receipt_no: task.disclosure_receipt_no })
+})
+
+
+it('빈 제안의 유지 판단과 연결 근거를 보존합니다', () => {
+  const source = { document_id: 'filing:ir', location: 'line:1', quote: '실적 발표 일정 안내' }
+  const row = { id: 'r', analysis_task_id: task.task_id, content: '보고서', generated_at: now,
+    saved_at: now, no_additional_analysis_reason: null,
+    report_json: { base: { proposals: [] }, memo_review: { status: 'KEEP' as const,
+      reason: '일정 안내이며 기존 수치 변경이 없어 유지합니다.', evidence: [source] } } }
+  const report = mapReport(row)
+  expect(report.findings).toEqual([])
+  expect(report.memoReview?.status).toBe('KEEP')
+  expect(report.memoReview?.reason).toContain('유지합니다')
+  expect(report.memoReview?.evidenceIds).toEqual(['source-0'])
+  expect(report.evidence[0]?.quote).toBe(source.quote)
+  expect(mapReport({ ...row, report_json: { base: { proposals: [] } } }).memoReview?.status).toBe('HOLD')
 })

@@ -111,12 +111,12 @@ it.each(['filings', 'memos', 'reports', 'history'])(
         expect(row.find('.document-actions a').exists()).toBe(false)
         expect(row.text()).not.toContain('내용 확인')
       }
-      expect(rows[0]!.find('.document-actions').text()).not.toContain('분석하기')
+      expect(rows[0]!.find('.document-actions').text()).toContain('분석하기')
       expect(rows[1]!.find('.document-actions').text()).toContain('분석하기')
       const dialog = wrapper.get('dialog').element as HTMLDialogElement
       dialog.showModal = () => dialog.setAttribute('open', '')
       dialog.close = () => dialog.removeAttribute('open')
-      await rows[1]!.get('.document-actions button').trigger('click')
+      await rows[0]!.get('.document-actions button').trigger('click')
       await flushPromises()
       expect(dialog.open).toBe(true)
       expect(registerDisclosure).not.toHaveBeenCalled()

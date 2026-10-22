@@ -1,0 +1,17 @@
+{
+  "task_id": "d958a846-2828-45e7-b767-5c03fa7463b5",
+  "memo_id": "81c1d06b-bd7a-4b39-9085-41c86da9a50f",
+  "base_memo_version": 1,
+  "disclosure_receipt_no": "20261020800733",
+  "status": "COMPLETED_WITH_WARNINGS",
+  "current_stage": "REPORT_SAVE",
+  "has_warnings": true,
+  "error_stage": null,
+  "error_code": null,
+  "corp_code": "00210856",
+  "company_name_snapshot": "코아스",
+  "started_at": "2026-10-22T06:10:31.712565Z",
+  "completed_at": "2026-10-22T06:10:55.730865Z",
+  "created_at": "2026-10-22T06:10:31.423522Z",
+  "updated_at": "2026-10-22T06:10:55.725682Z"
+}

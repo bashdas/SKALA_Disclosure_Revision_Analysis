@@ -176,6 +176,15 @@ async function download(extension: 'md' | 'pdf') {
       </template>
       <div class="unified-report-content">
         <p v-if="exportError" class="inline-warning" role="alert">{{ exportError }}</p>
+        <section v-if="!report.findings.length" class="report-fallback" data-testid="memo-review-decision">
+          <h2>{{ report.memoReview?.status === 'KEEP' ? '기존 메모 유지' : '메모 영향 판단 보류' }}</h2>
+          <p>{{ report.memoReview?.reason || '유지 또는 수정 여부를 확인할 판단 근거가 없습니다. 재분석이 필요합니다.' }}</p>
+          <div v-if="report.memoReview?.evidenceIds.length" class="evidence-chips">
+            <button v-for="source in report.evidence.filter((e) => report?.memoReview?.evidenceIds.includes(e.id))" :key="source.id" @click="store.openEvidence(source)">
+              {{ source.title }}
+            </button>
+          </div>
+        </section>
         <template v-for="(block, i) in layout.blocks" :key="i">
           <MarkdownReport
             v-if="block.type === 'markdown'"

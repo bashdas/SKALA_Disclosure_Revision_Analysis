@@ -206,3 +206,18 @@ it('관점·수정 제안이 없으면 빈 안내와 비교 카드를 만들지 
   expect(wrapper.find('.memo-proposals').exists()).toBe(false)
   wrapper.unmount()
 })
+
+it('빈 제안의 유지 또는 보류 판단과 이유를 표시합니다', async () => {
+  const { store, wrapper } = await view(baseTask, { ...baseReport, findings: [] })
+  expect(wrapper.get('[data-testid=memo-review-decision]').text()).toContain('메모 영향 판단 보류')
+  for (const status of ['KEEP', 'HOLD'] as const) {
+    store.reports[0]!.memoReview = { status, reason: '공시와 메모를 대조한 판단 이유입니다.', evidenceIds: ['source-0'] }
+    await flushPromises()
+    const decision = wrapper.get('[data-testid=memo-review-decision]')
+    expect(decision.text()).toContain(status === 'KEEP' ? '기존 메모 유지' : '메모 영향 판단 보류')
+    expect(decision.text()).toContain('공시와 메모를 대조한 판단 이유입니다.')
+    await decision.get('button').trigger('click')
+    expect(store.drawer?.content).toBe('근거 인용문')
+  }
+  wrapper.unmount()
+})

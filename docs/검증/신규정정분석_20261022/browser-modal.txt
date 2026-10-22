@@ -1,0 +1,5 @@
+- heading "공시 분석" [level=2, ref=e1]
+- button "공시 분석 닫기" [ref=e2]
+- combobox "기준 메모" [expanded=false, ref=e5]: 메모를 선택하세요
+- button "분석 시작" [disabled, ref=e4]
+- region "Notifications alt+T" [ref=e3]

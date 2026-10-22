@@ -125,4 +125,10 @@ def fixed_request(context: dict) -> dict:
         "company_name_snapshot": context.get("company_name") or "기업명 미확정",
         "corp_code": context.get("corp_code"),
         "thread_id": context["task_id"],
+        "disclosure_type": (
+            "CORRECTION" if context.get("filing_type") == "정정공시"
+            and context.get("is_correction") is True else
+            "NEW" if context.get("filing_type") == "신규공시"
+            and context.get("is_correction") is False else "UNKNOWN"
+        ),
     }

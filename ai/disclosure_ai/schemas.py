@@ -21,6 +21,7 @@ class AnalysisRequest(Model):
     company_name_snapshot: str = Field(min_length=1, max_length=255)
     corp_code: str | None = Field(default=None, pattern=r"^[0-9]{8}$")
     thread_id: str = Field(min_length=1, max_length=255)
+    disclosure_type: Literal["NEW", "CORRECTION", "UNKNOWN"] = "UNKNOWN"
 
 
 class Source(Model):
@@ -52,11 +53,18 @@ class OmittedPerspective(Model):
     reason: str
 
 
+class MemoReview(Model):
+    status: Literal["KEEP", "HOLD"]
+    reason: str
+    evidence: list[Source]
+
+
 class BaseAnalysis(Model):
     summary: str
     proposals: list[Proposal]
     selected: list[Selection]
     not_selected: list[OmittedPerspective] = Field(default_factory=list)
+    memo_review: MemoReview | None = None
     no_additional_analysis_reason: str | None
     limitations: list[str]
 

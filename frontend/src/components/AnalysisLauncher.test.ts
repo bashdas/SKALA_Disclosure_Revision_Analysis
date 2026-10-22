@@ -11,7 +11,7 @@ import type { Filing, Memo, AnalysisTask, Company } from '../types/domain'
 vi.mock('../services', () => ({ services: {} }))
 vi.mock('../services/catalog', () => ({ registerDisclosure: vi.fn() }))
 
-it('opens without registering, retains errors and registers only when starting with the chosen memo version', async () => {
+it.each([true, false])('opens and starts with the chosen memo version (correction=%s)', async (isCorrection) => {
   const pinia = createPinia()
   setActivePinia(pinia)
   const store = useWorkspace()
@@ -48,7 +48,7 @@ it('opens without registering, retains errors and registers only when starting w
       companyId: 'company',
       receiptNo: '20261021000001',
       title: '정정공시',
-      isCorrection: true,
+      isCorrection,
     } as Filing,
   })
   await flushPromises()

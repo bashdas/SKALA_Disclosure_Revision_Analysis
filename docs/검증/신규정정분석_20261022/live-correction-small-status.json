@@ -1,0 +1,17 @@
+{
+  "task_id": "7ef8f793-4ebd-4170-a0a2-0906eafb17c0",
+  "memo_id": "81c1d06b-bd7a-4b39-9085-41c86da9a50f",
+  "base_memo_version": 1,
+  "disclosure_receipt_no": "20261020000245",
+  "status": "COMPLETED_WITH_WARNINGS",
+  "current_stage": "REPORT_SAVE",
+  "has_warnings": true,
+  "error_stage": null,
+  "error_code": null,
+  "corp_code": "01701531",
+  "company_name_snapshot": "미로바펀즈",
+  "started_at": "2026-10-22T06:18:16.886134Z",
+  "completed_at": "2026-10-22T06:18:30.614866Z",
+  "created_at": "2026-10-22T06:18:16.583188Z",
+  "updated_at": "2026-10-22T06:18:30.612672Z"
+}
