@@ -43,3 +43,9 @@ class MemoUploadResponse(MemoSummaryResponse):
     content_type: str
     size_bytes: int
     content_hash: str
+
+
+class MemoEditRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    content: str = Field(min_length=1, max_length=5 * 1024 * 1024)
+    base_version: int = Field(ge=1, le=2147483646)

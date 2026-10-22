@@ -262,6 +262,14 @@ export const useWorkspace = defineStore('workspace', () => {
     memos.value.unshift(memo)
     return memo
   }
+  async function editMemo(id: string, content: string, baseVersion: number) {
+    const memo = await services.memos.edit(id, content, baseVersion)
+    const index = memos.value.findIndex((item) => item.id === id)
+    if (index < 0) memos.value.unshift(memo)
+    else memos.value[index] = memo
+    if (drawer.value?.memoId === id) await openMemo(id, memo.currentVersion)
+    notification.success(`메모를 v${memo.currentVersion}으로 저장했습니다.`)
+  }
   async function deleteMemo(id: string) {
     await services.memos.remove(id)
     memos.value = memos.value.filter((m) => m.id !== id)
@@ -336,6 +344,7 @@ export const useWorkspace = defineStore('workspace', () => {
     openEvidence,
     upload,
     deleteMemo,
+    editMemo,
     start,
     dispose,
     syncError,

@@ -1,9 +1,14 @@
+from io import BytesIO
 from pathlib import PurePosixPath
 from typing import BinaryIO
 from uuid import UUID
 
 from app.core.config import get_settings
-from app.domain.memo_upload_exceptions import InvalidMemoTitle
+from app.domain.memo_upload_exceptions import (
+    InvalidMemoEncoding,
+    InvalidMemoTitle,
+    MemoVersionConflict,
+)
 from app.domain.resource_exceptions import MemoNotFound, MemoVersionNotFound
 from app.models import Memo, MemoVersion
 from app.repositories import MemoRepository
@@ -98,3 +103,32 @@ class MemoService:
             session.rollback()
             raise
         return response
+
+    def edit(self, memo_id: UUID, organization_id: UUID, created_by: UUID, content: str, base_version: int) -> MemoSummaryResponse:
+        session = self.memos.session
+        try:
+            # 같은 버전을 동시에 편집해도 한 요청만 다음 버전을 만들도록 메모 행을 잠급니다.
+            memo = self.memos.get_by_id_and_organization(memo_id, organization_id, for_update=True)
+            if memo is None or memo.is_deleted:
+                raise MemoNotFound()
+            if memo.current_version != base_version:
+                raise MemoVersionConflict()
+            try:
+                raw = content.encode("utf-8")
+            except UnicodeError:
+                raise InvalidMemoEncoding() from None
+            limit = self.max_upload_bytes if self.max_upload_bytes is not None else get_settings().memo_upload_max_bytes
+            extracted = self.extractor.extract(BytesIO(raw), filename="memo.txt", content_type="text/plain", max_bytes=limit)
+            previous = self.get_current_version(memo_id, organization_id)
+            if extracted.content != previous.content:
+                memo.current_version += 1
+                self.memos.add_version(MemoVersion(
+                    memo_id=memo.id, version=memo.current_version, content=extracted.content, created_by=created_by,
+                    content_type=extracted.content_type, size_bytes=extracted.size_bytes, content_hash=extracted.content_hash,
+                ))
+            response = MemoSummaryResponse.model_validate(memo)
+            session.commit()
+            return response
+        except Exception:
+            session.rollback()
+            raise

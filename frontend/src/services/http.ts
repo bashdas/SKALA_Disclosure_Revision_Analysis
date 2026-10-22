@@ -437,6 +437,16 @@ export function createHttpServices(): Services {
       async get(id) {
         return loadMemo(await request<MemoRow>(`/memos/${id}`))
       },
+      async edit(id, content, baseVersion) {
+        await readMemoFile(new File([content], 'memo.txt', { type: 'text/plain' }))
+        const row = await request<MemoRow>(`/memos/${id}/versions`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ content, base_version: baseVersion }),
+        })
+        memoLoad = undefined
+        return loadMemo(row)
+      },
       async remove(id) {
         await request<void>(`/memos/${id}`, { method: 'DELETE' })
         memoLoad = undefined

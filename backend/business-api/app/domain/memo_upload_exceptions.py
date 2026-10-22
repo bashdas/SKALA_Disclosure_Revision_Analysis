@@ -42,3 +42,9 @@ class InvalidMemoFilename(MemoUploadError):
 class InvalidMemoTitle(MemoUploadError):
     code = "INVALID_MEMO_TITLE"
     message = "Memo title must contain 1 to 500 characters"
+
+
+class MemoVersionConflict(MemoUploadError):
+    code = "MEMO_VERSION_CONFLICT"
+    message = "다른 창에서 메모를 수정했습니다. 작성 내용을 복사한 뒤 최신 버전을 다시 열어 주세요."
+    status_code = 409

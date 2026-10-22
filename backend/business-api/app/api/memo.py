@@ -10,6 +10,7 @@ from app.schemas.auth import CurrentUser
 from app.schemas.memo import (
     MemoCompanyRequest,
     MemoDetailResponse,
+    MemoEditRequest,
     MemoSummaryResponse,
     MemoUploadResponse,
     MemoVersionDetailResponse,
@@ -74,3 +75,8 @@ def assign_company(memo_id: UUID, request: MemoCompanyRequest, user: Reader, ser
 def delete_memo(memo_id: UUID, user: Reader, service: Service) -> Response:
     service.delete(memo_id, user.organization_id)
     return Response(status_code=204)
+
+
+@router.post("/{memo_id}/versions", response_model=MemoSummaryResponse)
+def edit_memo(memo_id: UUID, request: MemoEditRequest, user: Reader, service: Service) -> MemoSummaryResponse:
+    return service.edit(memo_id, user.organization_id, user.id, request.content, request.base_version)
