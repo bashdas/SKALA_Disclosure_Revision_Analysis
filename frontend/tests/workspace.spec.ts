@@ -59,9 +59,7 @@ test('메인 UI에서 기업 검색, 즐겨찾기, 정정공시 분석을 연결
     page.getByRole('heading', { name: process.env.E2E_COMPANY_NAME!, exact: true }),
   ).toBeVisible()
   expect(
-    Math.abs(
-      (await page.locator('.company-market-name').boundingBox())!.x - homeLeft,
-    ),
+    Math.abs((await page.locator('.company-market-name').boundingBox())!.x - homeLeft),
   ).toBeLessThan(2)
   const filings = page.locator('article.document-row')
   await expect(filings.first()).toBeVisible({ timeout: 60000 })
@@ -138,26 +136,17 @@ test('메인 UI에서 기업 검색, 즐겨찾기, 정정공시 분석을 연결
   expect(response.status()).toBe(202)
   const task = await response.json()
   await expect(page).toHaveURL(new RegExp(`/analyses/${task.task_id}$`))
-  await expect(page.getByRole('heading', { name: '보고서 본문', exact: true })).toBeVisible({
+  await expect(page.getByRole('heading', { name: '검토 보고서', exact: true })).toBeVisible({
     timeout: 150000,
   })
   await page.reload()
-  await expect(page.getByRole('heading', { name: '보고서 본문', exact: true })).toBeVisible({
+  await expect(page.getByRole('heading', { name: '검토 보고서', exact: true })).toBeVisible({
     timeout: 30000,
   })
   const blocks = await page
-    .locator(
-      '.progress-section,.report-summary,.report-body,.findings-section,.source-list,.perspectives-section',
-    )
+    .locator('.progress-section,.unified-report')
     .evaluateAll((nodes) => nodes.map((n) => n.className))
-  expect(blocks.map((name) => name.replace('surface', '').trim())).toEqual([
-    'progress-section',
-    'report-summary',
-    'report-body',
-    'findings-section',
-    'source-list',
-    'perspectives-section',
-  ])
+  expect(blocks.map((name) => name.replace('surface', '').trim())).toEqual(['unified-report'])
   await expect(page.locator('.markdown-body h1')).toBeVisible()
   await expect(page.locator('.markdown-body table').first()).toBeVisible()
   for (const extension of ['md', 'pdf']) {

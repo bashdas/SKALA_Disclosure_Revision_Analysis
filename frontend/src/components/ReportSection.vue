@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { ChevronDown } from 'lucide-vue-next'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from './ui/collapsible'
-defineProps<{ title: string; count?: number }>()
+withDefaults(defineProps<{ title: string; count?: number; defaultOpen?: boolean }>(), {
+  defaultOpen: true,
+})
 </script>
 <template>
-  <Collapsible as="section" :default-open="true" class="report-fold">
+  <Collapsible as="section" :default-open="defaultOpen" class="report-fold">
     <div class="report-fold-heading">
       <h2>
         <CollapsibleTrigger class="report-fold-trigger"
@@ -50,16 +52,14 @@ defineProps<{ title: string; count?: number }>()
   padding-top: 20px;
 }
 .report-body > .report-fold-heading,
-.source-list > .report-fold-heading,
-.findings-section > .report-fold-heading,
+.unified-report > .report-fold-heading,
 .perspectives-section > .report-fold-heading {
   padding: 20px 24px;
 }
 .report-body > .report-fold-content,
-.source-list > .report-fold-content {
+.unified-report > .report-fold-content {
   padding-top: 0;
 }
-.findings-section > .report-fold-content,
 .perspectives-section > .report-fold-content {
   padding: 0 24px 24px;
 }
