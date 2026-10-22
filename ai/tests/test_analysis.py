@@ -454,6 +454,7 @@ def test_truncated_model_response_repairs_once_with_same_budget(ledger):
     from openai import LengthFinishReasonError
     from openai.types.chat import ChatCompletion
 
+    from disclosure_ai.ports.model_gateway import ModelFormatError
     from disclosure_ai.schemas import BaseAnalysis
 
     async def check():
@@ -480,7 +481,7 @@ def test_truncated_model_response_repairs_once_with_same_budget(ledger):
         assert parse.call_args.kwargs["max_completion_tokens"] == 4000
         parse.reset_mock(side_effect=True)
         parse.side_effect = [truncated, truncated]
-        with pytest.raises(LengthFinishReasonError):
+        with pytest.raises(ModelFormatError):
             await harness.model("base", {}, BaseAnalysis)
         assert parse.await_count == 2 and ledger.row("task")["turns"] == 4
 

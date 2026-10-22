@@ -1,33 +1,23 @@
 import asyncio
 from functools import partial
-from typing import Annotated, TypedDict
 
 from langgraph.graph import END, START, StateGraph
 
-from disclosure_ai.harness.runtime import Harness
-from disclosure_ai.services.business import RunCancelled
-from disclosure_ai.workflow import perspectives, reporting, shared
-from disclosure_ai.workflow.initial import collect, impact, prepare
-
-
-class State(TypedDict, total=False):
-    request: dict
-    scope: str
-    filing: dict
-    memo: dict
-    documents: list
-    context: list
-    base: dict
-    results: Annotated[dict, lambda a, b: {**a, **b}]
-    warnings: Annotated[list, lambda a, b: list(dict.fromkeys(a + b))]
-    report: dict
-    output: dict
-    selection: dict
-    stage_failed: bool
-    rag_ready: bool
-    jobs: Annotated[dict, lambda a, b: {**a, **b}]
-    lookups: list
-    lookup_results: list
+from disclosure_ai.domain.errors import RunCancelled
+from disclosure_ai.runtime.harness import Harness
+from disclosure_ai.workflow import routing
+from disclosure_ai.workflow.nodes.analyze_impact import impact
+from disclosure_ai.workflow.nodes.analyze_perspective import perspective
+from disclosure_ai.workflow.nodes.collect_inputs import collect
+from disclosure_ai.workflow.nodes.execute_tools import lookup
+from disclosure_ai.workflow.nodes.generate_report import report
+from disclosure_ai.workflow.nodes.join_results import join
+from disclosure_ai.workflow.nodes.prepare_evidence import prepare
+from disclosure_ai.workflow.nodes.prepare_tools import requests
+from disclosure_ai.workflow.nodes.publish_evidence import publish
+from disclosure_ai.workflow.nodes.register_perspectives import register
+from disclosure_ai.workflow.nodes.save_report import save
+from disclosure_ai.workflow.state import State
 
 
 class AnalysisGraph:
@@ -81,24 +71,24 @@ class AnalysisGraph:
         )
         initial.add_edge("IMPACT", END)
         parallel = StateGraph(State)
-        parallel.add_node("REGISTER", partial(self.protected, "REGISTER", perspectives.register))
-        parallel.add_node("perspective", partial(perspectives.perspective, self))
+        parallel.add_node("REGISTER", partial(self.protected, "REGISTER", register))
+        parallel.add_node("perspective", partial(perspective, self))
         parallel.add_edge(START, "REGISTER")
         parallel.add_conditional_edges(
-            "REGISTER", lambda s: END if s.get("stage_failed") else perspectives.selected(s)
+            "REGISTER", lambda s: END if s.get("stage_failed") else routing.selected(s)
         )
         parallel.add_edge("perspective", END)
         shared_graph = StateGraph(State)
         shared_graph.add_node("STATUS", lambda s: {})
         for name, function in [
-            ("KEY", shared.requests),
-            ("SHARED", shared.lookup),
-            ("RESULT", shared.publish),
-            ("JOIN", reporting.join),
+            ("KEY", requests),
+            ("SHARED", lookup),
+            ("RESULT", publish),
+            ("JOIN", join),
         ]:
             shared_graph.add_node(name, partial(self.protected, name, function))
         shared_graph.add_edge(START, "STATUS")
-        shared_graph.add_conditional_edges("STATUS", shared.status)
+        shared_graph.add_conditional_edges("STATUS", routing.status)
         shared_graph.add_conditional_edges(
             "KEY", lambda s: "JOIN" if s.get("stage_failed") else "SHARED"
         )
@@ -112,8 +102,8 @@ class AnalysisGraph:
         graph.add_node("S1", initial.compile())
         graph.add_node("S2", parallel.compile())
         graph.add_node("S3", shared_graph.compile())
-        graph.add_node("REPORT_AGENT", partial(reporting.report, self))
-        graph.add_node("SAVE", partial(reporting.save, self))
+        graph.add_node("REPORT_AGENT", partial(report, self))
+        graph.add_node("SAVE", partial(save, self))
         graph.add_edge(START, "REQUEST")
         graph.add_edge("REQUEST", "S1")
         graph.add_conditional_edges(
@@ -121,7 +111,7 @@ class AnalysisGraph:
         )
         graph.add_edge("S2", "S3")
         graph.add_conditional_edges(
-            "S3", lambda s: "REPORT_AGENT" if s.get("stage_failed") else shared.resume(s)
+            "S3", lambda s: "REPORT_AGENT" if s.get("stage_failed") else routing.resume(s)
         )
         graph.add_edge("REPORT_AGENT", "SAVE")
         graph.add_edge("SAVE", END)

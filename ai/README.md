@@ -1,5 +1,7 @@
 # 정정공시 메모 영향 분석
 
+현재 코드의 계층별 책임, 호환 경로와 확장 방법은 [AI 아키텍처](ARCHITECTURE.md)를 참고합니다. 아래 실행·분석 정책은 유지하며, 기존 파일 경로는 호환 모듈로 제공됩니다.
+
 ## 1. 실습 또는 과제 요구사항
 
 강의 자료 `AI-Agent Capstone(+MCP).pdf`의 69쪽부터 73쪽까지와 첨부 흐름도를 기준으로 구현했습니다. 고정된 메모와 정정공시를 분석하고, 필요한 관점만 병렬로 실행한 뒤 근거를 포함한 보고서를 자동 저장합니다. 원래 메모는 수정하지 않습니다.
@@ -19,37 +21,21 @@
 ## 3. 파일별 구현 내용
 
 ```text
-ai/
-├── disclosure_ai/
-│   ├── entrypoints/
-│   │   ├── worker.py        RabbitMQ 소비와 작업 실행
-│   │   ├── api.py           선택적 내부 HTTP 접수와 결과 조회
-│   │   └── local.py         제공된 메모와 ZIP의 로컬 실행
-│   ├── workflow/
-│   │   ├── graph.py         State와 서브그래프 연결
-│   │   ├── initial.py       S1 자료 취합과 기본 분석
-│   │   ├── perspectives.py  S2 관점 선택과 분석 응답
-│   │   ├── shared.py        S3 공유 조회와 관점 재개
-│   │   ├── reporting.py     보고서 생성과 저장, 비상 보고서
-│   │   └── execution.py     공통 실행, 복구와 재저장
-│   ├── services/
-│   │   ├── business.py      MCP 전송과 업무 도구 매핑
-│   │   ├── tools.py         허용 도구 호출과 응답 변환
-│   │   └── documents.py     공시 처리와 근거 대조
-│   ├── harness/
-│   │   ├── runtime.py       모델 예산과 실행 한도
-│   │   ├── lookup.py        조회 정규화와 동시 호출 공유
-│   │   ├── ledger.py        실행 상태와 원문 및 보고서 보존
-│   │   ├── transport.py     상태 동기화와 재저장 전송 제한
-│   │   └── output.py        민감 정보와 투자 권유 출력 검사
-│   ├── prompts/            역할별 지시문
-│   ├── schemas.py          고정 입력과 모델 응답 형식
-│   └── errors.py           실행 한도 오류
-├── tests/                  단위 검사, 백엔드 연결과 명시적 실제 실행 검사
-├── .env.example
-├── pyproject.toml
-└── uv.lock
+ai/disclosure_ai/
+├── presentation/     # HTTP Controller, Queue Handler, CLI
+├── application/      # 실행·재개·재저장
+├── domain/           # 모델과 근거·제안·조회 정책
+├── workflow/         # LangGraph State, Routing, Nodes
+├── analysis/         # 자료 준비·기본 분석·관점·보고서 서비스
+├── llm/              # 프롬프트, 모델 출력 스키마, 변환
+├── ports/            # 외부 기능과 실행 의존성 계약
+├── runtime/          # 예산·재시도·캐시·실행 통제
+├── infrastructure/   # OpenAI, MCP, SQLite, RabbitMQ
+├── config/           # 모델 설정
+└── bootstrap.py      # 실제 구현 조립
 ```
+
+기존 `entrypoints`, `harness`, `services`, `schemas.py`와 일부 `workflow` 경로는 이전 명령과 import를 위한 호환 계층입니다.
 
 `services/business.py`는 Business MCP의 작업 context, 상태, 이벤트, 관점과 보고서 도구를 호출합니다. `services/tools.py`는 External MCP의 get_disclosure, get_financial_statements, search_academic_papers와 RAG MCP의 ensure_analysis_index, search_evidence를 AI 문맥으로 변환합니다. 자료 ID와 원문 위치 및 공개 시점을 보존하고, 응답에 포함된 내부 오류 원문은 모델에 전달하지 않습니다.
 

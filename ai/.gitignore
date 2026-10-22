@@ -8,3 +8,8 @@ __pycache__/
 .ruff_cache/
 
 /build/
+
+# Local dependency environment and runtime token dictionary cache
+.venv/
+outputs/
+dist/

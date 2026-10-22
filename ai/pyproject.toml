@@ -13,15 +13,15 @@ dependencies = [
   "defusedxml>=0.7,<1", "beautifulsoup4>=4.13,<5"
 ]
 [project.scripts]
-disclosure-ai-worker = "disclosure_ai.entrypoints.worker:main"
-disclosure-ai-local = "disclosure_ai.entrypoints.local:main"
+disclosure-ai-worker = "disclosure_ai.presentation.queue.consumer:main"
+disclosure-ai-local = "disclosure_ai.presentation.cli.local:main"
 
 [project.optional-dependencies]
 dev = ["pytest>=8,<10", "ruff>=0.12,<1"]
 [tool.setuptools.packages.find]
 include = ["disclosure_ai*"]
 [tool.setuptools.package-data]
-disclosure_ai = ["prompts/*.md"]
+disclosure_ai = ["llm/prompts/*.md"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 [tool.ruff]

@@ -1,0 +1,6 @@
+from typing import Any, Protocol
+
+
+class AnalysisWorkflow(Protocol):
+    async def ainvoke(self, initial: dict | None, config: dict) -> dict: ...
+    async def aget_state(self, config: dict, *, subgraphs: bool = False) -> Any: ...
