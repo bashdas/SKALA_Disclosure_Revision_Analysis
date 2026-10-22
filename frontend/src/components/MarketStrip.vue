@@ -219,7 +219,7 @@ watch(selected, () => rail.value?.scrollTo({ left: 0 }))
 .market-toolbar {
   display: flex;
   align-items: center;
-  margin-bottom: 14px;
+  margin-bottom: 10px;
 }
 .market-filters {
   display: flex;
@@ -259,7 +259,7 @@ watch(selected, () => rail.value?.scrollTo({ left: 0 }))
 .market-board {
   min-width: 900px;
   background: var(--background);
-  padding: 12px 0;
+  padding: 8px 0;
 }
 .market-board.has-featured {
   display: grid;
@@ -269,7 +269,7 @@ watch(selected, () => rail.value?.scrollTo({ left: 0 }))
 .market-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  row-gap: 16px;
+  row-gap: 14px;
 }
 .market-item {
   min-width: 0;

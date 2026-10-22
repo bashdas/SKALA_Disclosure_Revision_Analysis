@@ -506,7 +506,7 @@ withDefaults(
   display: grid;
   grid-template-columns: 250px minmax(0, 1fr);
   min-width: 1120px;
-  padding-block: 12px;
+  padding-block: 8px;
 }
 .sk-featured {
   padding-right: 24px;
@@ -519,7 +519,7 @@ withDefaults(
 .sk-market-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  row-gap: 16px;
+  row-gap: 14px;
 }
 .sk-market-item {
   display: flex;

@@ -17,6 +17,7 @@
   -webkit-font-smoothing: antialiased;
   --background: #ffffff;
   --card: #ffffff;
+  --topbar-background: #fafbfd;
   --surface: #f9fafb;
   --surface-strong: #f2f4f6;
   --ink: #191f28;
@@ -50,6 +51,7 @@
   color-scheme: dark;
   --background: var(--card);
   --card: #1e1e24;
+  --topbar-background: var(--card);
   --surface: #222229;
   --surface-strong: #2a2b34;
   --ink: #e5e8eb;
@@ -226,7 +228,7 @@ select {
   align-items: center;
   justify-content: space-between;
   padding: 0 43px;
-  background: var(--card);
+  background: var(--topbar-background);
   border-bottom: 1px solid var(--line);
 }
 main {
