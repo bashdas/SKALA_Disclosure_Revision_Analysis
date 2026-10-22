@@ -93,6 +93,14 @@ ${result}
     sources,
     summary_claims: [{ text: '첫 번째 주장' }],
     base: {
+      selected: [{ perspective_type: 'FINANCE', selection_reason: selectionReason }],
+      not_selected: [
+        {
+          perspective_type: 'INDUSTRY_CONTRACT',
+          reason: '계약 조건의 추가 변경은 확인되지 않았습니다.',
+        },
+        { perspective_type: 'FX_HEDGE', reason: '환율과 헤지 관련 변경 근거가 없습니다.' },
+      ],
       proposals: [
         {
           claim_id: 'claim',
@@ -155,7 +163,7 @@ test.beforeEach(async ({ page }) => {
   })
 })
 
-test('보고서는 항상 펼치고 선택 관점 안내 없이 분석 결과와 출처 토글을 유지합니다', async ({
+test('보고서는 항상 펼치고 관점 판단과 분석 결과를 중복 없이 표시하며 출처 토글을 유지합니다', async ({
   page,
 }) => {
   await page.goto('/analyses/report-task')
@@ -179,8 +187,15 @@ test('보고서는 항상 펼치고 선택 관점 안내 없이 분석 결과와
     '출처와 원문 인용',
   ])
   await expect(reportView.getByRole('heading', { name: '선택한 분석 관점' })).toHaveCount(0)
-  await expect(reportView.locator('.analysis-perspectives')).toHaveCount(0)
-  await expect(reportView.getByText(selectionReason, { exact: true })).toHaveCount(0)
+  const decisions = reportView.locator('.analysis-perspectives')
+  await expect(decisions).toHaveCount(1)
+  await expect(decisions.getByRole('heading', { name: '관점 선택과 이유' })).toBeVisible()
+  await expect(decisions.locator('.perspective-card')).toHaveCount(3)
+  await expect(decisions.locator('.tag')).toHaveText(['미선택', '선택', '미선택'])
+  await expect(reportView.getByText(selectionReason, { exact: true })).toHaveCount(1)
+  for (const item of report.report_json.base.not_selected)
+    await expect(decisions.getByText(item.reason, { exact: true })).toHaveCount(1)
+  await expect(decisions.getByText(result, { exact: true })).toHaveCount(0)
   for (const text of [result, beforeText, afterText, reason])
     await expect(reportView.getByText(text, { exact: true })).toHaveCount(1)
   await expect(
@@ -312,7 +327,8 @@ test('최신 서버의 메모 유지 및 수정 제안도 비교 카드로 한 �
   await expect(
     reportView.getByRole('button', { name: '출처와 원문 인용', exact: true }),
   ).toHaveAttribute('aria-expanded', 'false')
-  await expect(reportView.locator('.analysis-perspectives')).toHaveCount(0)
+  await expect(reportView.locator('.analysis-perspectives')).toHaveCount(1)
+  await expect(reportView.getByText(selectionReason, { exact: true })).toHaveCount(1)
 })
 
 test('근거 미리보기, 키보드, 터치와 상세 패널을 정확한 자료에 연결합니다', async ({
