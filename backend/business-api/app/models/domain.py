@@ -41,6 +41,8 @@ class User(IdentityCreatedMixin, Base):
 
     organization_id: Mapped[UUID] = mapped_column(ForeignKey("core.organizations.id", ondelete="RESTRICT"))
     email: Mapped[str] = mapped_column(String(320))
+    name: Mapped[str] = mapped_column(String(100), default="", server_default="")
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, server_default=text("true"))
     password_hash: Mapped[str] = mapped_column(String(255))
     token_version: Mapped[int] = mapped_column(Integer, default=0, server_default=text("0"))
     role: Mapped[UserRole] = mapped_column(enum_column(UserRole, "ck_users_role"))

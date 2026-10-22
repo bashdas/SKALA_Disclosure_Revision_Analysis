@@ -17,7 +17,9 @@ async function toggle() {
     const wasSelected = selected.value
     if (wasSelected) await removeFavorite(props.companyId)
     else await favoriteCompany(props.companyId)
-    toast.success(wasSelected ? '관심종목에서 해제했습니다.' : '관심종목에 추가했습니다.', { description: props.name })
+    toast.success(wasSelected ? '관심종목에서 해제했습니다.' : '관심종목에 추가했습니다.', {
+      description: props.name,
+    })
     await store.refresh()
   } catch (e) {
     notifyError(e)
@@ -37,8 +39,14 @@ async function toggle() {
       :disabled="busy"
       @click="toggle"
     >
-      <Star :size="20" />
+      <Star :size="20" :fill="selected ? 'currentColor' : 'none'" />
     </button>
     <span v-if="error" class="field-error" role="alert">{{ error }}</span>
   </span>
 </template>
+
+<style scoped>
+.favorite-button.selected :deep(svg) {
+  fill: currentColor;
+}
+</style>

@@ -7,7 +7,10 @@ import { request } from '../services/http'
 import type { Company } from '../types/domain'
 vi.mock('../services', () => ({ services: {} }))
 vi.mock('../services/market', () => ({ getWatchlistQuotes: vi.fn() }))
-vi.mock('../services/http', () => ({ request: vi.fn() }))
+vi.mock('../services/http', async () => ({
+  request: vi.fn(),
+  currentUser: (await import('vue')).ref(null),
+}))
 afterEach(() => {
   vi.useRealTimers()
   vi.clearAllMocks()
@@ -16,7 +19,16 @@ it('shows a skeleton followed by actual quotes and history, retaining data after
   vi.useFakeTimers()
   vi.mocked(getWatchlistQuotes)
     .mockResolvedValueOnce({
-      company: { price: 110, openPrice: 101, highPrice: 115, lowPrice: 98, volume: 12345, changePercent: 10, tradingValue: 2e8, marketCap: 3e12 },
+      company: {
+        price: 110,
+        openPrice: 101,
+        highPrice: 115,
+        lowPrice: 98,
+        volume: 12345,
+        changePercent: 10,
+        tradingValue: 2e8,
+        marketCap: 3e12,
+      },
     })
     .mockRejectedValue(new Error('offline'))
   vi.mocked(request).mockImplementation(async (url) =>

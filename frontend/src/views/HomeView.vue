@@ -8,7 +8,11 @@ import MarketStrip from '../components/MarketStrip.vue'
 import CompanyQuotesTable from '../components/CompanyQuotesTable.vue'
 const store = useWorkspace()
 const search = ref('')
-const favorites = computed(() => store.companies.filter((c) => c.favorite))
+const favorites = computed(() =>
+  store.companies
+    .filter((c) => c.favorite)
+    .sort((a, b) => (store.companyVisits[b.id] ?? 0) - (store.companyVisits[a.id] ?? 0)),
+)
 const filteredFavorites = computed(() => {
   const query = search.value.trim().normalize('NFC').toLocaleLowerCase('ko-KR')
   return favorites.value.filter(
@@ -21,7 +25,7 @@ const filteredFavorites = computed(() => {
 <template>
   <section class="home-heading">
     <div>
-      <h1>{{ currentUser?.email.split('@')[0] }}님의 리서치 홈</h1>
+      <h1>{{ currentUser?.name || currentUser?.email.split('@')[0] }}님의 리서치 홈</h1>
     </div>
   </section>
   <MarketStrip />

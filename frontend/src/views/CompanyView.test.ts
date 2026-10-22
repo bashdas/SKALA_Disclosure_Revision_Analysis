@@ -27,6 +27,7 @@ vi.mock('../services/catalog', () => ({
         is_correction: true,
       },
     ],
+    total_count: 1234,
     has_more: false,
   })),
   registerDisclosure: vi.fn(),
@@ -95,6 +96,8 @@ it.each(['filings', 'memos', 'reports', 'history'])(
       expect(row.find(':scope > .document-actions').exists()).toBe(true)
     }
     if (tab === 'filings') {
+      expect(wrapper.get('.tabs a').text()).toContain('1234')
+      expect(rows).toHaveLength(2)
       for (const row of rows) {
         expect(row.get('a.document-title').attributes('target')).toBe('_blank')
         expect(row.find('.document-actions a').exists()).toBe(false)

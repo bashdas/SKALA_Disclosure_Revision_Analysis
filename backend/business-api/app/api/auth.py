@@ -19,4 +19,4 @@ def login(request: LoginRequest, service: Annotated[AuthService, Depends(get_aut
 
 @router.post("/signup", response_model=SignupResponse, status_code=201)
 def signup(request: SignupRequest, service: Annotated[UserService, Depends(get_user_service)]) -> SignupResponse:
-    return service.signup(str(request.email), request.password.get_secret_value(), request.organization_name)
+    return service.signup(str(request.email), request.password.get_secret_value(), request.organization_name, request.name)

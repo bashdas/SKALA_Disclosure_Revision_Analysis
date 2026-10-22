@@ -19,6 +19,7 @@ export interface CurrentUser {
   id: string
   organization_id: string
   email: string
+  name?: string
   role: string
 }
 export const currentUser = ref<CurrentUser | null>(null)
@@ -283,7 +284,11 @@ export function createHttpServices(): Services {
           )
           return {
             id: f.id,
-            companyId: f.corp_code ?? (f.receipt_no.startsWith('SEC:') ? f.receipt_no.split(':').slice(0, 2).join(':') : companyId(f.company_name)),
+            companyId:
+              f.corp_code ??
+              (f.receipt_no.startsWith('SEC:')
+                ? f.receipt_no.split(':').slice(0, 2).join(':')
+                : companyId(f.company_name)),
             isCorrection: f.is_correction ?? false,
             originReceiptNo: f.origin_receipt_no ?? null,
             receiptNo: f.receipt_no,
@@ -429,8 +434,13 @@ export function createHttpServices(): Services {
     },
     memos: {
       list: loadMemos,
-      async get(id) { return loadMemo(await request<MemoRow>(`/memos/${id}`)) },
-      async remove(id) { await request<void>(`/memos/${id}`, {method:'DELETE'}); memoLoad=undefined },
+      async get(id) {
+        return loadMemo(await request<MemoRow>(`/memos/${id}`))
+      },
+      async remove(id) {
+        await request<void>(`/memos/${id}`, { method: 'DELETE' })
+        memoLoad = undefined
+      },
       async upload(file, title, companyId) {
         await readMemoFile(file)
         const form = new FormData()
@@ -462,7 +472,10 @@ export function createHttpServices(): Services {
         const filing = (await loadFilings()).find((f) => f.id === input.filingId)
         if (!filing?.isCorrection) throw new Error('정정공시만 분석할 수 있습니다.')
         const receiptNo = filing.receiptNo
-        if (!receiptNo || !/^(?:[0-9]{14}|SEC:[0-9]{1,10}:[0-9]{10}-[0-9]{2}-[0-9]{6})$/.test(receiptNo))
+        if (
+          !receiptNo ||
+          !/^(?:[0-9]{14}|SEC:[0-9]{1,10}:[0-9]{10}-[0-9]{2}-[0-9]{6})$/.test(receiptNo)
+        )
           throw new Error('유효한 공시 접수번호가 필요합니다.')
         let id: string
         try {
@@ -538,16 +551,31 @@ export function createHttpServices(): Services {
   }
 }
 
-export function signup(email: string, password: string, organizationName: string) {
+export function signup(email: string, password: string, organizationName: string, name: string) {
   return request<CurrentUser>(
     '/auth/signup',
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password, organization_name: organizationName }),
+      body: JSON.stringify({ email, password, organization_name: organizationName, name }),
     },
     false,
   )
+}
+export async function changeName(name: string) {
+  currentUser.value = await request<CurrentUser>('/users/me', {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name }),
+  })
+}
+export async function deleteAccount(password: string) {
+  await request<void>('/users/me', {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ password }),
+  })
+  logout()
 }
 export async function changePassword(currentPassword: string, newPassword: string) {
   await request<void>('/users/me/password', {
@@ -563,7 +591,10 @@ export async function downloadReport(taskId: string, extension: 'md' | 'pdf') {
   const blob = await request<Blob>(`/analyses/${taskId}/report.${extension}`, {}, true, 'blob')
   const url = URL.createObjectURL(blob)
   const link = document.createElement('a')
-  link.href=url; link.download=`report-${taskId}.${extension}`
-  document.body.append(link); link.click(); link.remove()
-  setTimeout(()=>URL.revokeObjectURL(url), 1000)
+  link.href = url
+  link.download = `report-${taskId}.${extension}`
+  document.body.append(link)
+  link.click()
+  link.remove()
+  setTimeout(() => URL.revokeObjectURL(url), 1000)
 }

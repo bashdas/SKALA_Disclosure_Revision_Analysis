@@ -34,6 +34,7 @@ const tab = computed(() =>
     ? String(route.query.tab)
     : 'filings',
 )
+const totalFilings = ref<number | null>(null)
 const rows = ref<DisclosureRow[]>([]),
   loading = ref(false),
   error = ref(''),
@@ -41,8 +42,8 @@ const rows = ref<DisclosureRow[]>([]),
   page = ref(1),
   search = ref(''),
   busy = ref('')
-const start = ref(koreaDate(new Date(Date.now() - 90 * 86400000))),
-  end = ref(koreaDate())
+const start = ref(''),
+  end = ref('')
 const sentinel = ref<HTMLElement | null>(null)
 let observer: IntersectionObserver | undefined,
   timer: ReturnType<typeof setInterval>,
@@ -74,6 +75,7 @@ async function load(reset = false) {
   if (reset) {
     generation++
     rows.value = []
+    totalFilings.value = null
     page.value = 1
     hasMore.value = true
   }
@@ -108,6 +110,7 @@ async function load(reset = false) {
     rows.value = [
       ...new Map([...rows.value, ...result.items].map((r) => [r.receipt_no, r])).values(),
     ]
+    totalFilings.value = result.total_count
     hasMore.value = result.has_more
     page.value = result.next_page ?? page.value + 1
   } catch (e) {
@@ -140,6 +143,8 @@ watch(
   () => route.params.companyId,
   () => {
     selectedFiling.value = null
+    store.visitCompany(String(route.params.companyId))
+    start.value = end.value = ''
     void load(true)
   },
   { immediate: true },
@@ -180,7 +185,7 @@ const companyReports = computed(() =>
   ),
 )
 const tabs = computed(() => [
-  { id: 'filings', name: '공시', icon: FileText, count: companyFilings.value.length },
+  { id: 'filings', name: '공시', icon: FileText, count: totalFilings.value },
   { id: 'memos', name: '메모 관리', icon: StickyNote, count: companyMemos.value.length },
   { id: 'reports', name: 'AI 보고서', icon: Sparkles, count: companyReports.value.length },
   { id: 'history', name: '분석 이력', icon: Activity, count: companyTasks.value.length },
@@ -238,10 +243,22 @@ const tabs = computed(() => [
             <span class="document-icon"><FileText :size="20" /></span>
             <div class="document-info">
               <div class="inline-meta">
-                <span class="tag" :class="filing.isCorrection ? 'filing-tag-correction' : 'filing-tag-new'">{{ filing.filingType }}</span>
+                <span
+                  class="tag"
+                  :class="filing.isCorrection ? 'filing-tag-correction' : 'filing-tag-new'"
+                  >{{ filing.filingType }}</span
+                >
                 <span class="small muted filing-date">{{ date(filing.filedAt) }}</span>
-                <span class="small muted filing-receipt">{{ filing.receiptNo ?? '접수번호 미확인' }}</span>
-                <span v-if="!store.unread({ kind: 'filing', id: filing.id, version: filing.currentVersion })" class="read-label"><Check :size="12" /> 확인함</span>
+                <span class="small muted filing-receipt">{{
+                  filing.receiptNo ?? '접수번호 미확인'
+                }}</span>
+                <span
+                  v-if="
+                    !store.unread({ kind: 'filing', id: filing.id, version: filing.currentVersion })
+                  "
+                  class="read-label"
+                  ><Check :size="12" /> 확인함</span
+                >
               </div>
               <a
                 class="document-title"

@@ -14,6 +14,7 @@ const store = useWorkspace(),
   loading = ref(false),
   error = ref(''),
   sentinel = ref<HTMLElement | null>(null)
+const seed = crypto.randomUUID()
 let offset = 0,
   generation = 0,
   observer: IntersectionObserver | undefined,
@@ -34,7 +35,9 @@ async function load(reset = false) {
       items: { corp_code: string; company_name: string; stock_code: string }[]
       total_count: number
       has_more: boolean
-    }>(`/disclosures/companies?query=${encodeURIComponent(query.value.trim())}&offset=${offset}`)
+    }>(
+      `/disclosures/companies?query=${encodeURIComponent(query.value.trim())}&offset=${offset}&seed=${seed}`,
+    )
     if (current !== generation) return
     const batch = data.items.map((c) => ({
       id: c.corp_code,

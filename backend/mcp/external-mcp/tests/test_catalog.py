@@ -46,3 +46,29 @@ def test_company_cache_and_paged_disclosure_search():
             with pytest.raises(OpenDartError):
                 await catalog.search_disclosures(None, date(2026,1,1),date(2026,10,21))
     asyncio.run(check())
+
+
+def test_company_random_order_is_stable_across_pages_and_varies_by_visit():
+    import time
+    async def check():
+        catalog = DisclosureCatalog(None)
+        catalog.companies = [{"corp_code": str(i), "company_name": f"Company {i}", "stock_code": ""} for i in range(40)]
+        catalog.loaded_at = time.monotonic()
+        first = await catalog.search_companies("", seed="first")
+        second = await catalog.search_companies("", offset=20, seed="first")
+        repeated = await catalog.search_companies("", seed="first")
+        another = await catalog.search_companies("", seed="another")
+        assert first == repeated and first["items"] != another["items"]
+        assert len({row["corp_code"] for row in first["items"] + second["items"]}) == 40
+    asyncio.run(check())
+
+
+def test_company_disclosures_accept_more_than_one_year():
+    def handle(request):
+        assert request.url.params["bgn_de"] == "20200101"
+        return httpx.Response(200, json={"status": "013"})
+    async def check():
+        async with OpenDartClient(Settings(_env_file=None, opendart_api_key='a'*40), transport=httpx.MockTransport(handle)) as client:
+            result = await DisclosureCatalog(client).search_disclosures("00126380", date(2020, 1, 1), date(2026, 10, 22))
+            assert result["items"] == [] and not result["has_more"]
+    asyncio.run(check())

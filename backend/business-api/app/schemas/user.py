@@ -12,6 +12,7 @@ class UserResponse(BaseModel):
     id: UUID
     organization_id: UUID
     email: str
+    name: str
     role: UserRole
     created_at: datetime
 
@@ -39,7 +40,26 @@ def validate_password(value: SecretStr) -> SecretStr:
     return value
 
 
-class SignupRequest(BaseModel):
+class NameChangeRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    name: str = Field(min_length=1, max_length=100)
+
+    @field_validator("name")
+    @classmethod
+    def validate_name(cls, value):
+        value = value.strip()
+        if not value or any(ord(char) < 32 for char in value):
+            raise ValueError("이름을 확인해 주세요.")
+        value.encode("utf-8")
+        return value
+
+
+class AccountDeleteRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    password: SecretStr = Field(min_length=1, max_length=1024, repr=False)
+
+
+class SignupRequest(NameChangeRequest):
     model_config = ConfigDict(extra="forbid")
 
     email: EmailStr = Field(max_length=320)

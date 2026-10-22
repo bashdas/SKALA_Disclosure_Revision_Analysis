@@ -14,7 +14,7 @@ class AuthService:
     def authenticate(self, email: str, password: str) -> User:
         user = self.users.get_by_email(email)
         valid = verify_password(password, user.password_hash if user is not None else DUMMY_PASSWORD_HASH)
-        if user is None or not valid:
+        if user is None or not user.is_active or not valid:
             raise InvalidCredentials()
         return user
 

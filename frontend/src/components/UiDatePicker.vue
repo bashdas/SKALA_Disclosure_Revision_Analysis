@@ -8,7 +8,7 @@ import { Button } from './ui/button'
 const props = defineProps<{ min?: string; max?: string; label: string }>()
 const model = defineModel<string>({ required: true })
 const open = ref(false)
-const selected = computed(() => parseDate(model.value))
+const selected = computed(() => (model.value ? parseDate(model.value) : undefined))
 function choose(value: DateValue | undefined) {
   if (!value) return
   model.value = value.toString()
@@ -20,7 +20,8 @@ function choose(value: DateValue | undefined) {
     <Popover v-model:open="open">
       <PopoverTrigger as-child>
         <Button variant="outline" class="w-full justify-between" :aria-label="label">
-          {{ model.replaceAll('-', '. ') + '.' }}<CalendarIcon data-icon="inline-end" />
+          {{ model ? model.replaceAll('-', '. ') + '.' : '전체 기간'
+          }}<CalendarIcon data-icon="inline-end" />
         </Button>
       </PopoverTrigger>
       <PopoverContent class="w-auto p-0" align="end" :collision-padding="16">
@@ -36,5 +37,14 @@ function choose(value: DateValue | undefined) {
         />
       </PopoverContent>
     </Popover>
+    <button
+      v-if="model"
+      class="text-button"
+      type="button"
+      :aria-label="`${label} 초기화`"
+      @click="model = ''"
+    >
+      초기화
+    </button>
   </div>
 </template>

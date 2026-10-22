@@ -31,6 +31,8 @@ export function searchDisclosures(
     page: String(options.page),
     query: options.query ?? '',
   })
+  if (!options.start) query.delete('start_date')
+  if (!options.end) query.delete('end_date')
   if (options.company) query.set('corp_code', options.company)
   return request<DisclosurePage>(`/disclosures?${query}`, { signal })
 }

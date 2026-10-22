@@ -1,5 +1,6 @@
 """OpenDART 공시 검색과 사용자별 관심 기업을 제공합니다."""
-from datetime import date
+from datetime import date, datetime
+from zoneinfo import ZoneInfo
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query, Response, Path
@@ -25,15 +26,18 @@ Database = Annotated[Session, Depends(get_db)]
 @router.get("/disclosures/companies")
 def search_companies(user: Reader, source: Source,
     query: Annotated[str, Query(max_length=100)] = "",
-    offset: Annotated[int, Query(ge=0)] = 0) -> dict:
-    return source.call("opendart_search_companies", {"query": query, "offset": offset, "limit": 20})
+    offset: Annotated[int, Query(ge=0)] = 0,
+    seed: Annotated[str, Query(max_length=100)] = "") -> dict:
+    return source.call("opendart_search_companies", {"query": query, "offset": offset, "limit": 20, "seed": seed})
 
 
 @router.get("/disclosures")
-def search_disclosures(user: Reader, source: Source, start_date: date, end_date: date,
+def search_disclosures(user: Reader, source: Source, start_date: date | None = None, end_date: date | None = None,
     corp_code: Annotated[str | None, Query(pattern=r"^(?:[0-9]{8}|SEC:[0-9]{1,10})$")] = None,
     page: Annotated[int, Query(ge=1, le=10000)] = 1,
     query: Annotated[str, Query(max_length=100)] = "") -> dict:
+    end_date = end_date or datetime.now(ZoneInfo("Asia/Seoul")).date()
+    start_date = start_date or (date(1999, 1, 1) if corp_code else end_date)
     if start_date > end_date:
         raise DisclosureError("INVALID_SEARCH_RANGE", "시작일과 종료일을 확인해 주세요.", 422)
     return source.call("opendart_search_disclosures", {"corp_code": corp_code,

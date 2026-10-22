@@ -1,6 +1,6 @@
 import { expect, it, vi } from 'vitest'
 import { request } from './http'
-import { getCompanyUpdates } from './catalog'
+import { getCompanyUpdates, searchDisclosures } from './catalog'
 vi.mock('./http', () => ({ request: vi.fn() }))
 
 it('uses public filing totals and latest dates, caches successful metadata and preserves failures', async () => {
@@ -38,4 +38,12 @@ it('uses public filing totals and latest dates, caches successful metadata and p
   const calls = vi.mocked(request).mock.calls.length
   await getCompanyUpdates([{ id: '00126380', code: '005930' }], updated)
   expect(request).toHaveBeenCalledTimes(calls)
+})
+
+it('leaves empty date filters out of the request and preserves multi-year filters', async () => {
+  vi.mocked(request).mockResolvedValue({ items: [], has_more: false })
+  await searchDisclosures({ company: '00126380', start: '', end: '', page: 1 })
+  expect(vi.mocked(request).mock.lastCall?.[0]).not.toMatch(/start_date|end_date/)
+  await searchDisclosures({ company: '00126380', start: '2020-01-01', end: '2026-10-22', page: 1 })
+  expect(vi.mocked(request).mock.lastCall?.[0]).toContain('start_date=2020-01-01')
 })

@@ -3,6 +3,7 @@ import { defineStore } from 'pinia'
 import { computed, ref, watch } from 'vue'
 import { services } from '../services'
 import { readKey } from '../services/contracts'
+import { currentUser } from '../services/http'
 import type {
   AnalysisTask,
   Company,
@@ -54,6 +55,31 @@ export const useWorkspace = defineStore('workspace', () => {
     { flush: 'sync' },
   )
   const syncError = ref('')
+  const companyVisits = ref<Record<string, number>>({})
+  const visitKey = () => `disclosure-check.visits.${currentUser.value?.id ?? ''}`
+  watch(
+    () => currentUser.value?.id,
+    () => {
+      companyVisits.value = {}
+      try {
+        const saved = JSON.parse(localStorage.getItem(visitKey()) ?? '{}')
+        if (saved && typeof saved === 'object' && !Array.isArray(saved))
+          for (const [id, value] of Object.entries(saved))
+            if (typeof value === 'number' && Number.isFinite(value)) companyVisits.value[id] = value
+      } catch {
+        /* 저장소가 차단되면 현재 탭의 조회 순서를 유지합니다. */
+      }
+    },
+    { immediate: true },
+  )
+  function visitCompany(id: string) {
+    companyVisits.value[id] = Date.now()
+    try {
+      localStorage.setItem(visitKey(), JSON.stringify(companyVisits.value))
+    } catch {
+      /* 현재 화면의 조회 순서를 유지합니다. */
+    }
+  }
   let initialization: Promise<void> | null = null,
     unsubscribe: (() => void) | null = null
   const savedReports = computed(() => reports.value.filter((r) => r.savedAt !== null))
@@ -260,7 +286,9 @@ export const useWorkspace = defineStore('workspace', () => {
   async function refresh() {
     services.filings.invalidate()
     const [c, f] = await Promise.all([services.companies.list(), services.filings.list()])
-    const merged = new Map(companies.value.map(company => [company.id, { ...company, favorite: false }]))
+    const merged = new Map(
+      companies.value.map((company) => [company.id, { ...company, favorite: false }]),
+    )
     for (const company of c) {
       const previous = merged.get(company.id)
       merged.set(company.id, {
@@ -281,6 +309,8 @@ export const useWorkspace = defineStore('workspace', () => {
   }
   return {
     companies,
+    companyVisits,
+    visitCompany,
     filings,
     memos,
     tasks,

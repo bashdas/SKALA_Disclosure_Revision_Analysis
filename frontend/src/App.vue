@@ -1,9 +1,8 @@
 <script setup lang="ts">
 import { onMounted, onBeforeUnmount, ref, watch, computed } from 'vue'
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
-import { RefreshCw, Sun, Moon } from 'lucide-vue-next'
+import { RefreshCw } from 'lucide-vue-next'
 import { useWorkspace } from './stores/workspace'
-import { useTheme } from './stores/theme'
 import { hasSession, restoreSession, logout } from './services/http'
 import ToastOutlet from './components/ToastOutlet.vue'
 import { notifyError } from './lib/notifications'
@@ -11,8 +10,7 @@ import SkeletonState from './components/SkeletonState.vue'
 import AccountView from './views/AccountView.vue'
 import DocumentDrawer from './components/DocumentDrawer.vue'
 const store = useWorkspace(),
-  route = useRoute(),
-  theme = useTheme()
+  route = useRoute()
 const router = useRouter(),
   checking = ref(true),
   sessionError = ref('')
@@ -71,17 +69,6 @@ onBeforeUnmount(() => {
           >
         </nav>
         <AccountView v-if="hasSession()" />
-        <button v-if="hasSession()" class="text-button" @click="signOut">로그아웃</button>
-        <button
-          class="icon-button theme-toggle"
-          :aria-label="theme.theme === 'dark' ? '라이트 모드로 전환' : '다크 모드로 전환'"
-          :aria-pressed="theme.theme === 'dark'"
-          :title="theme.theme === 'dark' ? '라이트 모드로 전환' : '다크 모드로 전환'"
-          @click="theme.toggle"
-        >
-          <Sun v-if="theme.theme === 'dark'" :size="18" />
-          <Moon v-else :size="18" />
-        </button>
       </header>
       <main
         id="main-content"

@@ -1,14 +1,18 @@
 import { expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import { createRouter, createMemoryHistory } from 'vue-router'
+import { createPinia } from 'pinia'
 import AccountView from './AccountView.vue'
-import { changePassword } from '../services/http'
+import { changePassword, changeName } from '../services/http'
 
 vi.mock('../services/http', async () => {
   const { ref } = await import('vue')
   return {
-    currentUser: ref({ email: 'user@example.com', role: 'ANALYST' }),
+    currentUser: ref({ name: '건민', email: 'user@example.com', role: 'ANALYST' }),
     changePassword: vi.fn(),
+    changeName: vi.fn(),
+    deleteAccount: vi.fn(),
+    logout: vi.fn(),
   }
 })
 it('opens account settings without a role label and validates password changes inside the modal', async () => {
@@ -17,7 +21,7 @@ it('opens account settings without a role label and validates password changes i
     routes: [{ path: '/home', component: { template: '<div />' } }],
   })
   await router.push('/home')
-  const wrapper = mount(AccountView, { global: { plugins: [router] } })
+  const wrapper = mount(AccountView, { global: { plugins: [router, createPinia()] } })
   const dialog = wrapper.get('dialog').element as HTMLDialogElement
   dialog.showModal = () => dialog.setAttribute('open', '')
   dialog.close = () => dialog.removeAttribute('open')
@@ -25,16 +29,22 @@ it('opens account settings without a role label and validates password changes i
   expect(dialog.open).toBe(true)
   expect(wrapper.text()).toContain('user@example.com')
   expect(wrapper.text()).not.toMatch(/권한|ANALYST/)
-  const inputs = wrapper.findAll('input')
+  expect(wrapper.get('button').text()).toBe('건민')
+  const name = wrapper.get('input[autocomplete="name"]')
+  await name.setValue('박건민')
+  await wrapper.get('form').trigger('submit')
+  await flushPromises()
+  expect(changeName).toHaveBeenCalledWith('박건민')
+  const inputs = wrapper.findAll('input[type="password"]')
   await inputs[0]!.setValue('old-password')
   await inputs[1]!.setValue('new-password-123')
   await inputs[2]!.setValue('different')
-  await wrapper.get('form').trigger('submit')
+  await wrapper.get('form[aria-label="비밀번호 변경"]').trigger('submit')
   expect(changePassword).not.toHaveBeenCalled()
   expect(wrapper.text()).toContain('새 비밀번호가 일치하지 않습니다.')
   await inputs[2]!.setValue('new-password-123')
   vi.mocked(changePassword).mockRejectedValue(new Error('현재 비밀번호를 확인해 주세요.'))
-  await wrapper.get('form').trigger('submit')
+  await wrapper.get('form[aria-label="비밀번호 변경"]').trigger('submit')
   await flushPromises()
   expect(changePassword).toHaveBeenCalledWith('old-password', 'new-password-123')
   expect(dialog.open).toBe(true)

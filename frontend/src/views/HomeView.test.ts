@@ -32,5 +32,8 @@ it('filters only favorites by company name or stock code and shows an empty sear
   expect(wrapper.text()).toContain('검색 결과가 없습니다')
   await search.setValue('')
   expect(table()).toHaveLength(2)
+  useWorkspace().visitCompany('b')
+  await wrapper.vm.$nextTick()
+  expect(table().map((c: Company) => c.id)).toEqual(['b', 'a'])
   wrapper.unmount()
 })
