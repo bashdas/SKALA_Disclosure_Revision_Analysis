@@ -32,6 +32,8 @@ async def review_output(
     # 식별 정보와 대조된 원문 인용은 서술 판별 대상에서 분리합니다.
     fixed = {
         "request",
+        "analysis_type",
+        "disclosure_type",
         "document_id",
         "location",
         "url",

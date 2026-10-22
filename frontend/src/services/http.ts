@@ -188,6 +188,7 @@ interface ReportRow {
   no_additional_analysis_reason: string | null
   report_json: {
     sources?: Source[]
+    memo_review?: { status: 'KEEP' | 'HOLD'; reason: string; evidence: Source[] } | null
     base?: { summary?: string; proposals?: Proposal[] }
     summary_claims?: { text: string }[]
     corrections?: ReviewReport['changes']
@@ -198,8 +199,7 @@ export function mapReport(row: ReportRow): ReviewReport {
   const data = row.report_json,
     proposals = data.base?.proposals ?? []
   const sources = [...(data.sources ?? [])]
-  for (const p of proposals)
-    for (const source of p.evidence) {
+  for (const source of [...proposals.flatMap((p) => p.evidence), ...(data.memo_review?.evidence ?? [])]) {
       if (
         !sources.some(
           (s) =>
@@ -236,6 +236,13 @@ export function mapReport(row: ReportRow): ReviewReport {
     warnings: data.warnings ?? [],
     noAdditionalAnalysisReason: row.no_additional_analysis_reason,
     evidence,
+    memoReview: proposals.length ? undefined : {
+      status: data.memo_review?.status ?? 'HOLD',
+      reason: data.memo_review?.reason || '이 보고서에는 유지 또는 수정 여부를 확인할 판단 근거가 저장되지 않았습니다. 재분석이 필요합니다.',
+      evidenceIds: (data.memo_review?.evidence ?? []).map((s) =>
+        `source-${sources.findIndex((e) => e.document_id === s.document_id && e.location === s.location && e.quote === s.quote)}`,
+      ),
+    },
     findings: proposals.map((p) => ({
       id: p.claim_id,
       beforeText: p.before_text,
@@ -480,7 +487,7 @@ export function createHttpServices(): Services {
       },
       async start(input) {
         const filing = (await loadFilings()).find((f) => f.id === input.filingId)
-        if (!filing?.isCorrection) throw new Error('정정공시만 분석할 수 있습니다.')
+        if (!filing) throw new Error('분석할 공시를 확인할 수 없습니다.')
         const receiptNo = filing.receiptNo
         if (
           !receiptNo ||

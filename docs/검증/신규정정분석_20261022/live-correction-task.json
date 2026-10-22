@@ -1,0 +1,12 @@
+{
+  "input": {
+    "memo_id": "81c1d06b-bd7a-4b39-9085-41c86da9a50f",
+    "memo_version": 1,
+    "disclosure_receipt_no": "20261021000109"
+  },
+  "accepted": {
+    "task_id": "f110906e-bf94-4835-9940-02a2f9e7cb04",
+    "status": "QUEUED",
+    "created_at": "2026-10-22T06:13:40.324926Z"
+  }
+}

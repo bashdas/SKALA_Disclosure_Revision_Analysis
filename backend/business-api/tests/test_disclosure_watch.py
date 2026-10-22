@@ -4,6 +4,7 @@ from app.api.dependencies import get_disclosure_source
 from app.core.security import create_access_token
 from app.main import app
 from app.models import Filing
+from app.services.internal_analysis import InternalAnalysisService
 from test_analysis_api import analysis_context, analysis_client, request
 from test_auth_security import auth_settings
 from test_domain import migrated_engine
@@ -35,7 +36,12 @@ def test_favorites_corrections_and_analysis_gate(analysis_client,analysis_contex
         assert analysis_client.get('/api/v1/favorites',headers=other).json()==[]
         root=analysis_client.post('/api/v1/filings',headers=headers,json={'receipt_no':ROOT})
         assert root.status_code==200 and not root.json()['is_correction']
-        assert request(analysis_client,ctx,receipt=ROOT).json()['error']['code']=='CORRECTION_REQUIRED'
+        accepted = request(analysis_client,ctx,receipt=ROOT)
+        assert accepted.status_code == 202
+        with ctx.factory() as db:
+            metadata = InternalAnalysisService(db, ctx.settings).get_context(UUID(accepted.json()['task_id']))
+            assert metadata.filing_type == '신규공시' and metadata.is_correction is False
+            assert metadata.memo.version == ctx.memos[0].current_version
         root_id=root.json()['id']
         path=f'/api/v1/filings/{root_id}/corrections/check'
         assert analysis_client.post(path,headers=other).status_code==404
@@ -49,7 +55,7 @@ def test_favorites_corrections_and_analysis_gate(analysis_client,analysis_contex
         assert not any(row['receipt_no'] in (ROOT,CORRECTION) for row in rows)
         with ctx.factory() as db:
             assert db.get(Filing,UUID(root_id)) is not None
-        assert request(analysis_client,ctx,receipt=CORRECTION).json()['error']['code']=='CORRECTION_REQUIRED'
+        assert request(analysis_client,ctx,receipt=CORRECTION).json()['error']['code']=='REGISTERED_FILING_REQUIRED'
         assert analysis_client.delete('/api/v1/favorites/00126380',headers=headers).status_code==204
     finally:
         if previous is None:app.dependency_overrides.pop(get_disclosure_source,None)

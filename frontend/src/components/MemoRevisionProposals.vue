@@ -14,6 +14,14 @@ function evidenceNumber(id: string) {
   const index = props.evidence.findIndex((e) => e.id === id)
   return index < 0 ? null : index + 1
 }
+function suggestionText(finding: Finding) {
+  const normalize = (text: string) => text.replace(/\s+/g, ' ').trim()
+  if (
+    finding.impactType === 'NO_IMPACT' ||
+    (normalize(finding.beforeText) && normalize(finding.beforeText) === normalize(finding.suggestion))
+  ) return '기존 메모 문장을 유지합니다.'
+  return finding.suggestion
+}
 </script>
 <template>
   <section class="memo-proposals" aria-label="메모수정 제안">
@@ -47,7 +55,7 @@ function evidenceNumber(id: string) {
         </div>
         <div>
           <h3>수정 제안</h3>
-          <p>{{ finding.suggestion }}</p>
+          <p>{{ suggestionText(finding) }}</p>
         </div>
       </div>
       <div class="evidence-chips">

@@ -1,0 +1,10 @@
+{
+  "model": "gpt-5.4-mini",
+  "real_model": true,
+  "tools": "captured actual filing, memo version and initial RAG response; local search replay; local report persistence",
+  "source_task": "7bdb86a1-83eb-4765-8719-fbf7ade3994d",
+  "input_sha256": "db76c3dc10229e453cf0799d622c02fc9629e6c85979058be284998132c88bd3",
+  "temperature": "omitted, API default",
+  "seed": "omitted",
+  "budgets": "production defaults unchanged"
+}

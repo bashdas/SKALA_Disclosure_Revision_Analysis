@@ -1,0 +1,98 @@
+[
+  {
+    "id": 1,
+    "kind": "STAGE",
+    "payload": "{\"stage\": \"REQUEST_VALIDATION\", \"payload\": {}}",
+    "at": 1792649404.119485
+  },
+  {
+    "id": 2,
+    "kind": "STAGE",
+    "payload": "{\"stage\": \"INPUT_COLLECTION\", \"payload\": {}}",
+    "at": 1792649404.1204789
+  },
+  {
+    "id": 3,
+    "kind": "TOOL_END",
+    "payload": "{\"tool\": \"disclosure_get_document\", \"error\": null}",
+    "at": 1792649404.121417
+  },
+  {
+    "id": 4,
+    "kind": "TOOL_END",
+    "payload": "{\"tool\": \"business_get_memo\", \"error\": null}",
+    "at": 1792649404.122002
+  },
+  {
+    "id": 5,
+    "kind": "STAGE",
+    "payload": "{\"stage\": \"RAG_PREPARATION\", \"payload\": {}}",
+    "at": 1792649404.122915
+  },
+  {
+    "id": 6,
+    "kind": "TOOL_END",
+    "payload": "{\"tool\": \"ensure_analysis_index\", \"error\": null}",
+    "at": 1792649404.125453
+  },
+  {
+    "id": 7,
+    "kind": "TOOL_END",
+    "payload": "{\"tool\": \"search_evidence\", \"error\": null}",
+    "at": 1792649404.126991
+  },
+  {
+    "id": 8,
+    "kind": "STAGE",
+    "payload": "{\"stage\": \"BASE_ANALYSIS\", \"payload\": {}}",
+    "at": 1792649404.1305358
+  },
+  {
+    "id": 9,
+    "kind": "MODEL_END",
+    "payload": "{\"role\": \"base\", \"tokens\": 7568, \"elapsed\": 6.508686624991242}",
+    "at": 1792649410.673312
+  },
+  {
+    "id": 10,
+    "kind": "STAGE",
+    "payload": "{\"stage\": \"PERSPECTIVE_ANALYSIS\", \"payload\": {\"selected\": [{\"perspective_type\": \"FINANCE\", \"selection_reason\": \"계약 해지에 따른 선수금 유보와 손해배상 청구가 현금흐름, 회수 가능성, 기존 목표주가 산정 반영 여부에 영향을 줄 수 있어 확인이 필요합니다.\", \"question\": \"이번 계약 해지에서 기수령한 선수금 2억달러의 회수 또는 유보 처리와 초과 손해 배상 청구가 기존 실적 전망이나 목표주가 산정에 반영되었는지 확인이 필요합니다.\"}]}}",
+    "at": 1792649410.677231
+  },
+  {
+    "id": 11,
+    "kind": "MODEL_END",
+    "payload": "{\"role\": \"perspective\", \"tokens\": 6443, \"elapsed\": 4.857736541016493}",
+    "at": 1792649415.5448692
+  },
+  {
+    "id": 12,
+    "kind": "STAGE",
+    "payload": "{\"stage\": \"REPORT_GENERATION\", \"payload\": {}}",
+    "at": 1792649415.555973
+  },
+  {
+    "id": 13,
+    "kind": "MODEL_END",
+    "payload": "{\"role\": \"report\", \"tokens\": 10223, \"elapsed\": 3.380736958992202}",
+    "at": 1792649418.959001
+  },
+  {
+    "id": 14,
+    "kind": "OUTPUT_CHECK_FAILED",
+    "payload": "{\"error\": \"LimitReached\"}",
+    "at": 1792649418.978133
+  },
+  {
+    "id": 15,
+    "kind": "OUTPUT_CHECK_END",
+    "payload": "{\"candidates\": 21, \"accepted\": 21}",
+    "at": 1792649418.978421
+  },
+  {
+    "id": 16,
+    "kind": "TOOL_END",
+    "payload": "{\"tool\": \"business_save_report\", \"error\": null}",
+    "at": 1792649418.989005
+  }
+]

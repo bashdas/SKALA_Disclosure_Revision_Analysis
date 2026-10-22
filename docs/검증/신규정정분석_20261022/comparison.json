@@ -1,0 +1,62 @@
+[
+  {
+    "kind": "CORRECTION",
+    "run": "run-1",
+    "task_id": "738a4684-0be1-4388-bd58-171bf55937d4",
+    "perspectives": {
+      "INDUSTRY_CONTRACT": "COMPLETED",
+      "FINANCE": "COMPLETED"
+    },
+    "proposal_types": [
+      "FACT_UPDATE",
+      "INTERPRETATION_REVIEW"
+    ],
+    "correction_count": 4,
+    "memo_preserved": true,
+    "new_has_no_correction_values": null
+  },
+  {
+    "kind": "CORRECTION",
+    "run": "run-2",
+    "task_id": "c2d5d24b-e414-42f2-beb6-0288f2807368",
+    "perspectives": {
+      "FINANCE": "COMPLETED",
+      "INDUSTRY_CONTRACT": "COMPLETED"
+    },
+    "proposal_types": [
+      "INTERPRETATION_REVIEW"
+    ],
+    "correction_count": 4,
+    "memo_preserved": true,
+    "new_has_no_correction_values": null
+  },
+  {
+    "kind": "NEW",
+    "run": "run-1",
+    "task_id": "3d33e984-3c82-49ff-b2f8-9659a7a9bd7c",
+    "perspectives": {
+      "FINANCE": "COMPLETED"
+    },
+    "proposal_types": [
+      "INTERPRETATION_REVIEW"
+    ],
+    "correction_count": 0,
+    "memo_preserved": true,
+    "new_has_no_correction_values": true
+  },
+  {
+    "kind": "NEW",
+    "run": "run-2",
+    "task_id": "9bcb707c-4d62-404c-8d7c-f103041e9821",
+    "perspectives": {
+      "FINANCE": "COMPLETED",
+      "INDUSTRY_CONTRACT": "COMPLETED"
+    },
+    "proposal_types": [
+      "INTERPRETATION_REVIEW"
+    ],
+    "correction_count": 0,
+    "memo_preserved": true,
+    "new_has_no_correction_values": true
+  }
+]

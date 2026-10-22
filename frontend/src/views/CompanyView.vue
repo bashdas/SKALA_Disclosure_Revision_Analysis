@@ -264,7 +264,6 @@ const tabs = computed(() => [
             </div>
             <div class="document-actions">
               <button
-                v-if="filing.isCorrection"
                 class="text-button"
                 :disabled="!!busy"
                 :data-analysis-receipt="filing.receiptNo"

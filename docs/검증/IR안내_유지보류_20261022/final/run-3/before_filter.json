@@ -1,0 +1,115 @@
+{
+  "request": {
+    "analysis_task_id": "1971d7f4-a4a7-4f69-9bb9-9e7c6f43333a",
+    "memo_id": "eb4549f8-4650-4b8a-a961-5ea69891f123",
+    "base_memo_version": 1,
+    "disclosure_receipt_no": "20261015800457",
+    "company_name_snapshot": "삼성중공업",
+    "corp_code": "00126478",
+    "thread_id": "1971d7f4-a4a7-4f69-9bb9-9e7c6f43333a",
+    "disclosure_type": "NEW"
+  },
+  "base": {
+    "summary": "",
+    "proposals": [
+      {
+        "claim_id": "NO_IMPACT-1",
+        "impact_type": "NO_IMPACT",
+        "before_text": "다음 실적 발표와 공시에서는 아래 항목을 우선 갱신하겠습니다.",
+        "after_text": "다음 실적 발표와 공시에서는 아래 항목을 우선 갱신하겠습니다.",
+        "reason": "이번 공시는 2026년 3분기 경영실적 설명을 위한 IR 개최 안내로 확인되며, 실제 실적 수치나 계약 변경 사실은 포함하지 않습니다. 따라서 기존 메모의 갱신 예정 문장은 현재 공시 범위와 충돌하지 않으며 유지하는 것이 적절합니다.",
+        "evidence": [
+          {
+            "document_id": "opendart:20261015800457:20dc3b6b1e71091c6af1ce55aa293298f24e960544c604e9177ff68f57f91e37",
+            "quote": "기업설명회(IR) 개최(안내공시)\n\n1. 일시 및 장소\t일시\t2026-10-29\t14:00\n장소\t-\n2. 참가 대상자\t국내외 증권사 애널리스트, 기관투자자 등\n3. 개최목적\t2026년 3분기 경영실적 발표\n4. 개최방법\t컨퍼런스 콜\n5. 후원기관\t-\n6. 주요 설명회내용(요약)\t1. 2026년 3분기 경영실적 설명 \n2. 질의·응답\n7. 결정일자\t2026-10-15\n8. IR 자료\t게재일시\t-\n관련 웹페이지\t-\n9. 기타 투자판단과 관련한 중요사항\t- IR 자료는 실적발표일 공시를 통하여 갈음할 예정임\n※ 관련공시\t-",
+            "location": "line:1:overview",
+            "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261015800457",
+            "published_at": "2026-10-15"
+          },
+          {
+            "document_id": "memo:eb4549f8-4650-4b8a-a961-5ea69891f123:v1",
+            "quote": "다음 실적 발표와 공시에서는 아래 항목을 우선 갱신하겠습니다.",
+            "location": "line:53",
+            "url": null,
+            "published_at": null
+          }
+        ],
+        "calculation_basis": null
+      }
+    ],
+    "selected": [],
+    "not_selected": [
+      {
+        "perspective_type": "INDUSTRY_CONTRACT",
+        "reason": "현재 공시는 IR 개최 일정과 설명 주제만 확인되며, 계약 취소, 인도 변경, 수주 조건 변경 같은 신규 계약 사실이 없습니다."
+      },
+      {
+        "perspective_type": "FINANCE",
+        "reason": "이번 공시에는 재무 수치, 현금흐름, 선수금 변동, 수익 인식 변경이 포함되지 않아 재무 영향 분석을 추가로 선택할 근거가 부족합니다."
+      },
+      {
+        "perspective_type": "FX_HEDGE",
+        "reason": "환율, 원자재, 외부 위험 변동에 관한 내용이 공시에 없어서 추가 분석 필요성이 확인되지 않습니다."
+      }
+    ],
+    "no_additional_analysis_reason": "실적 자료가 아직 공개되지 않은 일정 안내이므로 기본 분석에서 일정과 후속 확인 시점을 검토했습니다.",
+    "limitations": []
+  },
+  "analysis_type": "NEW",
+  "memo_review": null,
+  "results": {},
+  "summary_claims": [
+    {
+      "text": "이번 공시는 삼성중공업의 2026년 3분기 경영실적 설명을 위한 IR 개최 안내로 확인되며, 실제 실적 수치나 계약 변경 사실은 포함하지 않습니다.",
+      "evidence": [
+        {
+          "document_id": "opendart:20261015800457:20dc3b6b1e71091c6af1ce55aa293298f24e960544c604e9177ff68f57f91e37",
+          "quote": "기업설명회(IR) 개최(안내공시)\n\n1. 일시 및 장소\t일시\t2026-10-29\t14:00\n장소\t-\n2. 참가 대상자\t국내외 증권사 애널리스트, 기관투자자 등\n3. 개최목적\t2026년 3분기 경영실적 발표\n4. 개최방법\t컨퍼런스 콜\n5. 후원기관\t-\n6. 주요 설명회내용(요약)\t1. 2026년 3분기 경영실적 설명 \n2. 질의·응답\n7. 결정일자\t2026-10-15\n8. IR 자료\t게재일시\t-\n관련 웹페이지\t-\n9. 기타 투자판단과 관련한 중요사항\t- IR 자료는 실적발표일 공시를 통하여 갈음할 예정임\n※ 관련공시\t-",
+          "location": "line:1:overview",
+          "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261015800457",
+          "published_at": "2026-10-15"
+        }
+      ]
+    },
+    {
+      "text": "기존 메모의 \"다음 실적 발표와 공시에서는 아래 항목을 우선 갱신하겠습니다.\"라는 문장은 이번 공시 범위와 충돌하지 않으므로 유지해도 됩니다.",
+      "evidence": [
+        {
+          "document_id": "memo:eb4549f8-4650-4b8a-a961-5ea69891f123:v1",
+          "quote": "다음 실적 발표와 공시에서는 아래 항목을 우선 갱신하겠습니다.",
+          "location": "line:53",
+          "url": null,
+          "published_at": null
+        },
+        {
+          "document_id": "opendart:20261015800457:20dc3b6b1e71091c6af1ce55aa293298f24e960544c604e9177ff68f57f91e37",
+          "quote": "기업설명회(IR) 개최(안내공시)\n\n1. 일시 및 장소\t일시\t2026-10-29\t14:00\n장소\t-\n2. 참가 대상자\t국내외 증권사 애널리스트, 기관투자자 등\n3. 개최목적\t2026년 3분기 경영실적 발표\n4. 개최방법\t컨퍼런스 콜\n5. 후원기관\t-\n6. 주요 설명회내용(요약)\t1. 2026년 3분기 경영실적 설명 \n2. 질의·응답\n7. 결정일자\t2026-10-15\n8. IR 자료\t게재일시\t-\n관련 웹페이지\t-\n9. 기타 투자판단과 관련한 중요사항\t- IR 자료는 실적발표일 공시를 통하여 갈음할 예정임\n※ 관련공시\t-",
+          "location": "line:1:overview",
+          "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261015800457",
+          "published_at": "2026-10-15"
+        }
+      ]
+    }
+  ],
+  "future_impacts": [
+    {
+      "scenario": "조건: 향후 같은 형식의 실적 설명 공시가 이어지고, 이번 안내처럼 실적발표일 공시로 IR 자료를 갈음하는 구조가 유지될 경우 예상 영향: 다음 공시에서 비교 기준은 실적 발표일 공시로 이어질 수 있어, 기존 메모의 갱신 항목을 해당 시점의 실적 자료와 함께 재검토할 수 있습니다.",
+      "evidence": [
+        {
+          "document_id": "opendart:20261015800457:20dc3b6b1e71091c6af1ce55aa293298f24e960544c604e9177ff68f57f91e37",
+          "quote": "기업설명회(IR) 개최(안내공시)\n\n1. 일시 및 장소\t일시\t2026-10-29\t14:00\n장소\t-\n2. 참가 대상자\t국내외 증권사 애널리스트, 기관투자자 등\n3. 개최목적\t2026년 3분기 경영실적 발표\n4. 개최방법\t컨퍼런스 콜\n5. 후원기관\t-\n6. 주요 설명회내용(요약)\t1. 2026년 3분기 경영실적 설명 \n2. 질의·응답\n7. 결정일자\t2026-10-15\n8. IR 자료\t게재일시\t-\n관련 웹페이지\t-\n9. 기타 투자판단과 관련한 중요사항\t- IR 자료는 실적발표일 공시를 통하여 갈음할 예정임\n※ 관련공시\t-",
+          "location": "line:1:overview",
+          "url": "https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20261015800457",
+          "published_at": "2026-10-15"
+        },
+        {
+          "document_id": "memo:eb4549f8-4650-4b8a-a961-5ea69891f123:v1",
+          "quote": "다음 실적 발표와 공시에서는 아래 항목을 우선 갱신하겠습니다.",
+          "location": "line:53",
+          "url": null,
+          "published_at": null
+        }
+      ]
+    }
+  ]
+}

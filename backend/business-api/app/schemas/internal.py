@@ -46,6 +46,9 @@ class AnalysisContextResponse(BaseModel):
     corp_code: str | None
     company_name: str | None
     created_at: datetime
+    filing_type: str | None = None
+    is_correction: bool | None = None
+    filing_title: str | None = None
 
 
 class InternalStatusResponse(BaseModel):

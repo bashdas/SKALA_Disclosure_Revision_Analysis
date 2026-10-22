@@ -16,7 +16,7 @@ from app.domain.perspective_state_machine import transition_perspective
 from app.domain.resource_exceptions import MemoVersionNotFound
 from app.models import AnalysisPerspectiveTask, AnalysisReport
 from app.models.enums import AnalysisStatus as S, AnalysisStage as G, PerspectiveStatus as P
-from app.repositories import AnalysisEventRepository, AnalysisRepository, AnalysisReportRepository, MemoRepository, PerspectiveTaskRepository
+from app.repositories import FilingRepository, AnalysisEventRepository, AnalysisRepository, AnalysisReportRepository, MemoRepository, PerspectiveTaskRepository
 from app.schemas.analysis import AnalysisEventResponse
 from app.schemas.internal import (
     AnalysisContextResponse, ContextMemo, InternalEventRequest, InternalStateRequest,
@@ -100,12 +100,17 @@ class InternalAnalysisService:
         version = self.memos.get_version(task.memo_id, task.base_memo_version, organization_id=task.organization_id)
         if version is None:
             raise MemoVersionNotFound()
+        filing = FilingRepository(self.session).get_by_receipt_no_and_organization(
+            task.disclosure_receipt_no, task.organization_id)
         return AnalysisContextResponse(task_id=task.id, organization_id=task.organization_id,
             requested_by=task.requested_by, status=task.status, current_stage=task.current_stage,
             memo=ContextMemo(id=memo.id, version=version.version, title=memo.title, content=version.content,
                 content_hash=version.content_hash, original_filename=version.original_filename),
             disclosure_receipt_no=task.disclosure_receipt_no, corp_code=task.corp_code,
-            company_name=task.company_name_snapshot, created_at=task.created_at)
+            company_name=task.company_name_snapshot, created_at=task.created_at,
+            filing_type=filing.filing_type if filing else None,
+            is_correction=filing.is_correction if filing else None,
+            filing_title=filing.title if filing else None)
 
     def get_status(self, task_id: UUID) -> InternalStatusResponse:
         return self._status(self._task(task_id))

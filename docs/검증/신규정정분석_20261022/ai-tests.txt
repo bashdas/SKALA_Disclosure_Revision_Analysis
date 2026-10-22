@@ -1,0 +1,5 @@
+.................s...............................................        [100%]
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_business_integration.py:20: could not import 'app.main': No module named 'app'
+SKIPPED [1] tests/test_backend_contract.py:9: could not import 'app.main': No module named 'app'
+64 passed, 2 skipped in 2.89s
