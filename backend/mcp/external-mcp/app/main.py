@@ -131,12 +131,14 @@ def create_app(settings: Settings | None = None, *, transport: httpx.AsyncBaseTr
     @mcp.tool(annotations={"readOnlyHint": True, "destructiveHint": False, "openWorldHint": True})
     async def opendart_search_companies(query: Annotated[str, Field(max_length=100)],
         limit: Annotated[int, Field(ge=1, le=100)] = 20, offset: Annotated[int, Field(ge=0)] = 0,
-        seed: Annotated[str, Field(max_length=100)] = "") -> dict[str, Any]:
+        seed: Annotated[str, Field(max_length=100)] = "",
+        sort: Literal["default", "name", "market_cap_desc", "market_cap_asc"] = "default",
+        snapshot: Annotated[str, Field(max_length=32, pattern=r"^(?:[0-9a-f]{32})?$")] = "") -> dict[str, Any]:
         """회사명 또는 종목코드로 회사를 검색해 items, total_count와 has_more를 반환합니다."""
         try:
             if query.startswith("SEC:"):
                 return await sec.search_company(query, settings, transport)
-            return await catalog.search_companies(query, limit, offset, seed)
+            return await catalog.search_companies(query, limit, offset, seed, sort, snapshot)
         except OpenDartError as error:
             raise ToolError(json.dumps(error.as_dict(), ensure_ascii=False)) from None
 

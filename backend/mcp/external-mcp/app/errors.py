@@ -1,5 +1,7 @@
 class OpenDartError(Exception):
     MESSAGES = {
+        "MARKET_RANKING_UNAVAILABLE": "시가총액 순위를 조회하지 못했습니다. 잠시 후 다시 시도해 주세요.",
+        "MARKET_RANKING_EXPIRED": "기업 정렬 기준이 만료됐습니다. 다시 시도해 주세요.",
         "INVALID_SEARCH_RANGE": "검색 기간은 시작일부터 종료일까지 1년 이내로 지정해 주세요.",
         "DISCLOSURE_FAMILY_UNAVAILABLE": "DART 관련 보고서 목록을 확인하지 못했습니다. 다시 시도해 주세요.",
         "INVALID_RECEIPT_NO": "receipt_no must contain exactly 14 ASCII digits",

@@ -14,6 +14,7 @@ from lxml import etree
 
 from app.client import OpenDartClient
 from app.errors import OpenDartError, check_status
+from app.market_ranking import MarketRanking
 
 
 class DisclosureCatalog:
@@ -22,8 +23,9 @@ class DisclosureCatalog:
         self.companies: list[dict] = []
         self.loaded_at = 0.0
         self.lock = asyncio.Lock()
+        self.market_ranking = MarketRanking(getattr(client, "transport", None))
 
-    async def search_companies(self, query: str, limit: int = 20, offset: int = 0, seed: str = "") -> dict:
+    async def search_companies(self, query: str, limit: int = 20, offset: int = 0, seed: str = "", sort: str = "default", snapshot: str = "") -> dict:
         async with self.lock:
             if not self.companies or time.monotonic() - self.loaded_at >= 86400:
                 raw = await self.client._get("corpCode.xml", {})
@@ -49,6 +51,19 @@ class DisclosureCatalog:
                     raise OpenDartError("OPENDART_UNAVAILABLE") from None
         key = query.strip().casefold()
         matches = [row for row in self.companies if key in row["company_name"].casefold() or key == row["stock_code"] or key == row["corp_code"]]
+        if sort in {"market_cap_desc", "market_cap_asc"}:
+            snapshot, values = await self.market_ranking.get(snapshot)
+            direction = -1 if sort == "market_cap_desc" else 1
+            matches.sort(key=lambda row: (
+                row["stock_code"] not in values,
+                direction * values.get(row["stock_code"], 0),
+                row["company_name"], row["corp_code"],
+            ))
+            return {"items": matches[offset:offset + limit], "total_count": len(matches),
+                "has_more": offset + limit < len(matches), "snapshot": snapshot}
+        if sort == "name":
+            matches.sort(key=lambda row: (row["company_name"], row["corp_code"]))
+            return {"items": matches[offset:offset + limit], "total_count": len(matches), "has_more": offset + limit < len(matches)}
         matches.sort(key=lambda row: (row["company_name"] != query.strip(), not bool(row["stock_code"]), row["company_name"]))
         # 같은 방문의 페이지는 동일한 무작위 순서를 유지해 기업 중복과 누락을 막습니다.
         if seed and not key:

@@ -1,7 +1,7 @@
 """OpenDART 공시 검색과 사용자별 관심 기업을 제공합니다."""
 from datetime import date, datetime
 from zoneinfo import ZoneInfo
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, Query, Response, Path
 from sqlalchemy import delete, select
@@ -27,8 +27,15 @@ Database = Annotated[Session, Depends(get_db)]
 def search_companies(user: Reader, source: Source,
     query: Annotated[str, Query(max_length=100)] = "",
     offset: Annotated[int, Query(ge=0)] = 0,
-    seed: Annotated[str, Query(max_length=100)] = "") -> dict:
-    return source.call("opendart_search_companies", {"query": query, "offset": offset, "limit": 20, "seed": seed})
+    seed: Annotated[str, Query(max_length=100)] = "",
+    sort: Literal["default", "name", "market_cap_desc", "market_cap_asc"] = "default",
+    snapshot: Annotated[str, Query(max_length=32, pattern=r"^(?:[0-9a-f]{32})?$")] = "") -> dict:
+    args = {"query": query, "offset": offset, "limit": 20, "seed": seed}
+    if sort != "default":
+        args["sort"] = sort
+    if snapshot:
+        args["snapshot"] = snapshot
+    return source.call("opendart_search_companies", args)
 
 
 @router.get("/disclosures")

@@ -6,16 +6,23 @@ import { useWorkspace } from '../stores/workspace'
 import SkeletonState from '../components/SkeletonState.vue'
 import EmptyState from '../components/EmptyState.vue'
 import CompanyQuotesTable from '../components/CompanyQuotesTable.vue'
+import UiSelect from '../components/UiSelect.vue'
 const store = useWorkspace(),
   query = ref(''),
+  sort = ref<string | number>('market_cap_desc'),
   companies = ref<Company[]>([]),
   total = ref(0),
   hasMore = ref(true),
   loading = ref(false),
   error = ref(''),
   sentinel = ref<HTMLElement | null>(null)
-const seed = crypto.randomUUID()
+const sortOptions = [
+  { value: 'market_cap_desc', label: '시가총액 높은 순' },
+  { value: 'market_cap_asc', label: '시가총액 낮은 순' },
+  { value: 'name', label: '기업명순' },
+]
 let offset = 0,
+  rankingSnapshot = '',
   generation = 0,
   observer: IntersectionObserver | undefined,
   debounce: ReturnType<typeof setTimeout>
@@ -24,6 +31,7 @@ async function load(reset = false) {
   if (reset) {
     generation++
     offset = 0
+    rankingSnapshot = ''
     companies.value = []
     hasMore.value = true
   }
@@ -35,10 +43,18 @@ async function load(reset = false) {
       items: { corp_code: string; company_name: string; stock_code: string }[]
       total_count: number
       has_more: boolean
+      snapshot?: string
     }>(
-      `/disclosures/companies?query=${encodeURIComponent(query.value.trim())}&offset=${offset}&seed=${seed}`,
+      '/disclosures/companies?' +
+        new URLSearchParams({
+          query: query.value.trim(),
+          offset: String(offset),
+          sort: String(sort.value),
+          ...(rankingSnapshot ? { snapshot: rankingSnapshot } : {}),
+        }),
     )
     if (current !== generation) return
+    rankingSnapshot = data.snapshot ?? ''
     const batch = data.items.map((c) => ({
       id: c.corp_code,
       name: c.company_name,
@@ -73,6 +89,10 @@ watch(query, () => {
   clearTimeout(debounce)
   debounce = setTimeout(() => void load(true), 350)
 })
+watch(sort, () => {
+  clearTimeout(debounce)
+  void load(true)
+})
 onMounted(() => {
   observer = new IntersectionObserver(
     (entries) => {
@@ -90,11 +110,11 @@ onBeforeUnmount(() => {
 })
 </script>
 <template>
-  <div class="section-heading">
+  <div class="section-heading company-directory-heading">
     <h1 class="company-list-title">
-      리서치 기업 <span class="count">{{ total }}</span>
+      기업 <span class="count">{{ total.toLocaleString('ko-KR') }}</span>
     </h1>
-    <form @submit.prevent="load(true)">
+    <form class="company-directory-controls" @submit.prevent="load(true)">
       <label class="sr-only" for="company-search">기업 검색</label
       ><input
         id="company-search"
@@ -104,10 +124,11 @@ onBeforeUnmount(() => {
         placeholder="기업명 또는 종목코드 검색"
         maxlength="100"
       />
+      <UiSelect v-model="sort" class="company-sort" aria-label="기업 정렬" :options="sortOptions" />
     </form>
   </div>
   <SkeletonState v-if="loading && !companies.length" variant="directory" :rows="8" />
-  <section v-if="companies.length" class="surface company-directory" aria-label="리서치 기업 목록">
+  <section v-if="companies.length" class="surface company-directory" aria-label="기업 목록">
     <CompanyQuotesTable :companies="companies" directory />
   </section>
   <EmptyState
@@ -123,3 +144,54 @@ onBeforeUnmount(() => {
     <button v-if="!loading && hasMore" class="text-button" @click="load()">더 보기</button>
   </div>
 </template>
+
+<style scoped>
+.company-directory-heading {
+  align-items: center;
+}
+.company-directory-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.company-directory-controls :deep(.company-sort) {
+  width: 100%;
+  min-height: 36px;
+  height: 36px;
+  padding-inline: 12px;
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: 10px;
+}
+.company-directory-controls :deep(.select-field) {
+  width: 172px;
+  flex: 0 0 172px;
+}
+.company-directory-controls .compact-search {
+  width: 240px;
+  flex: 0 0 240px;
+  min-height: 36px;
+}
+@media (max-width: 650px) {
+  .company-directory-heading {
+    align-items: flex-start;
+  }
+  .company-directory-controls {
+    width: 100%;
+    gap: 8px;
+  }
+  .company-directory-controls .compact-search {
+    width: 0;
+    flex: 1;
+    min-width: 0;
+  }
+  .company-directory-controls :deep(.select-field) {
+    width: 154px;
+    flex-basis: 154px;
+  }
+  .company-directory-controls :deep(.company-sort) {
+    padding-inline: 10px;
+  }
+}
+</style>
