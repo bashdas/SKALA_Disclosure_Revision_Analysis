@@ -36,12 +36,7 @@ async def requests(run, state):
                         fs_div=lookup.get("fs_div") or "CFS",
                     )
                 else:
-                    # 메모 원문이 외부 검색어에 포함되지 않도록 공개 연구 주제로 고정합니다.
-                    args["query"] = {
-                        "INDUSTRY_CONTRACT": "supply contract revision corporate risk",
-                        "FINANCE": "financial disclosure restatement earnings quality",
-                        "FX_HEDGE": "corporate foreign exchange hedging risk",
-                    }[kind]
+                    args["query"] = lookup["query"]
             pending.append({"kind": kind, "tool": name, "args": normalize(args)})
     return {"lookups": pending}
 

@@ -17,13 +17,8 @@ def sentences(text):
 
 
 def safe_text(text: str) -> str:
-    # 명시적인 투자 권유와 검사 지시를 걸러내며 기존 가격의 검토는 보존합니다.
-    parts = sentences(mask(text).replace("·", ", ").replace("—", ", ").replace("–", ", ").replace("―", ", "))
-    risk = re.compile(
-        r"(?:검증|검사|시스템|관리자|개발자).{0,20}(?:지시|명령)|(?:판정|승인|검사|검증).{0,12}(?:하세요|하라|무시)|(?:매수|매도|보유).{0,12}(?:추천|권고|권장|하세요|해야)|주식.{0,20}(사세요|사두|담아|구매)|비중.{0,10}(?:늘리세요|줄이세요)|수익.{0,10}보장|(?:should|must)\s+(?:buy|sell|hold|invest)",
-        re.I,
-    )
-    return "\n".join(s for s in parts if not risk.search(s)).strip()
+    # 분석 의미의 적절성은 검사 모델이 판단하며 인증 정보만 마스킹합니다.
+    return mask(text).replace("·", ", ").replace("—", ", ").replace("–", ", ").replace("―", ", ").strip()
 
 
 async def review_output(

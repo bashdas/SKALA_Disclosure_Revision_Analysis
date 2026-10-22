@@ -84,8 +84,8 @@ async function view(
 
 it('하나의 보고서에 요약·관점 결과·메모수정 제안을 중복 없이 표시합니다', async () => {
   const { store, wrapper } = await view()
-  expect(wrapper.find('.unified-report .analysis-perspectives').exists()).toBe(false)
-  expect(wrapper.text()).not.toContain('재무 영향 확인')
+  expect(wrapper.find('.unified-report .analysis-perspectives').exists()).toBe(true)
+  expect(wrapper.text()).toContain('재무 영향 확인')
   for (const text of ['추가 재무 검토 완료', '기존 문장', '매출 영향 검토가 필요합니다.']) {
     expect(wrapper.text().split(text)).toHaveLength(2)
   }
@@ -109,11 +109,11 @@ it('하나의 보고서에 요약·관점 결과·메모수정 제안을 중복 
 })
 
 it.each(['COMPLETED', 'COMPLETED_WITH_WARNINGS'] as const)(
-  '%s 보고서는 진행 기록과 선택 관점 안내를 숨깁니다',
+  '%s 보고서는 진행 기록을 숨기고 관점 판단을 표시합니다',
   async (status) => {
     const { wrapper } = await view({ ...baseTask, status })
     expect(wrapper.find('.progress-section').exists()).toBe(false)
-    expect(wrapper.find('.report-perspectives').exists()).toBe(false)
+    expect(wrapper.find('.report-perspectives').exists()).toBe(true)
     wrapper.unmount()
   },
 )
@@ -190,7 +190,7 @@ it.each(['RUNNING', 'FAILED', 'SAVE_FAILED'] as const)(
   },
 )
 
-it('관점·수정 제안이 없으면 빈 안내와 비교 카드를 만들지 않습니다', async () => {
+it('관점 및 수정 제안이 없으면 판단 기록과 기본 검토 이유를 표시합니다', async () => {
   const { wrapper } = await view(
     { ...baseTask, perspectives: [] },
     {
@@ -201,8 +201,8 @@ it('관점·수정 제안이 없으면 빈 안내와 비교 카드를 만들지 
       noAdditionalAnalysisReason: '기본 검토만으로 판단할 수 있습니다.',
     },
   )
-  expect(wrapper.find('.analysis-perspectives').exists()).toBe(false)
-  expect(wrapper.text()).not.toContain('기본 검토만으로 판단할 수 있습니다.')
+  expect(wrapper.findAll('.analysis-perspectives .perspective-card')).toHaveLength(3)
+  expect(wrapper.text()).toContain('기본 검토만으로 판단할 수 있습니다.')
   expect(wrapper.find('.memo-proposals').exists()).toBe(false)
   wrapper.unmount()
 })

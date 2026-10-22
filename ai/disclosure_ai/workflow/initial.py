@@ -6,9 +6,7 @@ from disclosure_ai.services.documents import (
     disclosure_type,
     model_context,
     reference_frames,
-    schedule_notice,
     search_documents,
-    typo_only,
     validated_sources,
 )
 
@@ -49,7 +47,7 @@ async def collect(run, state):
         request["company_name_snapshot"] = filing["company_name"]
     kind = disclosure_type(filing, req.get("disclosure_type", "UNKNOWN"))
     request["disclosure_type"] = kind
-    filing = {**filing, "analysis_type": kind, "schedule_only": schedule_notice(filing)}
+    filing = {**filing, "analysis_type": kind}
     if kind == "UNKNOWN":
         filing["analysis_type_reason"] = (
             "등록 메타데이터와 공식 공시 제목의 유형이 서로 다릅니다."
@@ -77,7 +75,7 @@ async def prepare(run, state):
     context += search_documents(
         documents,
         state["request"]["company_name_snapshot"]
-        + " 계약 정정 금액 매출 기간 위험 earnings revenue profit EPS goodwill impairment forecast guidance",
+        + " " + (state["filing"].get("report_name") or ""),
         limit=12,
     )
     context.extend(reference_frames(state["filing"], state["memo"])["applied_valuation_rows"])
@@ -132,16 +130,6 @@ async def prepare(run, state):
 async def impact(run, state):
     await run.stage(state, "BASE_ANALYSIS")
     kind = state["filing"].get("analysis_type", "UNKNOWN")
-    if kind == "CORRECTION" and typo_only(state["filing"]):
-        return {
-            "base": {
-                "summary": "공백 차이만 확인했습니다. 영향 분석은 미수행했습니다.",
-                "proposals": [],
-                "selected": [],
-                "no_additional_analysis_reason": "허용된 공백 차이만 확인해 모델 영향 분석을 생략했습니다.",
-                "limitations": [],
-            }
-        }
     try:
         base = await run.h.model(
             "base",
