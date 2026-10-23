@@ -8,3 +8,6 @@ __pycache__/
 .ruff_cache/
 
 /build/
+산출물/캐시/
+산출물/환경/
+산출물/이전판/

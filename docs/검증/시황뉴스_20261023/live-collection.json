@@ -1,0 +1,65 @@
+{
+  "real_model": true,
+  "real_naver_requests": true,
+  "favorites": [
+    {
+      "corp_code": "00126478",
+      "company_name": "삼성중공업"
+    },
+    {
+      "corp_code": "00126566",
+      "company_name": "한화에어로스페이스"
+    },
+    {
+      "corp_code": "00164779",
+      "company_name": "SK하이닉스"
+    },
+    {
+      "corp_code": "00210856",
+      "company_name": "코아스"
+    },
+    {
+      "corp_code": "00398701",
+      "company_name": "엘앤에프"
+    },
+    {
+      "corp_code": "01701531",
+      "company_name": "미로바펀즈"
+    },
+    {
+      "corp_code": "SEC:1071739",
+      "company_name": "CENTENE CORP"
+    }
+  ],
+  "model": "gpt-5.4-mini",
+  "retention_days": 30,
+  "interval_seconds": 3600,
+  "result": {
+    "status": "COMPLETED_WITH_WARNINGS",
+    "collected": 101,
+    "stored": 101,
+    "targets": 7,
+    "errors": [
+      "ValueError",
+      "ValueError",
+      "ValueError"
+    ],
+    "purged": 0
+  },
+  "collection": {
+    "status": "COMPLETED_WITH_WARNINGS",
+    "started_at": "2026-10-23T01:15:35.087781+00:00",
+    "finished_at": "2026-10-23T01:16:17.854257+00:00",
+    "details": {
+      "errors": [
+        "ValueError",
+        "ValueError",
+        "ValueError"
+      ],
+      "purged": 0,
+      "stored": 101,
+      "targets": 7,
+      "collected": 101
+    }
+  }
+}

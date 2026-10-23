@@ -2,7 +2,7 @@ from langgraph.graph import END
 from langgraph.types import Send
 
 from disclosure_ai.errors import LimitReached
-from disclosure_ai.schemas import PerspectiveAnswer
+from disclosure_ai.schemas import NewsPlan, PerspectiveAnswer
 from disclosure_ai.services.business import RunCancelled
 from disclosure_ai.services.documents import model_context, validated_sources
 from disclosure_ai.services.history import model_history
@@ -33,6 +33,21 @@ async def perspective(run, state):
     try:
         if not job and hasattr(run.tools, "perspective"):
             await run.tools.perspective(run.h.task_id, selection)
+        if kind == "MARKET_NEWS" and not any(o.get("tool") == "read_market_news" for o in observations):
+            listings = next((o["result"] for o in reversed(observations)
+                             if o.get("tool") == "search_market_news"), state.get("market_news", {}))
+            plan = await run.h.model("news_plan", {"selection": selection,
+                "request": state["request"], "market_news": listings}, NewsPlan)
+            if plan.article_ids or plan.search_query:
+                lookup = ({"tool": "read_market_news", "query": plan.reason,
+                           "article_ids": plan.article_ids} if plan.article_ids else
+                          {"tool": "search_market_news", "query": plan.search_query})
+                return {"jobs": {kind: {**job, "selection": selection,
+                    "status": "NEEDS_TOOLS", "requests": [lookup], "observations": observations,
+                    "limitations": limits}}}
+            return await finish_perspective(run, kind, selection, {
+                "status": "INSUFFICIENT_EVIDENCE", "findings": "", "sources": [],
+                "requests": [], "limitations": [*limits, plan.reason]})
         answer = await run.h.model(
             "perspective",
             {
@@ -44,6 +59,7 @@ async def perspective(run, state):
                 **model_context(state.get("filing", {}), state["context"], state.get("memo", {}), state.get("history")),
                 "observations": observations,
                 "history": model_history(state.get("history", {})),
+                "market_news": state.get("market_news", {}),
             },
             PerspectiveAnswer,
         )

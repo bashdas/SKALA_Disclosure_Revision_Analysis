@@ -18,7 +18,14 @@ def sentences(text):
 
 def safe_text(text: str) -> str:
     # 분석 의미의 적절성은 검사 모델이 판단하며 인증 정보만 마스킹합니다.
-    return mask(text).replace("·", ", ").replace("—", ", ").replace("–", ", ").replace("―", ", ").strip()
+    return (
+        mask(text)
+        .replace("·", ", ")
+        .replace("—", ", ")
+        .replace("–", ", ")
+        .replace("―", ", ")
+        .strip()
+    )
 
 
 async def review_output(
@@ -28,8 +35,14 @@ async def review_output(
     fixed = {
         "request",
         "analysis_type",
+        "market_as_of",
         "disclosure_type",
         "document_id",
+        "report_document_id",
+        "report_location",
+        "memo_id",
+        "base_memo_version",
+        "research_reports",
         "location",
         "url",
         "published_at",
@@ -138,13 +151,14 @@ async def review_output(
             harness.ledger.event(harness.task_id, "OUTPUT_CHECK_FAILED", error=type(error).__name__)
             warnings.append(
                 "출력 검사 가이드를 완료하지 못했습니다. 분석 내용의 추가 확인이 필요합니다."
-                if advisory else
-                "출력 검사를 완료하지 못해 자유 서술을 제외하고 원문 근거와 처리 상태를 보존했습니다."
+                if advisory
+                else "출력 검사를 완료하지 못해 자유 서술을 제외하고 원문 근거와 처리 상태를 보존했습니다."
             )
     if filtered or len(accepted) < len(candidates):
         warnings.append(
             "출력 검사 가이드에서 추가 검토가 필요한 문장을 확인했습니다."
-            if advisory else "근거 또는 출력 안전성을 확인하지 못한 문장은 작성하지 않았습니다."
+            if advisory
+            else "근거 또는 출력 안전성을 확인하지 못한 문장은 작성하지 않았습니다."
         )
     grounded = accepted.copy()
     if advisory:

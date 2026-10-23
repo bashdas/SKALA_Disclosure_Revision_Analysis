@@ -1,5 +1,6 @@
 import hashlib
 import json
+from datetime import datetime
 from uuid import UUID
 
 from pydantic import BaseModel, Field, ValidationError
@@ -8,6 +9,7 @@ from starlette.concurrency import run_in_threadpool
 from app.chunking import Chunker
 from app.embedding import validate_vectors
 from app.errors import RagError
+from app.news_store import NewsStore
 
 
 class MemoContext(BaseModel):
@@ -21,6 +23,9 @@ class AnalysisContext(BaseModel):
     task_id: UUID
     organization_id: UUID
     memo: MemoContext
+    corp_code: str | None = None
+    company_name: str | None = None
+    created_at: datetime | None = None
     disclosure_receipt_no: str = Field(pattern=r"^(?:[0-9]{14}|SEC:[0-9]{1,10}:[0-9]{10}-[0-9]{2}-[0-9]{6})$")
 
 
@@ -95,3 +100,56 @@ class RagService:
         if results is None:
             raise RagError("INDEX_NOT_READY", "Run ensure_analysis_index for this task first")
         return {"query": query, "score_kind": "normalized_cosine_similarity_higher_is_better", "results": results}
+
+    async def news_context(self, task_id):
+        context = await self.context(task_id)
+        if not context.created_at or context.created_at.tzinfo is None:
+            raise RagError("NEWS_CUTOFF_UNAVAILABLE", "분석 요청 시각을 확인하지 못했습니다.")
+        return context
+
+    async def search_market_news(self, task_id, query, top_k=6):
+        context = await self.news_context(task_id)
+        vector = validate_vectors(await self.embedding.embed([query]), 1)[0]
+        store = NewsStore(self.store)
+        rows = await self.db(store.search, context.corp_code, context.company_name,
+            context.created_at, self.settings.news_retention_days, vector, top_k)
+        collection = await self.db(store.status)
+        if "details" in collection:
+            collection["details"] = {k: v for k, v in collection["details"].items() if k != "queries"}
+        return {"articles": rows, "as_of": context.created_at.isoformat(),
+                "collection": collection,
+                "limitations": ["기업 태그와 공통 시황 여부는 제목에 대한 모델 판단입니다. 본문은 아직 확인하지 않았습니다."]
+                + ([] if rows else ["기준 시각 이전에 저장된 관련 시황 뉴스가 없습니다."])}
+
+    async def read_market_news(self, task_id, article_ids):
+        context = await self.news_context(task_id)
+        store = NewsStore(self.store)
+        rows = await self.db(store.articles, article_ids, context.corp_code, context.company_name,
+            context.created_at, self.settings.news_retention_days)
+        documents, sources, limitations = [], [], []
+        if len(rows) != len(set(article_ids)):
+            limitations.append("조회 범위 또는 기준 시각에 맞지 않는 기사 식별자를 제외했습니다.")
+        import asyncio
+        async def fetch(row):
+            try:
+                article = await self.sources.news_article(row["url"])
+                published = datetime.fromisoformat(article["published_at"])
+                modified = datetime.fromisoformat(article["modified_at"]) if article.get("modified_at") else published
+                if (published.tzinfo is None or modified.tzinfo is None
+                        or published > context.created_at or modified > context.created_at
+                        or article["url"] != row["url"] or not article.get("text", "").strip()):
+                    raise ValueError("NEWS_OUTSIDE_CUTOFF")
+                doc_id = "news:" + row["id"] + ":" + hashlib.sha256(article["text"].encode()).hexdigest()[:16]
+                document = {"document_id": doc_id, "text": article["text"], "url": row["url"],
+                            "published_at": article["published_at"], "evidence_scope": "news_article"}
+                return document, {"document_id": doc_id, "location": "article:body", "quote": article["text"],
+                                  "url": row["url"], "published_at": article["published_at"]}
+            except Exception as error:
+                limitations.append("기사 본문 미확인: " + row["id"] + " " + type(error).__name__)
+                return None
+        for found in await asyncio.gather(*(fetch(row) for row in rows)):
+            if found:
+                documents.append(found[0])
+                sources.append(found[1])
+        return {"documents": documents, "sources": sources, "limitations": limitations,
+                "as_of": context.created_at.isoformat()}

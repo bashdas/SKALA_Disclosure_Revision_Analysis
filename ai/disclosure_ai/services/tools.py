@@ -64,6 +64,8 @@ class Tools:
                     "no_additional_analysis_reason": report["no_additional_analysis_reason"],
                 },
             )
+        if name in {"search_market_news", "read_market_news"}:
+            return await mcp_call("RAG", name, args)
         if name in {"ensure_analysis_index", "search_evidence"}:
             result = await mcp_call("RAG", name, args)
             if name != "search_evidence" or result.get("error"):

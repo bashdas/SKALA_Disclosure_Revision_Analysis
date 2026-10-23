@@ -1,0 +1,24 @@
+{
+  "filing": {
+    "receipt_no": "20261023800002",
+    "corp_code": "00164779",
+    "company_name": "SK하이닉스",
+    "report_name": "풍문또는보도에대한해명              ",
+    "filed_at": "2026-10-23",
+    "is_correction": false,
+    "has_corrections": false
+  },
+  "memo": {
+    "id": "4b3d84e3-412e-4e83-817b-cd3ec33604f9",
+    "company_name": "SK하이닉스",
+    "title": "시황 통합 검증용 기존 메모",
+    "current_version": 1,
+    "created_at": "2026-10-23T01:33:56.849198Z",
+    "updated_at": "2026-10-23T01:33:56.849198Z",
+    "original_filename": "market-validation-memo.txt",
+    "content_type": "text/plain",
+    "size_bytes": 897,
+    "content_hash": "72cada6e871a6ed411bee4868800e83eccfd2c929ca86d8cf735a5c2ee3b010a"
+  },
+  "memo_content": "시황 통합 검증용 가정 메모입니다.\nSK하이닉스의 전망을 검토할 때 AI 메모리 수요와 HBM 공급 확대가 주요 가정입니다.\n이 검증용 메모에는 솔리다임의 상장 검토 지속이 SK하이닉스 기업가치 재평가와 반도체 투자심리 개선으로 이어질 수 있다는 조건부 가정이 있습니다.\n중복상장 규제와 주주보호 의무에 관한 최근 시장 평가를 아직 반영하지 않았습니다.\n관련 뉴스의 실제 본문에서 확인되는 시장 반응과 회사의 공시상 결정을 구분해 이 가정을 재검토해야 합니다.\n환율과 금리 변화가 수익성 및 자금 조달 환경에 미치는 영향은 시황 근거를 확인해 재검토해야 합니다.\n새 기사만으로 실적이나 목표주가를 확정하지 않고 실제 공시와 기사에서 확인한 범위를 구분합니다.\n"
+}

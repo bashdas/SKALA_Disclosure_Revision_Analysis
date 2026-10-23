@@ -33,11 +33,11 @@ def test_target_review_survives_advisory_rejection_and_failure(ledger):
         payload = {"reason": text, "quote": "원문", "request": {"fixed": True}}
         checked, warnings = await h.review_output(payload, grounding=True, advisory=True)
         assert checked == payload and warnings
-        ledger.db.execute("UPDATE runs SET turns=8 WHERE id='task'")
+        ledger.db.execute("UPDATE runs SET turns=12 WHERE id='task'")
         ledger.db.commit()
         checked, warnings = await h.review_output(payload, grounding=True, advisory=True)
         assert checked == payload and warnings
-        assert ledger.row("task")["turns"] == 8
+        assert ledger.row("task")["turns"] == 12
 
     asyncio.run(check())
 

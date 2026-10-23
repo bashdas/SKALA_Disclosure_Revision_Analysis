@@ -201,7 +201,7 @@ it('관점 및 수정 제안이 없으면 판단 기록과 기본 검토 이유�
       noAdditionalAnalysisReason: '기본 검토만으로 판단할 수 있습니다.',
     },
   )
-  expect(wrapper.findAll('.analysis-perspectives .perspective-card')).toHaveLength(3)
+  expect(wrapper.findAll('.analysis-perspectives .perspective-card')).toHaveLength(4)
   expect(wrapper.text()).toContain('기본 검토만으로 판단할 수 있습니다.')
   expect(wrapper.find('.memo-proposals').exists()).toBe(false)
   wrapper.unmount()

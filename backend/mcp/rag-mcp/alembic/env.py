@@ -2,6 +2,7 @@ from alembic import context
 from sqlalchemy import create_engine, pool
 from app.config import Settings
 from app.database import Base
+from app import news_store  # noqa: F401
 
 
 def include_name(name, type_, parent_names):

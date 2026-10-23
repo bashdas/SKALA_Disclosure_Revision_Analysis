@@ -13,6 +13,7 @@ from mcp.server.transport_security import TransportSecuritySettings
 from starlette.concurrency import run_in_threadpool
 from disclosure_shared.health import HealthResponse
 
+from app.naver_news import NaverNews
 from app import sec
 from app.client import OpenDartClient
 from app.catalog import DisclosureCatalog
@@ -43,6 +44,7 @@ def create_app(settings: Settings | None = None, *, transport: httpx.AsyncBaseTr
     scholar = GoogleScholarClient(settings, transport=transport)
     parser = OpenDartDocumentParser()
     catalog = DisclosureCatalog(client)
+    news = NaverNews(transport)
     mcp = FastMCP("external-mcp", stateless_http=True, json_response=True,
         host=settings.external_mcp_host, port=settings.external_mcp_port, streamable_http_path="/mcp",
         transport_security=TransportSecuritySettings(enable_dns_rebinding_protection=True,
@@ -161,6 +163,19 @@ def create_app(settings: Settings | None = None, *, transport: httpx.AsyncBaseTr
             return await catalog.family(receipt_no)
         except OpenDartError as error:
             raise ToolError(json.dumps(error.as_dict(), ensure_ascii=False)) from None
+
+    @mcp.tool()
+    async def naver_news_headlines(company_name: Annotated[str, Field(max_length=255)] = "") -> dict:
+        """네이버 뉴스의 제목과 기사 링크를 조회합니다. 빈 기업명은 경제 및 세계 뉴스입니다."""
+        return await news.headlines(company_name)
+
+    @mcp.tool()
+    async def read_naver_news_article(url: Annotated[str, Field(max_length=500)]) -> dict:
+        """네이버 기사 링크에서 분석 시점에 본문과 기사 시각을 확인합니다."""
+        try:
+            return await news.article(url)
+        except (ValueError, httpx.HTTPError, KeyError) as error:
+            raise ToolError(json.dumps({"code": "NAVER_ARTICLE_UNAVAILABLE", "message": type(error).__name__})) from None
 
     mcp_app = mcp.streamable_http_app()
 

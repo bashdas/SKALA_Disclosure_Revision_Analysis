@@ -6,6 +6,7 @@ from langgraph.graph import END, START, StateGraph
 
 from disclosure_ai.harness.runtime import Harness
 from disclosure_ai.services.business import RunCancelled
+from disclosure_ai.services.research import ResearchIndex
 from disclosure_ai.workflow import perspectives, reporting, shared
 from disclosure_ai.workflow.initial import collect, history_auto, history_requested, impact, prepare
 
@@ -24,7 +25,9 @@ class State(TypedDict, total=False):
     output: dict
     selection: dict
     stage_failed: bool
+    market_news: dict
     rag_ready: bool
+    research_reports: list
     jobs: Annotated[dict, lambda a, b: {**a, **b}]
     lookups: list
     lookup_results: list
@@ -37,6 +40,7 @@ class AnalysisGraph:
     def __init__(self, harness: Harness, tools, checkpointer):
         self.h = harness
         self.tools = tools
+        self.research = ResearchIndex(harness.ledger)
         self.h.guard = getattr(tools, "ensure_active", None)
         self.graph = self.build(checkpointer)
 
@@ -85,8 +89,12 @@ class AnalysisGraph:
         initial.add_conditional_edges("COLLECT", lambda s: END if s.get("warnings") else "HISTORY_AUTO")
         initial.add_edge("HISTORY_AUTO", "PREPARE")
         initial.add_conditional_edges(
-            "PREPARE", lambda s: END if s.get("stage_failed") else
-            "IMPACT_" + s["filing"].get("analysis_type", "UNKNOWN")
+            "PREPARE",
+            lambda s: (
+                END
+                if s.get("stage_failed")
+                else "IMPACT_" + s["filing"].get("analysis_type", "UNKNOWN")
+            ),
         )
         for name in ("IMPACT_NEW", "IMPACT_CORRECTION", "IMPACT_UNKNOWN"):
             initial.add_conditional_edges(name, lambda s: "HISTORY_REQUESTED"

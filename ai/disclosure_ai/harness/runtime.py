@@ -42,8 +42,8 @@ class Harness:
             role_counts = json.loads(row["tools"])
             if role.startswith("perspective:") and role_counts.get("model:" + role, 0) >= 3:
                 raise LimitReached("관점별 모델 호출 한도에 도달했습니다.")
-            ceiling = 60000 if report else 48000
-            turns = 8 if report else 7
+            ceiling = 80000 if report else 64000
+            turns = 12 if report else 10
             if (
                 self.remaining(report) <= 0
                 or row["turns"] >= turns
@@ -68,10 +68,20 @@ class Harness:
             if kind not in {"NEW", "CORRECTION", "UNKNOWN"}:
                 kind = "UNKNOWN"
             system += (prompts / f"base_{kind.lower()}.md").read_text()
+        if (
+            role == "perspective"
+            and context.get("selection", {}).get("perspective_type") == "MARKET_NEWS"
+        ):
+            system += (prompts / "market_news.md").read_text()
         input_limit, output_limit = (6000, 1500) if role == "perspective" else (10000, 2000)
         if context.get("history_context"):
             input_limit = 8000 if role == "perspective" else 14000
-        if role == "base":
+        if (
+            role == "perspective"
+            and context.get("selection", {}).get("perspective_type") == "MARKET_NEWS"
+        ):
+            input_limit = 8000
+        if role in {"base", "research"}:
             output_limit = 4000
         content = mask(json.dumps(context, ensure_ascii=False))
         schema_tokens = len(
@@ -96,7 +106,19 @@ class Harness:
                             elif isinstance(item, (dict, list)):
                                 candidates(item)
                     elif isinstance(value, list):
-                        if len(value) > 1:
+                        # 리포트 참조 분석은 출처 목록을 줄이면 공시나 리포트 전체가 사라질 수 있습니다.
+                        # 문서 ID와 위치를 유지한 채 긴 본문을 줄여 각 자료의 근거를 남깁니다.
+                        source_list = (
+                            role in {"base", "research"}
+                            and context.get("research_reports")
+                            and all(
+                                isinstance(item, dict)
+                                and "document_id" in item
+                                and "location" in item
+                                for item in value
+                            )
+                        )
+                        if len(value) > 1 and not source_list:
                             lists.append((len(json.dumps(value, ensure_ascii=False)), value))
                         for item in value:
                             candidates(item)
@@ -125,8 +147,8 @@ class Harness:
             if report and self.remaining(True) <= 10:
                 raise LimitReached("보고서 저장 시간을 확보했습니다.")
             role_scope = (
-                role + ":" + context.get("selection", {}).get("perspective_type", "")
-                if role == "perspective"
+                "perspective:" + context.get("selection", {}).get("perspective_type", "")
+                if role in {"perspective", "news_plan"}
                 else role
             )
             await self.reserve(used_input + output_limit, report, role_scope)

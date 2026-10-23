@@ -1,0 +1,24 @@
+{
+  "filing": {
+    "receipt_no": "20261023800002",
+    "corp_code": "00164779",
+    "company_name": "SK하이닉스",
+    "report_name": "풍문또는보도에대한해명              ",
+    "filed_at": "2026-10-23",
+    "is_correction": false,
+    "has_corrections": false
+  },
+  "memo": {
+    "id": "e48178cd-6a2b-416e-8467-a04898b2b29d",
+    "company_name": "SK하이닉스",
+    "title": "시황 통합 검증용 기존 메모",
+    "current_version": 1,
+    "created_at": "2026-10-23T01:23:52.439732Z",
+    "updated_at": "2026-10-23T01:23:52.439732Z",
+    "original_filename": "market-validation-memo.txt",
+    "content_type": "text/plain",
+    "size_bytes": 547,
+    "content_hash": "d45fe553cdefcbce3803c73aabfaa4fc2235434ad088c9e916f64ff605fed67a"
+  },
+  "memo_content": "시황 통합 검증용 가정 메모입니다.\nSK하이닉스의 전망을 검토할 때 AI 메모리 수요와 HBM 공급 확대가 주요 가정입니다.\n메모의 이익 가정에는 반도체 업황이 큰 폭으로 둔화하지 않는다는 조건이 있습니다.\n환율과 금리 변화가 수익성 및 자금 조달 환경에 미치는 영향은 시황 근거를 확인해 재검토해야 합니다.\n새 기사만으로 실적이나 목표주가를 확정하지 않고 실제 공시와 기사에서 확인한 범위를 구분합니다.\n"
+}

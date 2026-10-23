@@ -21,7 +21,7 @@ const decisions = computed(() => props.decisions ?? props.perspectives.map((p) =
   <section class="analysis-perspectives" aria-label="선택한 분석 관점">
     <h3 v-if="showHeading" class="perspectives-title">관점 선택과 이유</h3>
     <div class="perspective-grid">
-      <article v-for="type in (['INDUSTRY_CONTRACT', 'FINANCE', 'FX_HEDGE'] as const)" :key="type" class="perspective-card">
+      <article v-for="type in (['INDUSTRY_CONTRACT', 'FINANCE', 'FX_HEDGE', 'MARKET_NEWS'] as const)" :key="type" class="perspective-card">
         <h4>{{ perspectiveLabels[type] }}</h4>
         <span class="tag">{{ decisions.find((d) => d.type === type)?.selected === true ? '선택' : decisions.some((d) => d.type === type) ? '미선택' : '판단 기록 없음' }}</span>
         <p v-if="showResult && perspectives.find((p) => p.type === type)?.result" class="perspective-result">{{ perspectives.find((p) => p.type === type)?.result }}</p>

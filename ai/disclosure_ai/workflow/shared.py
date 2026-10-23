@@ -3,6 +3,7 @@ import asyncio
 from disclosure_ai.harness.lookup import normalize
 from disclosure_ai.services.documents import search_documents
 from disclosure_ai.services.history import acquire, merge_history
+from disclosure_ai.services.research import search_reports
 from disclosure_ai.workflow.perspectives import finish_perspective
 
 
@@ -24,6 +25,10 @@ async def requests(run, state):
             if name == "disclosure_history":
                 args = {"reason": query, "receipt_no": lookup.get("receipt_no"),
                         "evidence": lookup.get("evidence", [])}
+            elif name == "search_market_news":
+                args = {"task_id": run.h.task_id, "query": query, "top_k": 6}
+            elif name == "read_market_news":
+                args = {"task_id": run.h.task_id, "article_ids": lookup.get("article_ids", [])}
             elif name == "local_search":
                 args = {"query": query}
                 if state.get("rag_ready"):
@@ -62,6 +67,19 @@ async def lookup(run, state):
             historical = [d for d in state["documents"] if d.get("history_role")]
             response = {**response, "sources": [*response.get("sources", []),
                         *search_documents(historical, item["args"]["query"])]}
+        if item["tool"] in {"local_search", "search_evidence"} and state.get("research_reports"):
+            research = await search_reports(run, state, item["args"]["query"])
+            response = {
+                **response,
+                "documents": response.get("documents", []) + research.get("documents", []),
+                "sources": response.get("sources", []) + research.get("sources", []),
+                "limitations": response.get("limitations", [])
+                + (
+                    ["증권사 리포트 추가 검색 미완료: " + research["error"]]
+                    if research.get("error")
+                    else []
+                ),
+            }
         return {**item, "response": response}
 
     return {"lookup_results": await asyncio.gather(*(execute(item) for item in state["lookups"]))}

@@ -186,9 +186,11 @@ def disclosure_type(filing, declared="UNKNOWN"):
     title = filing.get("report_name")
     metadata = "UNKNOWN"
     if filing.get("metadata_status") == "FOUND" and isinstance(title, str) and title.strip():
-        metadata = "CORRECTION" if re.match(
-            r"^(?:\[(?:기재|첨부)?정정\]|8-K/A(?:\s|$))", title.strip(), re.I
-        ) else "NEW"
+        metadata = (
+            "CORRECTION"
+            if re.match(r"^(?:\[(?:기재|첨부)?정정\]|8-K/A(?:\s|$))", title.strip(), re.I)
+            else "NEW"
+        )
     if declared in {"NEW", "CORRECTION"}:
         return declared if metadata in {"UNKNOWN", declared} else "UNKNOWN"
     return metadata
@@ -267,16 +269,27 @@ def analysis_context(filing, fragments):
                     "document_id": source["document_id"],
                     "location": source["location"],
                     **{key: " ".join(change[key].split()) for key in ("label", "before", "after")},
-                    **({
-                        "before_scope": scope["before_contract_total"]["scope"],
-                        "after_scope": scope["after_contract_total"]["scope"],
-                        "comparison_basis": "CONTRACT_TOTAL_SAME_SCOPE" if scope["same_scope"]
-                        else "CONTRACT_TOTAL_DIFFERENT_SCOPE",
-                    } if scope else {}),
+                    **(
+                        {
+                            "before_scope": scope["before_contract_total"]["scope"],
+                            "after_scope": scope["after_contract_total"]["scope"],
+                            "comparison_basis": "CONTRACT_TOTAL_SAME_SCOPE"
+                            if scope["same_scope"]
+                            else "CONTRACT_TOTAL_DIFFERENT_SCOPE",
+                        }
+                        if scope
+                        else {}
+                    ),
                 }
             )
         else:
-            result.append({**source, "quote": " ".join(source["quote"].split())})
+            # 리포트 수정 대상 문장을 원문과 대조하려면 줄바꿈도 보존해야 합니다.
+            quote = (
+                source["quote"]
+                if source["document_id"].startswith("research:")
+                else " ".join(source["quote"].split())
+            )
+            result.append({**source, "quote": quote})
     return result
 
 
@@ -285,28 +298,38 @@ def reference_frames(filing, memo):
     valuation = []
     for index, line in enumerate(memo.get("text", "").splitlines(), 1):
         if re.match(r"\s*(?:적용\s*BPS|Target\s*P/B|적정주가|목표주가\s*\()", line, re.I):
-            valuation.append({
-                "document_id": memo["document_id"], "location": f"line:{index}",
-                "quote": line, "url": memo.get("url"),
-            })
+            valuation.append(
+                {
+                    "document_id": memo["document_id"],
+                    "location": f"line:{index}",
+                    "quote": line,
+                    "url": memo.get("url"),
+                }
+            )
     scopes = []
     for amount in filing.get("changes", []):
         if not re.search(r"계약\s*금액", amount["label"]):
             continue
-        names = [c for c in filing["changes"]
-                 if re.search(r"(?:체결)?계약명", c["label"])
-                 and c["document_id"] == amount["document_id"]
-                 and c["location"].rsplit(":row:", 1)[0]
-                 == amount["location"].rsplit(":row:", 1)[0]]
+        names = [
+            c
+            for c in filing["changes"]
+            if re.search(r"(?:체결)?계약명", c["label"])
+            and c["document_id"] == amount["document_id"]
+            and c["location"].rsplit(":row:", 1)[0] == amount["location"].rsplit(":row:", 1)[0]
+        ]
         if len(names) == 1:
             name = names[0]
-            scopes.append({
-                "before_contract_total": {"scope": name["before"], "amount": amount["before"]},
-                "after_contract_total": {"scope": name["after"], "amount": amount["after"]},
-                "same_scope": name["before"] == name["after"],
-                "sources": [{k: c[k] for k in ("document_id", "location", "quote")}
-                            for c in (name, amount)],
-            })
+            scopes.append(
+                {
+                    "before_contract_total": {"scope": name["before"], "amount": amount["before"]},
+                    "after_contract_total": {"scope": name["after"], "amount": amount["after"]},
+                    "same_scope": name["before"] == name["after"],
+                    "sources": [
+                        {k: c[k] for k in ("document_id", "location", "quote")}
+                        for c in (name, amount)
+                    ],
+                }
+            )
     return {"applied_valuation_rows": valuation, "contract_amount_scopes": scopes}
 
 
@@ -317,8 +340,11 @@ def model_context(filing, fragments, memo, history=None):
     ranked = []
     for source in fragments:
         if source.get("document_id") == memo.get("document_id"):
-            ranked.extend(i for i, line in enumerate(lines)
-                          if line.strip() and line in source.get("quote", "") and i not in ranked)
+            ranked.extend(
+                i
+                for i, line in enumerate(lines)
+                if line.strip() and line in source.get("quote", "") and i not in ranked
+            )
     for i in [*ranked, *range(len(lines))]:
         group = [j for j in range(max(0, i - 1), min(len(lines), i + 2)) if j not in chosen]
         length = sum(len(lines[j]) + 1 for j in group)
@@ -342,9 +368,10 @@ def model_context(filing, fragments, memo, history=None):
         if s["document_id"] != memo.get("document_id") and s["document_id"] not in historical])
     # 정정표는 모든 행을 우선 보존하며 중복 검색 조각이 이를 밀어내지 않게 합니다.
     changes = [s for s in context if "before" in s and "after" in s]
+    research = [source for source in context if source["document_id"].startswith("research:")]
     rest, size = [], sum(len(json.dumps(s, ensure_ascii=False)) for s in changes)
     for source in context:
-        if source in changes:
+        if source in changes or source in research:
             continue
         length = len(json.dumps(source, ensure_ascii=False))
         if size + length <= 5000:
@@ -355,7 +382,7 @@ def model_context(filing, fragments, memo, history=None):
                        "title": filing.get("report_name"),
                        "document_ids": [d["document_id"] for d in filing.get("documents", [])]},
         "memo": {**memo, "text": excerpt, "location": "memo", "excerpted": len(chosen) < len(lines)},
-        "context": changes + rest,
+        "context": changes + research + rest,
         "history_context": history_context,
         "reference_frames": reference_frames(filing, memo),
     }

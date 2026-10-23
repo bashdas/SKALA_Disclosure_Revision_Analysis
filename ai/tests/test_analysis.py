@@ -63,6 +63,8 @@ class FakeTools:
             return {"error": "UPSTREAM_UNAVAILABLE"} if self.missing else filing()
         if name == "business_get_memo":
             return {"document_id": "memo:1:v1", "text": "계약금액은 100입니다.", "version": 1}
+        if name == "search_market_news":
+            return {"articles": [], "limitations": []}
         if name == "ensure_analysis_index":
             return {"indexed": True}
         if name == "search_evidence":
@@ -194,12 +196,13 @@ def test_shared_lookup_and_failure_fanout(ledger):
 def test_report_budget_reserved_and_persisted(ledger):
     async def check():
         h = Harness("task", ledger)
-        for _ in range(7):
+        for _ in range(10):
             await h.reserve(100)
         with pytest.raises(LimitReached):
             await h.reserve(100)
         reopened = Ledger(ledger.db.execute("PRAGMA database_list").fetchone()[2])
         h2 = Harness("task", reopened)
+        await h2.reserve(100, report=True)
         await h2.reserve(100, report=True)
         with pytest.raises(LimitReached):
             await h2.reserve(100, report=True)
@@ -315,12 +318,12 @@ def test_semantic_output_check_and_budget_failure(ledger):
         assert checked["sections"]["summary"] == fact
         assert checked["sources"] == payload["sources"]
         assert warnings
-        ledger.db.execute("UPDATE runs SET turns=8 WHERE id='task'")
+        ledger.db.execute("UPDATE runs SET turns=12 WHERE id='task'")
         ledger.db.commit()
         failed, warnings = await harness.review_output(payload)
         assert failed["sections"]["summary"] == ""
         assert failed["sources"] == payload["sources"]
-        assert warnings and ledger.row("task")["turns"] == 8
+        assert warnings and ledger.row("task")["turns"] == 12
 
     asyncio.run(check())
 

@@ -308,7 +308,7 @@ def test_lookup_budget_and_wait_limit_end_selected_job(ledger):
     async def check():
         h = Harness("task", ledger)
         tools = FakeTools()
-        ledger.db.execute("UPDATE runs SET tokens=48000 WHERE id='task'")
+        ledger.db.execute("UPDATE runs SET tokens=64000 WHERE id='task'")
         ledger.db.commit()
         limited = await h.tool("financial", {}, tools.call)
         assert limited["error"] == "LIMIT_REACHED" and not tools.calls

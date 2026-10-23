@@ -1,0 +1,12 @@
+{"kind": "TOOL_END", "payload": {"tool": "business_get_memo", "error": null}, "at": 1792718891.40303}
+{"kind": "TOOL_END", "payload": {"tool": "disclosure_get_document", "error": null}, "at": 1792718891.4572544}
+{"kind": "TOOL_END", "payload": {"tool": "search_research_reports", "error": null}, "at": 1792718891.546393}
+{"kind": "TOOL_END", "payload": {"tool": "ensure_analysis_index", "error": null}, "at": 1792718892.4277635}
+{"kind": "TOOL_END", "payload": {"tool": "search_evidence", "error": null}, "at": 1792718892.846811}
+{"kind": "TOOL_END", "payload": {"tool": "search_market_news", "error": null}, "at": 1792718893.0607462}
+{"kind": "MODEL_END", "payload": {"role": "base", "tokens": 8913, "elapsed": 10.869338068994693}, "at": 1792718904.0193677}
+{"kind": "MODEL_END", "payload": {"role": "perspective", "tokens": 6032, "elapsed": 4.072541382993222}, "at": 1792718908.281458}
+{"kind": "MODEL_END", "payload": {"role": "perspective", "tokens": 7273, "elapsed": 4.772852869005874}, "at": 1792718908.9844704}
+{"kind": "MODEL_END", "payload": {"role": "report", "tokens": 5312, "elapsed": 4.093656479992205}, "at": 1792718913.263099}
+{"kind": "MODEL_END", "payload": {"role": "output_check", "tokens": 6925, "elapsed": 8.668980360002024}, "at": 1792718921.9944444}
+{"kind": "TOOL_END", "payload": {"tool": "business_save_report", "error": null}, "at": 1792718922.0963264}

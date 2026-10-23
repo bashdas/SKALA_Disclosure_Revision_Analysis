@@ -6,6 +6,10 @@ from pydantic import Field, SecretStr, model_validator
 
 class Settings(ServiceSettings):
     database_url: str = ""
+    news_collection_enabled: bool = True
+    news_collection_interval_seconds: int = Field(default=3600, ge=3600)
+    news_retention_days: int = Field(default=30, ge=1, le=90)
+    news_classification_model: str = "gpt-5.4-mini"
     business_mcp_url: str = "http://business-mcp:8081/mcp"
     external_mcp_url: str = "http://external-mcp:8083/mcp"
     rag_mcp_host: str = "0.0.0.0"

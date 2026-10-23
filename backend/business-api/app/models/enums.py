@@ -42,6 +42,7 @@ class PerspectiveType(StrEnum):
     FINANCE = "FINANCE"
     FX_HEDGE = "FX_HEDGE"
     INDUSTRY_CONTRACT = "INDUSTRY_CONTRACT"
+    MARKET_NEWS = "MARKET_NEWS"
 
 
 class PerspectiveStatus(StrEnum):

@@ -1,8 +1,9 @@
 import asyncio
 
-from disclosure_ai.schemas import BaseAnalysis
+from disclosure_ai.schemas import BaseAnalysis, ResearchAnalysis
 from disclosure_ai.services.business import RunCancelled
 from disclosure_ai.services.documents import (
+    analysis_context,
     disclosure_type,
     model_context,
     reference_frames,
@@ -11,6 +12,7 @@ from disclosure_ai.services.documents import (
     validated_sources,
 )
 from disclosure_ai.services.history import acquire, model_history, validated_comparisons
+from disclosure_ai.services.research import search_reports, verified_research
 
 
 async def collect(run, state):
@@ -70,15 +72,21 @@ async def prepare(run, state):
     if state["filing"].get("analysis_type") != "CORRECTION" or not context:
         # 검색 점수가 낮은 일정 안내도 실제 공시 원문이 모델 입력에 남도록 합니다.
         context.extend(
-            {"document_id": doc["document_id"], "location": "line:1:overview",
-             "quote": doc["text"][:2500], "url": doc.get("url"),
-             "published_at": doc.get("published_at")}
-            for doc in state["filing"]["documents"] if doc.get("text", "").strip()
+            {
+                "document_id": doc["document_id"],
+                "location": "line:1:overview",
+                "quote": doc["text"][:2500],
+                "url": doc.get("url"),
+                "published_at": doc.get("published_at"),
+            }
+            for doc in state["filing"]["documents"]
+            if doc.get("text", "").strip()
         )
     context += search_documents(
         documents,
         state["request"]["company_name_snapshot"]
-        + " " + (state["filing"].get("report_name") or ""),
+        + " "
+        + (state["filing"].get("report_name") or ""),
         limit=12,
     )
     context.extend(reference_frames(state["filing"], state["memo"])["applied_valuation_rows"])
@@ -90,6 +98,23 @@ async def prepare(run, state):
             "quote": state["memo"]["text"],
         }
     )
+    research_query = " ".join(
+        source["quote"] for source in state["filing"].get("changes", [])
+    ) or " ".join(doc["text"] for doc in state["filing"]["documents"])
+    research = await search_reports(
+        run,
+        state,
+        state["request"]["company_name_snapshot"]
+        + " "
+        + research_query[:1000]
+        + " "
+        + " ".join(
+            source["quote"]
+            for source in reference_frames(state["filing"], state["memo"])["applied_valuation_rows"]
+        )[:500],
+    )
+    documents.extend(research.get("documents", []))
+    context = research.get("sources", []) + context
     index = await run.h.tool(
         "ensure_analysis_index",
         {"task_id": run.h.task_id},
@@ -97,15 +122,19 @@ async def prepare(run, state):
         scope=state["scope"],
     )
     warnings = []
+    if research.get("error"):
+        warnings.append("증권사 리포트 검색 미완료: " + research["error"])
     ready = index.get("indexed") is True
     if ready:
         found = await run.h.tool(
             "search_evidence",
             {
                 "task_id": run.h.task_id,
-                "query": ("정정 내용과 기존 메모의 계약 금액, 기간 및 위험"
-                          if state["filing"].get("analysis_type") == "CORRECTION"
-                          else "공시 사실과 기존 메모의 수치, 전망 및 가정"),
+                "query": (
+                    "정정 내용과 기존 메모의 계약 금액, 기간 및 위험"
+                    if state["filing"].get("analysis_type") == "CORRECTION"
+                    else "공시 사실과 기존 메모의 수치, 전망 및 가정"
+                ),
                 "top_k": 5,
             },
             run.tools.call,
@@ -117,8 +146,23 @@ async def prepare(run, state):
             warnings.append("RAG 검색 미완료: " + found["error"])
     else:
         warnings.append("RAG 색인 미완료: " + str(index.get("error", "INDEX_NOT_READY")))
+    market_news = await run.h.tool(
+        "search_market_news",
+        {
+            "task_id": run.h.task_id,
+            "query": state["request"]["company_name_snapshot"]
+            + " "
+            + (state["filing"].get("report_name") or ""),
+            "top_k": 6,
+        },
+        run.tools.call,
+        scope=state["scope"],
+    )
+    if market_news.get("error"):
+        warnings.append("시황 뉴스 목록 조회 미완료: " + market_news["error"])
     return {
         "documents": documents,
+        "research_reports": research.get("research_reports", []),
         "context": list(
             {
                 (source["document_id"], source["location"], source["quote"]): source
@@ -126,6 +170,7 @@ async def prepare(run, state):
             }.values()
         ),
         "rag_ready": ready,
+        "market_news": market_news,
         "warnings": warnings,
     }
 
@@ -142,6 +187,8 @@ async def impact(run, state):
                 "history": model_history(state.get("history", {})),
                 "history_lookup_allowed": not state.get("history_reanalyzed", False),
                 **model_context(state["filing"], state["context"], state["memo"], state.get("history")),
+                "market_news": state.get("market_news", {}),
+                "research_reports": state.get("research_reports", []),
             },
             BaseAnalysis,
         )
@@ -159,14 +206,56 @@ async def impact(run, state):
         if len(points) != len(data["review_points"]):
             data["limitations"].append("기존 메모와 이번 공시 양쪽의 근거를 확인하지 못한 재검토 관점은 제외했습니다.")
         data["review_points"] = points
+        if state.get("research_reports"):
+            try:
+                references = reference_frames(state["filing"], state["memo"])
+                memo_excerpt = model_context(state["filing"], state["context"], state["memo"])[
+                    "memo"
+                ]
+                reviewed = await run.h.model(
+                    "research",
+                    {
+                        "request": state["request"],
+                        "research_reports": state["research_reports"],
+                        "memo": {**memo_excerpt, "text": memo_excerpt["text"][:2000]},
+                        "reference_frames": references,
+                        "disclosure_context": analysis_context(
+                            state["filing"], state["filing"].get("changes", [])
+                        ),
+                        "context": [
+                            source
+                            for source in state["context"]
+                            if source["document_id"].startswith("research:")
+                            or source["document_id"]
+                            in {doc["document_id"] for doc in state["filing"]["documents"]}
+                        ][:10],
+                    },
+                    ResearchAnalysis,
+                )
+                raw = reviewed.model_dump()
+                research = verified_research(raw, state)
+                if any(len(raw[key]) != len(items) for key, items in research.items()):
+                    data["limitations"].append(
+                        "공시 근거나 리포트의 원문 위치를 확인하지 못한 보완 및 수정 제안은 제외했습니다."
+                    )
+                data.update(research)
+                data["limitations"].extend(raw["limitations"])
+            except RunCancelled:
+                raise
+            except Exception as error:
+                data["limitations"].append("증권사 리포트 분석 미완료: " + type(error).__name__)
         if kind == "UNKNOWN":
             data["limitations"].append(
                 "공시 유형을 확정하지 못했습니다. "
-                + state["filing"].get("analysis_type_reason", "유형을 확인할 메타데이터가 부족합니다.")
+                + state["filing"].get(
+                    "analysis_type_reason", "유형을 확인할 메타데이터가 부족합니다."
+                )
                 + " 정정 전후 비교는 보류했습니다."
             )
         elif kind == "CORRECTION" and not state["filing"].get("complete_correction_table"):
-            data["limitations"].append("정정공시의 정정표 전체를 확인하지 못했습니다. 확인한 본문 범위에서 검토했습니다.")
+            data["limitations"].append(
+                "정정공시의 정정표 전체를 확인하지 못했습니다. 확인한 본문 범위에서 검토했습니다."
+            )
         seen = set()
         data["selected"] = [
             s

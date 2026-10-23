@@ -3,7 +3,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
-Perspective = Literal["INDUSTRY_CONTRACT", "FINANCE", "FX_HEDGE"]
+Perspective = Literal["INDUSTRY_CONTRACT", "FINANCE", "FX_HEDGE", "MARKET_NEWS"]
 Impact = Literal["FACT_UPDATE", "CALCULATION_UPDATE", "INTERPRETATION_REVIEW", "NO_IMPACT", "HOLD"]
 
 
@@ -92,6 +92,30 @@ class ReviewPoint(Model):
     evidence: list[Source] = Field(min_length=2, max_length=6)
 
 
+class MemoSupplement(Model):
+    report_document_id: str = Field(pattern=r"^research:[A-Za-z0-9_-]+$")
+    report_location: str = Field(pattern=r"^page:(?:[0-9]+|unknown):lines:[0-9]+-[0-9]+$")
+    text: str = Field(
+        min_length=1, max_length=1500, description="메모에 새로 추가할 한국어 습니다체 문장입니다."
+    )
+    reason: str = Field(min_length=1, max_length=1000)
+    evidence: list[Source] = Field(min_length=1, max_length=5)
+
+
+class ReportRevision(Model):
+    document_id: str = Field(pattern=r"^research:[A-Za-z0-9_-]+$")
+    location: str = Field(pattern=r"^page:(?:[0-9]+|unknown):lines:[0-9]+-[0-9]+$")
+    after_text: str | None
+    reason: str = Field(min_length=1, max_length=1000)
+    evidence: list[Source] = Field(min_length=1, max_length=5)
+
+
+class ResearchAnalysis(Model):
+    memo_supplements: list[MemoSupplement] = Field(max_length=3)
+    report_revisions: list[ReportRevision] = Field(max_length=3)
+    limitations: list[str]
+
+
 class BaseAnalysis(Model):
     history_assessment: HistoryAssessment = Field(default_factory=lambda: HistoryAssessment(
         status="NOT_REQUIRED", reason="기존 응답에는 과거 공시 필요성의 별도 판단이 없습니다.", evidence=[]))
@@ -108,14 +132,21 @@ class BaseAnalysis(Model):
 
 
 class Lookup(Model):
-    tool: Literal["local_search", "financial", "academic", "disclosure_history"]
+    tool: Literal["local_search", "financial", "academic", "disclosure_history", "search_market_news", "read_market_news"]
     query: str = Field(min_length=1, max_length=500)
     receipt_no: str | None = Field(default=None, pattern=r"^[0-9]{14}$",
         description="본문 또는 확인된 후보의 실제 번호입니다. 공시일만 있으면 null을 사용합니다.")
     evidence: list[Source] = Field(default_factory=list, max_length=3)
+    article_ids: list[str] = Field(default_factory=list, max_length=3)
     bsns_year: int | None = Field(default=None, ge=2015, le=2100)
     reprt_code: Literal["11011", "11012", "11013", "11014"] | None = None
     fs_div: Literal["CFS", "OFS"] | None = None
+
+
+class NewsPlan(Model):
+    article_ids: list[str] = Field(max_length=3)
+    search_query: str | None = Field(max_length=500)
+    reason: str = Field(max_length=500)
 
 
 class FinancialQuery(Model):

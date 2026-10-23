@@ -1,0 +1,132 @@
+{
+  "files_matched": 59,
+  "files": [
+    "ai/disclosure_ai/__init__.py",
+    "ai/disclosure_ai/schemas.py",
+    "ai/disclosure_ai/errors.py",
+    "ai/disclosure_ai/harness/transport.py",
+    "ai/disclosure_ai/harness/lookup.py",
+    "ai/disclosure_ai/harness/ledger.py",
+    "ai/disclosure_ai/harness/__init__.py",
+    "ai/disclosure_ai/harness/runtime.py",
+    "ai/disclosure_ai/harness/output.py",
+    "ai/disclosure_ai/workflow/execution.py",
+    "ai/disclosure_ai/workflow/graph.py",
+    "ai/disclosure_ai/workflow/__init__.py",
+    "ai/disclosure_ai/workflow/shared.py",
+    "ai/disclosure_ai/workflow/initial.py",
+    "ai/disclosure_ai/workflow/perspectives.py",
+    "ai/disclosure_ai/workflow/reporting.py",
+    "ai/disclosure_ai/prompts/market_news.md",
+    "ai/disclosure_ai/prompts/common.md",
+    "ai/disclosure_ai/prompts/report.md",
+    "ai/disclosure_ai/prompts/base.md",
+    "ai/disclosure_ai/prompts/output_check.md",
+    "ai/disclosure_ai/prompts/news_plan.md",
+    "ai/disclosure_ai/prompts/perspective.md",
+    "ai/disclosure_ai/prompts/base_new.md",
+    "ai/disclosure_ai/prompts/base_correction.md",
+    "ai/disclosure_ai/prompts/base_unknown.md",
+    "ai/disclosure_ai/entrypoints/worker.py",
+    "ai/disclosure_ai/entrypoints/local.py",
+    "ai/disclosure_ai/entrypoints/__init__.py",
+    "ai/disclosure_ai/entrypoints/api.py",
+    "ai/disclosure_ai/services/research.py",
+    "ai/disclosure_ai/services/documents.py",
+    "ai/disclosure_ai/services/tools.py",
+    "ai/disclosure_ai/services/__init__.py",
+    "ai/disclosure_ai/services/business.py",
+    "backend/mcp/rag-mcp/app/service.py",
+    "backend/mcp/rag-mcp/app/chunking.py",
+    "backend/mcp/rag-mcp/app/config.py",
+    "backend/mcp/rag-mcp/app/embedding.py",
+    "backend/mcp/rag-mcp/app/database.py",
+    "backend/mcp/rag-mcp/app/__init__.py",
+    "backend/mcp/rag-mcp/app/news_store.py",
+    "backend/mcp/rag-mcp/app/upstream.py",
+    "backend/mcp/rag-mcp/app/errors.py",
+    "backend/mcp/rag-mcp/app/news_collector.py",
+    "backend/mcp/rag-mcp/app/main.py",
+    "backend/mcp/rag-mcp/app/__main__.py",
+    "backend/mcp/external-mcp/app/catalog.py",
+    "backend/mcp/external-mcp/app/naver_news.py",
+    "backend/mcp/external-mcp/app/config.py",
+    "backend/mcp/external-mcp/app/market_ranking.py",
+    "backend/mcp/external-mcp/app/scholar.py",
+    "backend/mcp/external-mcp/app/client.py",
+    "backend/mcp/external-mcp/app/__init__.py",
+    "backend/mcp/external-mcp/app/parser.py",
+    "backend/mcp/external-mcp/app/sec.py",
+    "backend/mcp/external-mcp/app/errors.py",
+    "backend/mcp/external-mcp/app/main.py",
+    "backend/mcp/external-mcp/app/__main__.py"
+  ],
+  "collection": {
+    "status": "COMPLETED_WITH_WARNINGS",
+    "started_at": "2026-10-23T01:22:16.289121+00:00",
+    "finished_at": "2026-10-23T01:23:01.690644+00:00",
+    "details": {
+      "errors": [
+        "NAVER_HEADLINES_EMPTY",
+        "NAVER_HEADLINES_EMPTY",
+        "NAVER_HEADLINES_EMPTY"
+      ],
+      "purged": 0,
+      "stored": 101,
+      "queries": [
+        {
+          "found": 91,
+          "company": "COMMON_MARKET",
+          "limitations": []
+        },
+        {
+          "found": 3,
+          "company": "삼성중공업",
+          "limitations": []
+        },
+        {
+          "found": 2,
+          "company": "한화에어로스페이스",
+          "limitations": []
+        },
+        {
+          "found": 3,
+          "company": "SK하이닉스",
+          "limitations": []
+        },
+        {
+          "found": 0,
+          "company": "코아스",
+          "limitations": [
+            "NAVER_HEADLINES_EMPTY"
+          ]
+        },
+        {
+          "found": 5,
+          "company": "엘앤에프",
+          "limitations": []
+        },
+        {
+          "found": 0,
+          "company": "미로바펀즈",
+          "limitations": [
+            "NAVER_HEADLINES_EMPTY"
+          ]
+        },
+        {
+          "found": 0,
+          "company": "CENTENE CORP",
+          "limitations": [
+            "NAVER_HEADLINES_EMPTY"
+          ]
+        }
+      ],
+      "targets": 7,
+      "collected": 101
+    }
+  },
+  "rows": 101,
+  "common_rows": 43,
+  "interval_seconds": 3600,
+  "retention_days": 30
+}

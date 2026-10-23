@@ -12,12 +12,14 @@ from disclosure_ai.services.documents import (
     validated_sources,
 )
 from disclosure_ai.services.history import ROLES, restore_history, validated_comparisons
+from disclosure_ai.services.research import verified_research
 from disclosure_ai.workflow.perspectives import finish_perspective
 
 PERSPECTIVE_NAMES = {
     "INDUSTRY_CONTRACT": "기업과 산업 및 계약",
     "FINANCE": "재무와 실적",
     "FX_HEDGE": "외부 환경과 위험",
+    "MARKET_NEWS": "시황 뉴스",
 }
 STATUS_NAMES = {
     "COMPLETED": "작성 완료",
@@ -59,7 +61,9 @@ def report_history(state):
 
 async def join(run, state):
     warnings = list(state.get("base", {}).get("limitations", []))
-    if state.get("filing", {}).get("analysis_type") == "CORRECTION" and not state.get("filing", {}).get("complete_correction_table"):
+    if state.get("filing", {}).get("analysis_type") == "CORRECTION" and not state.get(
+        "filing", {}
+    ).get("complete_correction_table"):
         warnings.append("정정표 전체 추출을 확인하지 못했습니다. 본문 근거를 추가 확인해야 합니다.")
     for result in state.get("results", {}).values():
         warnings.extend(result.get("limitations", []))
@@ -96,6 +100,7 @@ async def report(run, state):
         original.get("review_points", []), state.get("filing", {}), state.get("memo", {}),
         documents, fragments,
     )
+    research = verified_research(original, state)
     proposals = []
     for item in original.get("proposals", []):
         evidence = validated_sources(item.get("evidence", []), documents, fragments)
@@ -108,15 +113,19 @@ async def report(run, state):
         ):
             proposals.append({**item, "evidence": evidence})
     memo_review = None
-    if not proposals and not review_points and original:
+    if not proposals and not review_points and not research["memo_supplements"] and original:
         supplied = original.get("memo_review") or {}
         evidence = validated_sources(supplied.get("evidence", []), documents, fragments)
         reason = supplied.get("reason", "").strip()
         filing_ids = {doc["document_id"] for doc in state.get("filing", {}).get("documents", [])}
-        keep = (supplied.get("status") == "KEEP" and reason
-                and any(source["document_id"] in filing_ids for source in evidence)
-                and not original.get("proposals") and not state.get("stage_failed")
-                and state.get("filing", {}).get("analysis_type") != "UNKNOWN")
+        keep = (
+            supplied.get("status") == "KEEP"
+            and reason
+            and any(source["document_id"] in filing_ids for source in evidence)
+            and not original.get("proposals")
+            and not state.get("stage_failed")
+            and state.get("filing", {}).get("analysis_type") != "UNKNOWN"
+        )
         memo_review = {
             "status": "KEEP" if keep else "HOLD",
             "reason": reason if reason and (keep or supplied.get("status") == "HOLD") else
@@ -158,6 +167,7 @@ async def report(run, state):
     evidence += [s for item in comparisons for s in item["evidence"]]
     evidence += [s for item in results.values() for s in item["sources"]]
     evidence += memo_review["evidence"] if memo_review else []
+    evidence += [s for items in research.values() for item in items for s in item["evidence"]]
     filing_facts = []
     if state.get("filing", {}).get("analysis_type") != "CORRECTION":
         filing_ids = {d["document_id"] for d in state.get("filing", {}).get("documents", [])}
@@ -178,6 +188,11 @@ async def report(run, state):
     scoped_changes = analysis_context(state.get("filing", {}), [c["source"] for c in corrections])
     facts = {
         "analysis_type": state.get("filing", {}).get("analysis_type", "UNKNOWN"),
+        "market_as_of": state.get("market_news", {}).get("as_of"),
+        **{
+            key: [cited(item, item["evidence"]) for item in items]
+            for key, items in research.items()
+        },
         "filing_facts": [cited({}, [source]) for source in filing_facts],
         "memo_review": cited(memo_review, memo_review["evidence"]) if memo_review else None,
         "corrections": [
@@ -204,7 +219,7 @@ async def report(run, state):
     for name, label in (("filing", "공시"), ("memo", "메모")):
         if state.get(name, {}).get("error"):
             warnings.append(label + " 조회를 완료하지 못했습니다.")
-    if evidence and run.h.ledger.row(run.h.task_id)["turns"] < 7:
+    if evidence and run.h.ledger.row(run.h.task_id)["turns"] < 11:
         try:
             summary = await run.h.model(
                 "report",
@@ -263,7 +278,10 @@ async def report(run, state):
             "limitations": [],
         },
         "analysis_type": state.get("filing", {}).get("analysis_type", "UNKNOWN"),
+        "market_as_of": state.get("market_news", {}).get("as_of"),
         "memo_review": memo_review,
+        "research_reports": state.get("research_reports", []),
+        **research,
         "results": results,
         "summary_claims": claims,
         "future_impacts": scenarios,
@@ -277,13 +295,17 @@ async def report(run, state):
     checked["base"]["proposals"] = [
         item
         for item in checked["base"]["proposals"]
-        if item.get("reason") and (item.get("impact_type") in {"NO_IMPACT", "INTERPRETATION_REVIEW"} or item.get("after_text"))
+        if item.get("reason")
+        and (
+            item.get("impact_type") in {"NO_IMPACT", "INTERPRETATION_REVIEW"}
+            or item.get("after_text")
+        )
     ]
     checked["base"]["review_points"] = validated_review_points(
         checked["base"]["review_points"], state.get("filing", {}), state.get("memo", {}),
         documents, fragments,
     )
-    if not checked["base"]["proposals"] and not checked["base"]["review_points"] and (
+    if not checked["base"]["proposals"] and not checked["base"]["review_points"] and not checked.get("memo_supplements") and (
         not checked.get("memo_review") or not checked["memo_review"].get("reason", "").strip()
     ):
         checked["memo_review"] = {
@@ -304,7 +326,9 @@ async def report(run, state):
         warnings.append(
             f"근거 또는 메모 연결이 부족한 수정 제안 {omitted}건을 작성하지 않았습니다."
         )
-    if state.get("filing", {}).get("analysis_type") == "CORRECTION" and not state.get("filing", {}).get("complete_correction_table"):
+    if state.get("filing", {}).get("analysis_type") == "CORRECTION" and not state.get(
+        "filing", {}
+    ).get("complete_correction_table"):
         warnings.append("정정표 전체 추출을 확인하지 못했습니다.")
     if state.get("stage_failed") or not original:
         warnings.append("입력 또는 분석 처리 미완료로 확인된 원문만 표시합니다.")
@@ -321,6 +345,12 @@ def compose(data):
         item["source"] for item in data.get("corrections", [])
     ]
     all_sources += data.get("filing_facts", [])
+    all_sources += [
+        s
+        for key in ("memo_supplements", "report_revisions")
+        for item in data.get(key, [])
+        for s in item["evidence"]
+    ]
     all_sources += (data.get("memo_review") or {}).get("evidence", [])
     all_sources += [s for item in base.get("proposals", []) for s in item["evidence"]]
     all_sources += [s for item in base.get("review_points", []) for s in item["evidence"]]
@@ -402,8 +432,12 @@ def compose(data):
         )
     proposals = base.get("proposals", [])
     sections["memo_impact"] = "\n".join(
-        "- " + ("수정 없음: " if item.get("impact_type") == "NO_IMPACT" else "")
-        + escape(item["reason"]) + " " + refs(item["evidence"]) for item in proposals
+        "- "
+        + ("수정 없음: " if item.get("impact_type") == "NO_IMPACT" else "")
+        + escape(item["reason"])
+        + " "
+        + refs(item["evidence"])
+        for item in proposals
     )
     suggestions = []
     for i, item in enumerate(proposals):
@@ -419,14 +453,37 @@ def compose(data):
             suggestions.append(
                 f"**수정 제안 {i + 1}**\n\n기존: {escape(before)}\n\n수정: {escape(after)} {refs(item['evidence'])}"
             )
-    if not proposals and not base.get("review_points"):
+    if not proposals and not base.get("review_points") and not data.get("memo_supplements"):
         decision = data.get("memo_review") or {
             "status": "HOLD", "reason": "현재 자료에서 기존 관점의 재검토 필요성을 판단할 근거가 부족합니다.",
             "evidence": [],
         }
         data["memo_review"] = decision
         label = "기존 메모 유지" if decision["status"] == "KEEP" else "메모 영향 판단 보류"
-        suggestions.append(f"**{label}**\n\n{escape(decision['reason'])} {refs(decision.get('evidence', []))}")
+        suggestions.append(
+            f"**{label}**\n\n{escape(decision['reason'])} {refs(decision.get('evidence', []))}"
+        )
+    for item in data.get("memo_supplements", []):
+        suggestions.append(
+            "**메모 보완 제안**\n\n추가 내용: "
+            + escape(item["text"])
+            + "\n\n이유: "
+            + escape(item["reason"])
+            + " "
+            + refs(item["evidence"])
+        )
+    titles = {item["document_id"]: item["title"] for item in data.get("research_reports", [])}
+    for item in data.get("report_revisions", []):
+        value = "**증권사 리포트 수정 검토**\n\n리포트: " + escape(
+            titles.get(item["document_id"], item["document_id"])
+        )
+        value += (
+            "\n\n위치: " + escape(item["location"]) + "\n\n기존: " + escape(item["before_text"])
+        )
+        if item.get("after_text"):
+            value += "\n\n수정안: " + escape(item["after_text"])
+        value += "\n\n검토 이유: " + escape(item["reason"]) + " " + refs(item["evidence"])
+        suggestions.append(value)
     sections["suggestions"] = "\n\n".join(suggestions)
     sections["perspectives"] = "\n\n".join(
         "### "
@@ -454,6 +511,8 @@ def compose(data):
         "**공시 접수번호:** " + request["disclosure_receipt_no"],
         "",
     ]
+    if data.get("market_as_of") and any(item.get("perspective_type") == "MARKET_NEWS" for item in selected):
+        lines += ["**시황 기준 시각(분석 요청):** " + escape(data["market_as_of"]), ""]
     if not sections["summary"]:
         lines += [
             "확인된 공시 내용과 처리 상태를 표시합니다. 근거가 부족한 해석은 작성하지 않았습니다.",
@@ -461,17 +520,39 @@ def compose(data):
         ]
     chosen = {item["perspective_type"]: item for item in selected}
     omitted = {item["perspective_type"]: item for item in base.get("not_selected", [])}
-    lines += ["## 관점 선택과 이유", "", "| 관점 | 선택 여부 | 이유 | 처리 결과 |", "| --- | --- | --- | --- |"]
+    lines += [
+        "## 관점 선택과 이유",
+        "",
+        "| 관점 | 선택 여부 | 이유 | 처리 결과 |",
+        "| --- | --- | --- | --- |",
+    ]
     for kind, label in PERSPECTIVE_NAMES.items():
         item = chosen.get(kind) or omitted.get(kind)
         selected_here = kind in chosen
-        reason = (item.get("selection_reason" if selected_here else "reason") if item else None)
+        reason = item.get("selection_reason" if selected_here else "reason") if item else None
         reason = reason or "이 관점의 판단 이유가 저장되지 않았습니다."
-        status = STATUS_NAMES.get(results.get(kind, {}).get("status"), "미작성") if selected_here else "해당 없음"
-        if selected_here and results.get(kind, {}).get("status") == "COMPLETED" and results[kind].get("limitations"):
+        status = (
+            STATUS_NAMES.get(results.get(kind, {}).get("status"), "미작성")
+            if selected_here
+            else "해당 없음"
+        )
+        if (
+            selected_here
+            and results.get(kind, {}).get("status") == "COMPLETED"
+            and results[kind].get("limitations")
+        ):
             status += " (추가 확인 항목 있음)"
-        lines.append("| " + label + " | " + ("선택" if selected_here else "미선택" if item else "판단 기록 없음")
-                     + " | " + escape(reason) + " | " + status + " |")
+        lines.append(
+            "| "
+            + label
+            + " | "
+            + ("선택" if selected_here else "미선택" if item else "판단 기록 없음")
+            + " | "
+            + escape(reason)
+            + " | "
+            + status
+            + " |"
+        )
     lines.append("")
     for name, value in sections.items():
         if value:

@@ -1,5 +1,6 @@
+import asyncio
 import json
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 from typing import Annotated, Literal
 from uuid import UUID
 
@@ -15,6 +16,7 @@ from app.config import Settings
 from app.database import RagStore
 from app.embedding import OpenAIEmbeddingService
 from app.errors import RagError
+from app.news_collector import NewsCollector
 from app.service import RagService
 from app.upstream import McpSources
 
@@ -31,10 +33,18 @@ def create_app(settings=None, *, sources=None, embedding=None, store=None):
             upstream = sources or McpSources(client, settings.business_mcp_url, settings.external_mcp_url, settings.rag_mcp_request_timeout_seconds)
             provider = embedding or OpenAIEmbeddingService(client, settings.openai_api_key.get_secret_value(), settings.rag_embedding_model)
             app.state.service = RagService(upstream, provider, storage, settings)
+            collector_task = None
+            if storage is not None and settings.news_collection_enabled:
+                app.state.news_collector = NewsCollector(app.state.service, client, settings)
+                collector_task = asyncio.create_task(app.state.news_collector.run())
             try:
                 async with mcp.session_manager.run():
                     yield
             finally:
+                if collector_task:
+                    collector_task.cancel()
+                    with suppress(asyncio.CancelledError):
+                        await collector_task
                 if store is None and storage is not None:
                     storage.engine.dispose()
 
@@ -62,6 +72,19 @@ def create_app(settings=None, *, sources=None, embedding=None, store=None):
         document_types: list[Literal["MEMO", "DISCLOSURE"]] | None = None) -> dict:
         """Search this task's indexed documents. Higher normalized cosine scores are better."""
         return await invoke("search_evidence", task_id, query, top_k, document_types)
+
+    @mcp.tool()
+    async def search_market_news(task_id: UUID,
+        query: Annotated[str, Field(min_length=1, max_length=2000)],
+        top_k: Annotated[int, Field(ge=1, le=12)] = 6) -> dict:
+        """분석 요청 시각 이전의 기업 및 공통 시황 제목을 의미 검색합니다. 본문 확인은 별도입니다."""
+        return await invoke("search_market_news", task_id, query, top_k)
+
+    @mcp.tool()
+    async def read_market_news(task_id: UUID,
+        article_ids: Annotated[list[UUID], Field(min_length=1, max_length=3)]) -> dict:
+        """저장된 관련 기사 식별자만 받아 네이버 링크의 본문과 시각을 검증합니다."""
+        return await invoke("read_market_news", task_id, article_ids)
 
     @app.get("/health", response_model=HealthResponse)
     async def health():

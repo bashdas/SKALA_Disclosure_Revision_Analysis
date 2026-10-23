@@ -28,4 +28,4 @@ def test_mcp_initialize_and_tools(client):
         "jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {},
     })
     assert response.status_code == 200
-    assert {t["name"] for t in response.json()["result"]["tools"]} == {"ensure_analysis_index", "search_evidence"}
+    assert {t["name"] for t in response.json()["result"]["tools"]} == {"ensure_analysis_index", "search_evidence", "search_market_news", "read_market_news"}

@@ -18,7 +18,7 @@ export const stages = [
   'REPORT_SAVE',
 ] as const
 export type AnalysisStage = (typeof stages)[number]
-export type PerspectiveType = 'INDUSTRY_CONTRACT' | 'FINANCE' | 'FX_HEDGE'
+export type PerspectiveType = 'INDUSTRY_CONTRACT' | 'FINANCE' | 'FX_HEDGE' | 'MARKET_NEWS'
 export type PerspectiveStatus =
   'REGISTERED' | 'RUNNING' | 'COMPLETED' | 'INSUFFICIENT_EVIDENCE' | 'LIMIT_REACHED' | 'FAILED'
 export type ImpactType =
@@ -166,6 +166,7 @@ export const perspectiveLabels: Record<PerspectiveType, string> = {
   INDUSTRY_CONTRACT: '산업 및 계약',
   FINANCE: '재무,실적',
   FX_HEDGE: '환율 및 헤지',
+  MARKET_NEWS: '시황 뉴스',
 }
 export const stageLabels: Record<AnalysisStage, string> = {
   REQUEST_VALIDATION: '요청 확인',

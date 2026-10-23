@@ -1,0 +1,12 @@
+/usr/local/lib/python3.12/site-packages/pydantic/main.py:520: UserWarning: Pydantic serializer warnings:
+  PydanticSerializationUnexpectedValue(Expected `none` - serialized value may not be as expected [field_name='parsed', input_value=NewsPlan(article_ids=['a6...할 수 있습니다.'), input_type=NewsPlan])
+  return self.__pydantic_serializer__.to_python(
+/usr/local/lib/python3.12/site-packages/pydantic/main.py:520: UserWarning: Pydantic serializer warnings:
+  PydanticSerializationUnexpectedValue(Expected `none` - serialized value may not be as expected [field_name='parsed', input_value=PerspectiveAnswer(status=...되지 않습니다.']), input_type=PerspectiveAnswer])
+  return self.__pydantic_serializer__.to_python(
+/usr/local/lib/python3.12/site-packages/pydantic/main.py:520: UserWarning: Pydantic serializer warnings:
+  PydanticSerializationUnexpectedValue(Expected `none` - serialized value may not be as expected [field_name='parsed', input_value=ReportSummary(summary=[Ci..., evidence_ids=['S1'])]), input_type=ReportSummary])
+  return self.__pydantic_serializer__.to_python(
+/usr/local/lib/python3.12/site-packages/pydantic/main.py:520: UserWarning: Pydantic serializer warnings:
+  PydanticSerializationUnexpectedValue(Expected `none` - serialized value may not be as expected [field_name='parsed', input_value=OutputReview(evidence_che...11, 12, 13, 14, 15, 16]), input_type=OutputReview])
+  return self.__pydantic_serializer__.to_python(
