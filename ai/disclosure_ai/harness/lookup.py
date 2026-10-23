@@ -41,6 +41,12 @@ def normalize(args):
     return result
 
 
+def cache_key(scope, name, args):
+    return hashlib.sha256(
+        json.dumps([scope, name, args], sort_keys=True, ensure_ascii=False).encode()
+    ).hexdigest()
+
+
 async def call(harness, name, args, invoke, *, report=False, scope=""):
     if harness.guard and name != "business_save_report":
         await harness.guard(harness.task_id)
@@ -48,9 +54,7 @@ async def call(harness, name, args, invoke, *, report=False, scope=""):
         args = normalize(args)
     except (ValueError, TypeError):
         return {"error": "INVALID_TOOL_INPUT"}
-    key = hashlib.sha256(
-        json.dumps([scope, name, args], sort_keys=True, ensure_ascii=False).encode()
-    ).hexdigest()
+    key = cache_key(scope, name, args)
     cached = harness.ledger.cached(harness.task_id, key)
     if cached is not None:
         return cached

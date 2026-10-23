@@ -131,10 +131,21 @@ export interface ReviewReport {
   changes: { label: string; before: string; after: string }[]
   perspectiveDecisions?: { type: Perspective['type']; selected: boolean; reason: string }[]
   memoReview?: { status: 'KEEP' | 'HOLD'; reason: string; evidenceIds: string[] }
+  reviewPoints?: ReviewPoint[]
   findings: Finding[]
   evidence: Evidence[]
   warnings: string[]
   noAdditionalAnalysisReason: string | null
+}
+export interface ReviewPoint {
+  perspectiveType: PerspectiveType
+  title: string
+  memoView: string
+  disclosureFact: string
+  reason: string
+  question: string
+  checkItems: string[]
+  evidenceIds: string[]
 }
 export interface StartAnalysisInput {
   filingId: string

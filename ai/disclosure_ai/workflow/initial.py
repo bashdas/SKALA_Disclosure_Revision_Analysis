@@ -7,8 +7,10 @@ from disclosure_ai.services.documents import (
     model_context,
     reference_frames,
     search_documents,
+    validated_review_points,
     validated_sources,
 )
+from disclosure_ai.services.history import acquire, model_history, validated_comparisons
 
 
 async def collect(run, state):
@@ -62,8 +64,9 @@ async def collect(run, state):
 
 async def prepare(run, state):
     await run.stage(state, "RAG_PREPARATION")
-    documents = state["filing"]["documents"] + [state["memo"]]
-    context = list(state["filing"].get("changes", []))
+    documents = state["filing"]["documents"] + [state["memo"]] + state.get("documents", [])
+    documents = list({doc["document_id"]: doc for doc in documents}.values())
+    context = list(state["filing"].get("changes", [])) + state.get("context", [])
     if state["filing"].get("analysis_type") != "CORRECTION" or not context:
         # 검색 점수가 낮은 일정 안내도 실제 공시 원문이 모델 입력에 남도록 합니다.
         context.extend(
@@ -136,11 +139,26 @@ async def impact(run, state):
             {
                 "request": state["request"],
                 "analysis_type": kind,
-                **model_context(state["filing"], state["context"], state["memo"]),
+                "history": model_history(state.get("history", {})),
+                "history_lookup_allowed": not state.get("history_reanalyzed", False),
+                **model_context(state["filing"], state["context"], state["memo"], state.get("history")),
             },
             BaseAnalysis,
         )
         data = base.model_dump()
+        assessment = data["history_assessment"]
+        if (assessment["status"] == "REQUIRED" and not state.get("history_reanalyzed")
+                and not data.get("history_request")):
+            data["history_request"] = {"reason": assessment["reason"], "evidence": assessment["evidence"],
+                                       "receipt_no": None}
+        data["history_comparisons"] = validated_comparisons(data["history_comparisons"], state)
+        points = validated_review_points(
+            data["review_points"], state["filing"], state["memo"],
+            state["documents"], state["context"],
+        )
+        if len(points) != len(data["review_points"]):
+            data["limitations"].append("기존 메모와 이번 공시 양쪽의 근거를 확인하지 못한 재검토 관점은 제외했습니다.")
+        data["review_points"] = points
         if kind == "UNKNOWN":
             data["limitations"].append(
                 "공시 유형을 확정하지 못했습니다. "
@@ -193,3 +211,27 @@ async def impact(run, state):
         raise
     except Exception as error:
         return {"warnings": ["기본 분석 미수행: " + type(error).__name__]}
+
+
+async def history_auto(run, state):
+    if (state["filing"].get("analysis_type") != "CORRECTION"
+            or not state["request"]["disclosure_receipt_no"].isdigit()):
+        return {}
+    return await history_update(run, state, automatic=True)
+
+
+async def history_requested(run, state):
+    result = await history_update(run, state, request=state["base"]["history_request"])
+    result["history_reanalyzed"] = True
+    return result
+
+
+async def history_update(run, state, request=None, *, automatic=False):
+    result = await acquire(run, state, request, automatic=automatic)
+    documents = {doc["document_id"]: doc for doc in state.get("documents", [])}
+    count = len(documents)
+    documents.update({doc["document_id"]: doc for doc in result.get("documents", [])})
+    context = state.get("context", []) + result.get("sources", [])
+    return {"history": result["history"], "documents": list(documents.values()),
+            "context": validated_sources(context, list(documents.values()) + state["filing"]["documents"] + [state["memo"]], context),
+            "history_added": len(documents) > count}

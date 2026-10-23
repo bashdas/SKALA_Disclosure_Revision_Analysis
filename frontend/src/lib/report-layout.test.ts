@@ -186,3 +186,20 @@ it('출처 구역의 원문은 토글용으로 보존하고 선택 이유는 제
   expect(layout.blocks.at(-1)).toMatchObject({ type: 'sources' })
   expect(displayedMarkdown(value).html).not.toContain('예전 선택 이유')
 })
+
+it('재검토 관점은 수정 제안이 없어도 공시 사실보다 먼저 표시하고 중복 본문을 대체합니다', () => {
+  const point = { perspectiveType: 'FINANCE' as const, title: '성장 가정 재검토',
+    memoView: '기존 성장 가정', disclosureFact: '새로운 계약 조건', reason: '반영 범위 확인',
+    question: '기존 전망에 반영됐습니까?', checkItems: ['계약 조건'], evidenceIds: ['source-0'] }
+  const value = report('## 핵심 요약\n\n요약\n\n## 새롭게 고찰할 관점\n\n원문 관점\n\n## 확인된 공시 내용\n\n공시 사실', {
+    reviewPoints: [point],
+  })
+  const { layout, html } = displayedMarkdown(value)
+  expect(layout.blocks.map((b) => b.type === 'markdown' ? b.heading : b.type)).toEqual([
+    '핵심 요약', 'review-points', '확인된 공시 내용',
+  ])
+  expect(html).not.toContain('원문 관점')
+  const incomplete = displayedMarkdown({ ...value, reviewPoints: [{ ...point, reason: '' }] })
+  expect(incomplete.html).toContain('원문 관점')
+  expect(incomplete.layout.blocks.some((b) => b.type === 'review-points')).toBe(false)
+})

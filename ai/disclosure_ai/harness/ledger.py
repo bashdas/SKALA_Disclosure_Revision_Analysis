@@ -35,10 +35,15 @@ class Ledger:
             CREATE TABLE IF NOT EXISTS source_bodies (
                 run_id TEXT NOT NULL, content_key TEXT NOT NULL, text TEXT NOT NULL,
                 PRIMARY KEY(run_id, content_key));
+            CREATE TABLE IF NOT EXISTS history_budget (
+                run_id TEXT PRIMARY KEY, elapsed REAL NOT NULL DEFAULT 0,
+                started REAL, receipts TEXT NOT NULL DEFAULT '[]', snapshot TEXT NOT NULL DEFAULT '{}');
         """)
         columns = {row[1] for row in self.db.execute("PRAGMA table_info(runs)")}
         if "input_key" not in columns:
             self.db.execute("ALTER TABLE runs ADD COLUMN input_key TEXT NOT NULL DEFAULT ''")
+        if "snapshot" not in {row[1] for row in self.db.execute("PRAGMA table_info(history_budget)")}:
+            self.db.execute("ALTER TABLE history_budget ADD COLUMN snapshot TEXT NOT NULL DEFAULT '{}'")
         self.db.execute("CREATE INDEX IF NOT EXISTS runs_input_key ON runs(input_key)")
         self.db.commit()
         os.chmod(path, 0o600)
@@ -106,6 +111,54 @@ class Ledger:
             (task_id, key, tool, state, attempt, time.time()),
         )
         self.db.commit()
+
+    def begin_history(self, task_id):
+        self.db.execute("INSERT OR IGNORE INTO history_budget(run_id) VALUES(?)", (task_id,))
+        row = self.db.execute(
+            "SELECT elapsed,started FROM history_budget WHERE run_id=?", (task_id,)
+        ).fetchone()
+        # 중단 후에도 예산을 복원하지 않고 이전 미완료 구간의 시간을 보수적으로 포함합니다.
+        elapsed = min(30, row[0] + (max(0, time.time() - row[1]) if row[1] else 0))
+        self.db.execute("UPDATE history_budget SET elapsed=?,started=? WHERE run_id=?",
+                        (elapsed, time.time(), task_id))
+        self.db.commit()
+        return 30 - elapsed
+
+    def end_history(self, task_id):
+        self.db.execute(
+            "UPDATE history_budget SET elapsed=MIN(30,elapsed+MAX(0,?-started)),started=NULL "
+            "WHERE run_id=? AND started IS NOT NULL", (time.time(), task_id),
+        )
+        self.db.commit()
+
+    def reserve_history_document(self, task_id, receipt):
+        row = self.db.execute(
+            "SELECT receipts FROM history_budget WHERE run_id=?", (task_id,)
+        ).fetchone()
+        receipts = json.loads(row[0])
+        if receipt in receipts:
+            return True
+        if len(receipts) >= 3:
+            return False
+        self.db.execute("UPDATE history_budget SET receipts=? WHERE run_id=?",
+                        (json.dumps([*receipts, receipt]), task_id))
+        self.db.commit()
+        return True
+
+    def history_receipts(self, task_id):
+        row = self.db.execute(
+            "SELECT receipts FROM history_budget WHERE run_id=?", (task_id,)
+        ).fetchone()
+        return json.loads(row[0]) if row else []
+
+    def save_history(self, task_id, history):
+        self.db.execute("UPDATE history_budget SET snapshot=? WHERE run_id=?",
+                        (json.dumps(history, ensure_ascii=False), task_id))
+        self.db.commit()
+
+    def history_snapshot(self, task_id):
+        row = self.db.execute("SELECT snapshot FROM history_budget WHERE run_id=?", (task_id,)).fetchone()
+        return json.loads(row[0]) if row else {}
 
     def cache(self, task_id, key, result, scope):
         from disclosure_ai.harness.lookup import canonical_url

@@ -5,7 +5,13 @@ from datetime import datetime, timezone
 from disclosure_ai.harness.output import safe_text
 from disclosure_ai.schemas import ReportSummary
 from disclosure_ai.services.business import RunCancelled
-from disclosure_ai.services.documents import analysis_context, reference_frames, validated_sources
+from disclosure_ai.services.documents import (
+    analysis_context,
+    reference_frames,
+    validated_review_points,
+    validated_sources,
+)
+from disclosure_ai.services.history import ROLES, restore_history, validated_comparisons
 from disclosure_ai.workflow.perspectives import finish_perspective
 
 PERSPECTIVE_NAMES = {
@@ -21,6 +27,8 @@ STATUS_NAMES = {
 }
 SECTION_TITLES = {
     "summary": "핵심 요약",
+    "review_points": "새롭게 고찰할 관점",
+    "history": "조회한 과거 공시와 비교 범위",
     "correction": "확인된 공시 내용",
     "memo_impact": "메모 영향",
     "suggestions": "메모 유지 및 수정 제안",
@@ -37,6 +45,16 @@ def escape(value):
 
 def source_key(source):
     return source["document_id"], source["location"], source["quote"]
+
+
+def report_history(state):
+    history = state.get("history", {})
+    return {**history, "items": [
+        {**{k: v for k, v in item.items() if k != "relation_evidence"},
+         "evidence": validated_sources([*item.get("evidence", []), *item.get("relation_evidence", [])],
+                                       state.get("documents", []), state.get("context", []))}
+        for item in history.get("items", [])
+    ]} if history else {}
 
 
 async def join(run, state):
@@ -72,6 +90,12 @@ async def report(run, state):
     await run.stage(state, "REPORT_GENERATION")
     original = state.get("base") or {}
     documents, fragments = state.get("documents", []), state.get("context", [])
+    history = report_history(state)
+    comparisons = validated_comparisons(original.get("history_comparisons", []), state)
+    review_points = validated_review_points(
+        original.get("review_points", []), state.get("filing", {}), state.get("memo", {}),
+        documents, fragments,
+    )
     proposals = []
     for item in original.get("proposals", []):
         evidence = validated_sources(item.get("evidence", []), documents, fragments)
@@ -84,7 +108,7 @@ async def report(run, state):
         ):
             proposals.append({**item, "evidence": evidence})
     memo_review = None
-    if not proposals and original:
+    if not proposals and not review_points and original:
         supplied = original.get("memo_review") or {}
         evidence = validated_sources(supplied.get("evidence", []), documents, fragments)
         reason = supplied.get("reason", "").strip()
@@ -96,7 +120,7 @@ async def report(run, state):
         memo_review = {
             "status": "KEEP" if keep else "HOLD",
             "reason": reason if reason and (keep or supplied.get("status") == "HOLD") else
-                "검증 가능한 메모 수정안을 확인하지 못해 영향 판단을 보류했습니다. "
+                "기존 메모의 관점과 이번 공시를 연결할 근거를 확인하지 못해 재검토 필요성 판단을 보류했습니다. "
                 "공시와 기존 메모의 연결 근거를 추가 확인해야 합니다.",
             "evidence": evidence,
         }
@@ -129,6 +153,9 @@ async def report(run, state):
     evidence = validated_sources(frames["applied_valuation_rows"], documents, fragments)
     evidence += [item["source"] for item in corrections]
     evidence += [s for item in proposals for s in item["evidence"]]
+    evidence += [s for item in review_points for s in item["evidence"]]
+    evidence += [s for item in history.get("items", []) for s in item["evidence"]]
+    evidence += [s for item in comparisons for s in item["evidence"]]
     evidence += [s for item in results.values() for s in item["sources"]]
     evidence += memo_review["evidence"] if memo_review else []
     filing_facts = []
@@ -161,11 +188,17 @@ async def report(run, state):
             for item, scoped in zip(corrections, scoped_changes, strict=True)
         ],
         "proposals": [cited(item, item["evidence"]) for item in proposals],
+        "review_points": [cited(item, item["evidence"]) for item in review_points],
+        "history_comparisons": [cited(item, item["evidence"]) for item in comparisons],
+        "disclosure_history": {"status": history.get("status"), "items": [
+            cited({key: item.get(key) for key in ("receipt_no", "role", "status", "report_name", "published_at", "relation", "reason")},
+                  item["evidence"]) for item in history.get("items", [])]},
         "results": {k: cited(v, v["sources"]) for k, v in results.items() if v["findings"]},
     }
     claims, scenarios = [], []
     warnings = list(state.get("warnings", []))
     warnings.extend(original.get("limitations", []))
+    warnings.extend(history.get("limitations", []))
     for result in state.get("results", {}).values():
         warnings.extend(result.get("limitations", []))
     for name, label in (("filing", "공시"), ("memo", "메모")):
@@ -211,13 +244,19 @@ async def report(run, state):
         state.get("filing", {}).get("changes", []), documents, fragments
     )
     selections = [
-        {**item, "evidence": selection_sources[:8]} for item in original.get("selected", [])
+        {**item, "evidence": list({source_key(s): s for s in [
+            *selection_sources,
+            *(s for point in review_points if point["perspective_type"] == item["perspective_type"]
+              for s in point["evidence"]),
+        ]}.values())[:8]} for item in original.get("selected", [])
     ]
     payload = {
         "request": state["request"],
         "base": {
             "summary": "",
             "proposals": proposals,
+            "review_points": review_points,
+            "history_assessment": original.get("history_assessment"),
             "selected": selections,
             "not_selected": original.get("not_selected", []),
             "no_additional_analysis_reason": original.get("no_additional_analysis_reason"),
@@ -228,6 +267,7 @@ async def report(run, state):
         "results": results,
         "summary_claims": claims,
         "future_impacts": scenarios,
+        "history_comparisons": comparisons,
     }
     checked, check_warnings = await run.h.review_output(
         payload, grounding=True, corrections=corrections, advisory=True
@@ -239,11 +279,15 @@ async def report(run, state):
         for item in checked["base"]["proposals"]
         if item.get("reason") and (item.get("impact_type") in {"NO_IMPACT", "INTERPRETATION_REVIEW"} or item.get("after_text"))
     ]
-    if not checked["base"]["proposals"] and (
+    checked["base"]["review_points"] = validated_review_points(
+        checked["base"]["review_points"], state.get("filing", {}), state.get("memo", {}),
+        documents, fragments,
+    )
+    if not checked["base"]["proposals"] and not checked["base"]["review_points"] and (
         not checked.get("memo_review") or not checked["memo_review"].get("reason", "").strip()
     ):
         checked["memo_review"] = {
-            "status": "HOLD", "reason": "메모 수정안의 이유 또는 본문을 검증하지 못해 영향 판단을 보류했습니다.",
+            "status": "HOLD", "reason": "재검토 관점 또는 수정 제안의 근거를 검증하지 못해 판단을 보류했습니다.",
             "evidence": [],
         }
     for item in checked["results"].values():
@@ -251,6 +295,10 @@ async def report(run, state):
             item["status"], item["sources"] = "INSUFFICIENT_EVIDENCE", []
     checked["corrections"] = corrections
     checked["filing_facts"] = filing_facts
+    history["comparisons"] = validated_comparisons(checked.pop("history_comparisons"), state)
+    if len(history["comparisons"]) < len(comparisons):
+        warnings.append("근거 검사를 통과하지 못한 과거·현재 비교 항목은 보고서에서 제외했습니다.")
+    checked["disclosure_history"] = history
     omitted = len(original.get("proposals", [])) - len(checked["base"]["proposals"])
     if omitted:
         warnings.append(
@@ -275,6 +323,9 @@ def compose(data):
     all_sources += data.get("filing_facts", [])
     all_sources += (data.get("memo_review") or {}).get("evidence", [])
     all_sources += [s for item in base.get("proposals", []) for s in item["evidence"]]
+    all_sources += [s for item in base.get("review_points", []) for s in item["evidence"]]
+    all_sources += [s for item in data.get("disclosure_history", {}).get("items", []) for s in item.get("evidence", [])]
+    all_sources += [s for item in data.get("disclosure_history", {}).get("comparisons", []) for s in item["evidence"]]
     all_sources += [s for item in results.values() for s in item["sources"]]
     all_sources += [
         s for item in data.get("summary_claims", []) if item["text"] for s in item["evidence"]
@@ -289,10 +340,46 @@ def compose(data):
         return " ".join(f"[근거 {numbers[source_key(s)]}]" for s in items)
 
     sections = {key: "" for key in SECTION_TITLES}
+    history = data.get("disclosure_history", {})
+    if history.get("requested"):
+        rows = []
+        for item in history.get("items", []):
+            rows.append("### " + ROLES.get(item["role"], "추가 공시") + " " + escape(item["receipt_no"]))
+            if item.get("status") == "ACQUIRED":
+                rows.append(escape(item.get("report_name", "")) + " (" + escape(item.get("published_at", "")) + ")")
+                rows.append("연결 근거: " + escape(item.get("relation", "")) + " " + refs(item["evidence"]))
+                if item.get("relation_url"):
+                    rows.append("[DART 연결 목록 확인](" + item["relation_url"] + ")")
+                rows.append("확인 범위: 원문을 확보했습니다. 아래 분석에서 실제 인용한 계약 대상, 물량, 금액, 기간과 조건의 범위를 확인합니다. 원문 확보가 모든 조건의 확인을 뜻하지는 않습니다.")
+            else:
+                rows.append("비교 미완료: " + escape(item.get("reason", "원문을 확보하지 못했습니다.")))
+        if not rows:
+            rows.append("비교에 사용할 과거 공시 원문을 확보하지 못했습니다.")
+        for item in history.get("comparisons", []):
+            rows.extend(["### 비교 항목: " + escape(item["subject"]),
+                         "**과거 공시:** " + escape(item["past_fact"]),
+                         "**이번 공시:** " + escape(item["current_fact"]),
+                         "**비교 결과와 확인 범위:** " + escape(item["interpretation"]) + " " + refs(item["evidence"])])
+        if any(item.get("status") == "ACQUIRED" for item in history.get("items", [])) and not history.get("comparisons"):
+            rows.append("과거 원문은 확보했지만 양쪽 근거가 연결된 비교 결과는 작성되지 않았습니다. 원문 확보와 비교 완료를 구분합니다.")
+        rows.extend(escape(value) for value in history.get("limitations", []))
+        rows.extend(escape(value) for value in history.get("notes", []))
+        sections["history"] = "\n\n".join(rows)
     sections["summary"] = "\n".join(
         "- " + escape(item["text"]) + " " + refs(item["evidence"])
         for item in data.get("summary_claims", [])
         if item["text"]
+    )
+    sections["review_points"] = "\n\n".join(
+        f"### {i + 1}. {escape(point['title'])}\n\n"
+        f"**기존 메모의 관점과 가정:** {escape(point['memo_view'])}\n\n"
+        f"**새 공시에서 확인한 사실:** {escape(point['disclosure_fact'])}\n\n"
+        f"**다시 고찰할 이유:** {escape(point['reason'])}\n\n"
+        f"**검토 질문:** {escape(point['question'])}\n\n"
+        + "**확인할 자료와 조건:**\n\n"
+        + "\n".join("- " + escape(item) for item in point["check_items"])
+        + "\n\n" + refs(point["evidence"])
+        for i, point in enumerate(base.get("review_points", []))
     )
     sections["future_impacts"] = "\n\n".join(
         "- " + escape(item["scenario"]) + " " + refs(item["evidence"])
@@ -332,9 +419,9 @@ def compose(data):
             suggestions.append(
                 f"**수정 제안 {i + 1}**\n\n기존: {escape(before)}\n\n수정: {escape(after)} {refs(item['evidence'])}"
             )
-    if not proposals:
+    if not proposals and not base.get("review_points"):
         decision = data.get("memo_review") or {
-            "status": "HOLD", "reason": "유지 또는 수정 여부를 확인할 판단 근거가 없어 보류했습니다.",
+            "status": "HOLD", "reason": "현재 자료에서 기존 관점의 재검토 필요성을 판단할 근거가 부족합니다.",
             "evidence": [],
         }
         data["memo_review"] = decision
@@ -434,6 +521,12 @@ async def save(run, state):
 
 def emergency(run, state, error):
     # 완료 검사를 거치지 못한 모델 문장은 재사용하지 않습니다.
+    restored = restore_history(run.h, state)
+    documents = list({d["document_id"]: d for d in
+                      [*state.get("documents", []), *restored["documents"]]}.values())
+    historical_sources = [s for item in restored["history"].get("items", []) for s in item.get("evidence", [])]
+    state = {**state, "documents": documents, "history": restored["history"],
+             "context": [*state.get("context", []), *historical_sources]}
     selected = [
         {"perspective_type": item["perspective_type"], "selection_reason": ""}
         for item in state.get("base", {}).get("selected", [])
@@ -447,6 +540,7 @@ def emergency(run, state, error):
         },
         "corrections": [],
         "summary_claims": [],
+        "disclosure_history": report_history(state),
         "warnings": [
             "분석 처리를 완료하지 못해 분석 내용을 작성하지 않았습니다. " + type(error).__name__
         ],

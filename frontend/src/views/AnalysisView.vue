@@ -22,6 +22,7 @@ import EmptyState from '../components/EmptyState.vue'
 import MarkdownReport from '../components/MarkdownReport.vue'
 import AnalysisPerspectives from '../components/AnalysisPerspectives.vue'
 import MemoRevisionProposals from '../components/MemoRevisionProposals.vue'
+import ReviewPoints from '../components/ReviewPoints.vue'
 import { reportLayout } from '../lib/report-layout'
 import { downloadReport } from '../services/http'
 const store = useWorkspace(),
@@ -176,7 +177,7 @@ async function download(extension: 'md' | 'pdf') {
       </template>
       <div class="unified-report-content">
         <p v-if="exportError" class="inline-warning" role="alert">{{ exportError }}</p>
-        <section v-if="!report.findings.length" class="report-fallback" data-testid="memo-review-decision">
+        <section v-if="!report.findings.length && !report.reviewPoints?.length" class="report-fallback" data-testid="memo-review-decision">
           <h2>{{ report.memoReview?.status === 'KEEP' ? '기존 메모 유지' : '메모 영향 판단 보류' }}</h2>
           <p>{{ report.memoReview?.reason || '유지 또는 수정 여부를 확인할 판단 근거가 없습니다. 재분석이 필요합니다.' }}</p>
           <div v-if="report.memoReview?.evidenceIds.length" class="evidence-chips">
@@ -220,6 +221,12 @@ async function download(extension: 'md' | 'pdf') {
             :evidence="report.evidence"
             @open-evidence="store.openEvidence"
             @open-memo="store.openMemo(task.memoId, task.baseMemoVersion, $event)"
+          />
+          <ReviewPoints
+            v-else-if="block.type === 'review-points'"
+            :points="report.reviewPoints ?? []"
+            :evidence="report.evidence"
+            @open-evidence="store.openEvidence"
           />
           <section v-else-if="block.type === 'summary'" class="report-fallback">
             <h2>핵심 요약</h2>

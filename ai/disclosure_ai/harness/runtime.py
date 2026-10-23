@@ -21,6 +21,8 @@ class Harness:
         self.ledger = ledger
         self.call_model = call_model
         self.inflight = {}
+        self.history_lock = asyncio.Lock()
+        self.history_data = {}
         self.client = None
         self.guard = None
         # 인코딩 파일도 실행 산출물 경로에 보관합니다.
@@ -67,6 +69,8 @@ class Harness:
                 kind = "UNKNOWN"
             system += (prompts / f"base_{kind.lower()}.md").read_text()
         input_limit, output_limit = (6000, 1500) if role == "perspective" else (10000, 2000)
+        if context.get("history_context"):
+            input_limit = 8000 if role == "perspective" else 14000
         if role == "base":
             output_limit = 4000
         content = mask(json.dumps(context, ensure_ascii=False))

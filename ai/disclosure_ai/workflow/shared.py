@@ -2,6 +2,7 @@ import asyncio
 
 from disclosure_ai.harness.lookup import normalize
 from disclosure_ai.services.documents import search_documents
+from disclosure_ai.services.history import acquire, merge_history
 from disclosure_ai.workflow.perspectives import finish_perspective
 
 
@@ -20,7 +21,10 @@ async def requests(run, state):
             continue
         for lookup in job["requests"]:
             name, query = lookup["tool"], lookup["query"]
-            if name == "local_search":
+            if name == "disclosure_history":
+                args = {"reason": query, "receipt_no": lookup.get("receipt_no"),
+                        "evidence": lookup.get("evidence", [])}
+            elif name == "local_search":
                 args = {"query": query}
                 if state.get("rag_ready"):
                     name = "search_evidence"
@@ -46,12 +50,18 @@ async def lookup(run, state):
         async def local(_name, args):
             return {"sources": search_documents(state["documents"], args["query"])}
 
-        response = await run.h.tool(
-            item["tool"],
-            item["args"],
-            local if item["tool"] == "local_search" else run.tools.call,
-            scope=state["scope"],
-        )
+        if item["tool"] == "disclosure_history":
+            response = await acquire(run, state, item["args"])
+        else:
+            response = await run.h.tool(
+                item["tool"], item["args"],
+                local if item["tool"] == "local_search" else run.tools.call,
+                scope=state["scope"],
+            )
+        if item["tool"] in {"local_search", "search_evidence"}:
+            historical = [d for d in state["documents"] if d.get("history_role")]
+            response = {**response, "sources": [*response.get("sources", []),
+                        *search_documents(historical, item["args"]["query"])]}
         return {**item, "response": response}
 
     return {"lookup_results": await asyncio.gather(*(execute(item) for item in state["lookups"]))}
@@ -62,12 +72,14 @@ async def publish(run, state):
     documents = {doc["document_id"]: doc for doc in state["documents"]}
     fragments = list(state["context"])
     results, warnings = {}, []
+    history = state.get("history", {})
     for item in state.get("lookup_results", []):
         job = jobs[item["kind"]]
         response = item["response"]
+        history = merge_history(history, response.get("history", {}))
         job["observations"] = [
             *job.get("observations", []),
-            {"tool": item["tool"], "result": response},
+            {"tool": item["tool"], "result": {k: v for k, v in response.items() if k != "documents"}},
         ]
         job["limitations"] = list(
             dict.fromkeys(job.get("limitations", []) + response.get("limitations", []))
@@ -99,6 +111,7 @@ async def publish(run, state):
             job["status"] = "PENDING"
     return {
         "jobs": jobs,
+        "history": history,
         "results": results,
         "documents": list(documents.values()),
         "context": fragments,

@@ -221,3 +221,25 @@ it('빈 제안의 유지 또는 보류 판단과 이유를 표시합니다', asy
   }
   wrapper.unmount()
 })
+
+it('수정 문장이 없어도 재검토 관점을 중심에 표시하고 원문 근거를 엽니다', async () => {
+  const { store, wrapper } = await view(baseTask, {
+    ...baseReport, findings: [],
+    content: '## 핵심 요약\n\n가정을 다시 확인합니다.\n\n## 새롭게 고찰할 관점\n\n중복 표시하면 안 되는 본문',
+    reviewPoints: [{ perspectiveType: 'FINANCE', title: '로열티 성장 가정 재검토',
+      memoView: '기존 SC 전환 확대 가정입니다.', disclosureFact: '적용 제품 범위가 확대됐습니다.',
+      reason: '기존 전망의 적용 범위를 확인해야 합니다.', question: '확대 제품이 전망에 반영됐습니까?',
+      checkItems: ['제품별 계약 조건을 확인합니다.'], evidenceIds: ['source-0'] }],
+  })
+  expect(wrapper.find('[data-testid=memo-review-decision]').exists()).toBe(false)
+  expect(wrapper.find('.memo-proposals').exists()).toBe(false)
+  expect(wrapper.findAll('.review-points')).toHaveLength(1)
+  expect(wrapper.text()).not.toContain('중복 표시하면 안 되는 본문')
+  for (const text of ['기존 SC 전환 확대 가정입니다.', '확대 제품이 전망에 반영됐습니까?', '제품별 계약 조건을 확인합니다.']) {
+    expect(wrapper.text()).toContain(text)
+  }
+  await wrapper.get('.review-points .evidence-chips button').trigger('click')
+  expect(store.drawer?.content).toBe('근거 인용문')
+  expect(store.drawer?.url).toBe('https://example.com/filing')
+  wrapper.unmount()
+})

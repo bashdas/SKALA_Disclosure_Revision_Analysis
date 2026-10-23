@@ -3,7 +3,7 @@ import type { Perspective, ReviewReport } from '../types/domain'
 
 export type ReportBlock =
   | { type: 'markdown' | 'sources'; heading: string | null; range: MarkdownRange }
-  | { type: 'summary' | 'changes' | 'memo-proposals' | 'perspective-results' }
+  | { type: 'summary' | 'review-points' | 'changes' | 'memo-proposals' | 'perspective-results' }
 
 const key = (heading: string | null) => heading?.replace(/\s+/g, '') ?? ''
 const memoHeadings = new Set(['메모영향', '메모수정제안', '메모유지및수정제안'])
@@ -25,6 +25,10 @@ export function reportLayout(report: ReviewReport, perspectives: Perspective[]) 
   const replaceMemo =
     report.findings.length > 0 &&
     report.findings.every((f) => f.beforeText?.trim() && f.reason?.trim())
+  const replaceReviews = !!report.reviewPoints?.length && report.reviewPoints.every(
+    (p) => p.title.trim() && p.memoView.trim() && p.disclosureFact.trim() && p.reason.trim()
+      && p.question.trim() && p.checkItems.length && p.evidenceIds.length,
+  )
   const fallbackSummary =
     !hasSection(new Set(['핵심요약'])) &&
     !!report.summary.trim() &&
@@ -35,6 +39,7 @@ export function reportLayout(report: ReviewReport, perspectives: Perspective[]) 
     resultsAdded = false,
     summaryAdded = false,
     changesAdded = false
+  let reviewsAdded = false
 
   function addSummary() {
     if (fallbackSummary && !summaryAdded) {
@@ -46,6 +51,12 @@ export function reportLayout(report: ReviewReport, perspectives: Perspective[]) 
     if (fallbackChanges && !changesAdded) {
       blocks.push({ type: 'changes' })
       changesAdded = true
+    }
+  }
+  function addReviews() {
+    if (replaceReviews && !reviewsAdded) {
+      blocks.push({ type: 'review-points' })
+      reviewsAdded = true
     }
   }
   function addMemo() {
@@ -64,6 +75,8 @@ export function reportLayout(report: ReviewReport, perspectives: Perspective[]) 
     const heading = key(section.heading)
     if (selectionHeadings.has(heading)) continue
     if (heading) addSummary()
+    if (heading && heading !== '핵심요약') addReviews()
+    if (heading === '새롭게고찰할관점' && replaceReviews) continue
     if (memoHeadings.has(heading) || lateHeadings.has(heading)) addChanges()
     if (replaceMemo && memoHeadings.has(heading)) {
       addMemo()
@@ -91,6 +104,7 @@ export function reportLayout(report: ReviewReport, perspectives: Perspective[]) 
     )
   }
   addSummary()
+  addReviews()
   addChanges()
   addMemo()
   addResults()

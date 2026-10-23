@@ -190,6 +190,9 @@ interface ReportRow {
     sources?: Source[]
     memo_review?: { status: 'KEEP' | 'HOLD'; reason: string; evidence: Source[] } | null
     base?: { summary?: string; proposals?: Proposal[];
+      review_points?: { perspective_type: Perspective['type']; title: string;
+        memo_view: string; disclosure_fact: string; reason: string; question: string;
+        check_items: string[]; evidence: Source[] }[];
       selected?: { perspective_type: Perspective['type']; selection_reason: string }[];
       not_selected?: { perspective_type: Perspective['type']; reason: string }[] }
     summary_claims?: { text: string }[]
@@ -199,9 +202,10 @@ interface ReportRow {
 }
 export function mapReport(row: ReportRow): ReviewReport {
   const data = row.report_json,
-    proposals = data.base?.proposals ?? []
+    proposals = data.base?.proposals ?? [],
+    reviewPoints = data.base?.review_points ?? []
   const sources = [...(data.sources ?? [])]
-  for (const source of [...proposals.flatMap((p) => p.evidence), ...(data.memo_review?.evidence ?? [])]) {
+  for (const source of [...proposals.flatMap((p) => p.evidence), ...reviewPoints.flatMap((p) => p.evidence), ...(data.memo_review?.evidence ?? [])]) {
       if (
         !sources.some(
           (s) =>
@@ -242,13 +246,25 @@ export function mapReport(row: ReportRow): ReviewReport {
       ...(data.base.selected ?? []).map((p) => ({ type: p.perspective_type, selected: true, reason: p.selection_reason })),
       ...(data.base.not_selected ?? []).map((p) => ({ type: p.perspective_type, selected: false, reason: p.reason })),
     ] : undefined,
-    memoReview: proposals.length ? undefined : {
+    memoReview: proposals.length || reviewPoints.length ? undefined : {
       status: data.memo_review?.status ?? 'HOLD',
       reason: data.memo_review?.reason || '이 보고서에는 유지 또는 수정 여부를 확인할 판단 근거가 저장되지 않았습니다. 재분석이 필요합니다.',
       evidenceIds: (data.memo_review?.evidence ?? []).map((s) =>
         `source-${sources.findIndex((e) => e.document_id === s.document_id && e.location === s.location && e.quote === s.quote)}`,
       ),
     },
+    reviewPoints: reviewPoints.map((p) => ({
+      perspectiveType: p.perspective_type,
+      title: p.title,
+      memoView: p.memo_view,
+      disclosureFact: p.disclosure_fact,
+      reason: p.reason,
+      question: p.question,
+      checkItems: p.check_items,
+      evidenceIds: p.evidence.map((s) =>
+        `source-${sources.findIndex((e) => e.document_id === s.document_id && e.location === s.location && e.quote === s.quote)}`,
+      ),
+    })),
     findings: proposals.map((p) => ({
       id: p.claim_id,
       beforeText: p.before_text,

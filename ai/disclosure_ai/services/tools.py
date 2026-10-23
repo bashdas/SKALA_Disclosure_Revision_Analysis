@@ -28,7 +28,11 @@ class Tools:
                 "text": memo["content"],
                 "version": memo["version"],
             }
-        if name == "disclosure_get_document":
+        if name in {"history_family", "history_search"}:
+            tool = ("opendart_get_disclosure_family" if name == "history_family"
+                    else "opendart_search_disclosures")
+            return await mcp_call("EXTERNAL", tool, args)
+        if name in {"disclosure_get_document", "history_document"}:
             result = await mcp_call(
                 "EXTERNAL", "get_disclosure", {"receipt_no": args["receipt_no"]}
             )

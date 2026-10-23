@@ -310,7 +310,7 @@ def reference_frames(filing, memo):
     return {"applied_valuation_rows": valuation, "contract_amount_scopes": scopes}
 
 
-def model_context(filing, fragments, memo):
+def model_context(filing, fragments, memo, history=None):
     """정정표와 메모의 관련 줄을 먼저 전달하고 검증용 원문은 상태에 보존합니다."""
     lines = memo.get("text", "").splitlines()
     chosen, size = set(), 0
@@ -326,9 +326,20 @@ def model_context(filing, fragments, memo):
             chosen.update(group)
             size += length
     excerpt = "\n".join(lines[i] for i in sorted(chosen))
-    context = analysis_context(
-        filing, [s for s in fragments if s["document_id"] != memo.get("document_id")]
-    )
+    historical = {item["document_id"]: item for item in (history or {}).get("items", [])
+                  if item.get("status") == "ACQUIRED" and item.get("document_id")}
+    history_context = []
+    for doc_id, item in historical.items():
+        size = 0
+        for source in fragments:
+            if source["document_id"] != doc_id or size >= 1800:
+                continue
+            quote = source["quote"][:1800 - size]
+            history_context.append({**source, "quote": quote, "history_role": item["role"],
+                                    "receipt_no": item["receipt_no"]})
+            size += len(quote)
+    context = analysis_context(filing, [s for s in fragments
+        if s["document_id"] != memo.get("document_id") and s["document_id"] not in historical])
     # 정정표는 모든 행을 우선 보존하며 중복 검색 조각이 이를 밀어내지 않게 합니다.
     changes = [s for s in context if "before" in s and "after" in s]
     rest, size = [], sum(len(json.dumps(s, ensure_ascii=False)) for s in changes)
@@ -345,6 +356,7 @@ def model_context(filing, fragments, memo):
                        "document_ids": [d["document_id"] for d in filing.get("documents", [])]},
         "memo": {**memo, "text": excerpt, "location": "memo", "excerpted": len(chosen) < len(lines)},
         "context": changes + rest,
+        "history_context": history_context,
         "reference_frames": reference_frames(filing, memo),
     }
 
@@ -401,6 +413,24 @@ def validated_sources(sources: list[dict], documents: list[dict], fragments=()) 
                 }
             )
     return list({(s["document_id"], s["location"], s["quote"]): s for s in accepted}.values())
+
+
+def validated_review_points(points, filing, memo, documents, fragments):
+    """재검토 관점은 기준 메모와 이번 공시 양쪽의 원문 연결을 요구합니다."""
+    filing_ids = {doc["document_id"] for doc in filing.get("documents", [])}
+    memo_id = memo.get("document_id")
+    accepted = []
+    for point in points:
+        evidence = validated_sources(point.get("evidence", []), documents, fragments)
+        ids = {source["document_id"] for source in evidence}
+        if (memo_id not in ids or not (ids - {memo_id}) & filing_ids
+                or any(not point.get(key, "").strip() for key in
+                       ("title", "memo_view", "disclosure_fact", "reason", "question"))
+                or not point.get("check_items")
+                or any(not item.strip() for item in point["check_items"])):
+            continue
+        accepted.append({**point, "evidence": evidence})
+    return accepted
 
 
 def normalize_evidence(result, kind, args):

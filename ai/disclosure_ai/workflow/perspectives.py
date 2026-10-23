@@ -5,6 +5,7 @@ from disclosure_ai.errors import LimitReached
 from disclosure_ai.schemas import PerspectiveAnswer
 from disclosure_ai.services.business import RunCancelled
 from disclosure_ai.services.documents import model_context, validated_sources
+from disclosure_ai.services.history import model_history
 
 
 def selected(state):
@@ -38,8 +39,11 @@ async def perspective(run, state):
                 "selection": selection,
                 "request": state["request"],
                 "base": {"selected": state["base"].get("selected", [])},
-                **model_context(state.get("filing", {}), state["context"], state.get("memo", {})),
+                "review_points": [point for point in state["base"].get("review_points", [])
+                                  if point["perspective_type"] == kind],
+                **model_context(state.get("filing", {}), state["context"], state.get("memo", {}), state.get("history")),
                 "observations": observations,
+                "history": model_history(state.get("history", {})),
             },
             PerspectiveAnswer,
         )

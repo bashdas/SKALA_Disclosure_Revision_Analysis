@@ -209,7 +209,8 @@ def test_expired_run_preserves_nested_checkpoint_sources_without_network(ledger)
         report = result["output"]["report"]
         assert result["output"]["status"] == "SAVE_FAILED"
         assert report["report_json"]["sources"][0]["quote"] == source["quote"]
-        assert len(report["report_json"]["sections"]) == 7
+        assert "review_points" in report["report_json"]["sections"]
+        assert len(report["report_json"]["sections"]) == 9
         assert ledger.row("task")["turns"] == 0
         assert ledger.row("task")["report"]
 

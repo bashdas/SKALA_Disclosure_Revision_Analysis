@@ -278,3 +278,24 @@ it('보고서에 저장된 관점 선택과 미선택 이유를 함께 읽습니
   })
   expect(report.perspectiveDecisions?.filter((p) => !p.selected).map((p) => p.reason)).toEqual(['계약 영향 없음', '환율 영향 없음'])
 })
+
+it('수정 문장 없이 재검토 관점과 메모·공시 양쪽의 근거를 읽습니다', () => {
+  const memoSource = { document_id: 'memo:1', location: 'line:1', quote: '기존 로열티 성장 가정' }
+  const filingSource = { document_id: 'filing:new', location: 'line:2', quote: '적용 제품 범위 확대' }
+  const report = mapReport({ id: 'r', analysis_task_id: task.task_id, content: '보고서', generated_at: now,
+    saved_at: now, no_additional_analysis_reason: null, report_json: {
+      sources: [memoSource], base: { proposals: [], review_points: [{
+        perspective_type: 'FINANCE', title: '로열티 성장 가정 재검토', memo_view: '기존 가정입니다.',
+        disclosure_fact: '적용 제품 범위가 확대됐습니다.', reason: '기존 반영 범위를 확인합니다.',
+        question: '기존 전망에 반영되어 있습니까?', check_items: ['제품별 계약 조건을 확인합니다.'],
+        evidence: [memoSource, filingSource],
+      }] },
+    } })
+  expect(report.findings).toEqual([])
+  expect(report.memoReview).toBeUndefined()
+  expect(report.evidence).toHaveLength(2)
+  expect(report.reviewPoints?.[0]).toMatchObject({
+    title: '로열티 성장 가정 재검토', question: '기존 전망에 반영되어 있습니까?',
+    evidenceIds: ['source-0', 'source-1'],
+  })
+})

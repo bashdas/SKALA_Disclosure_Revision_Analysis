@@ -42,6 +42,8 @@ async def review_output(
         "before_text",
         "question",
         "calculation_basis",
+        "receipt_no",
+        "subject",
     }
     candidates = []
     contexts = []
@@ -144,6 +146,7 @@ async def review_output(
             "출력 검사 가이드에서 추가 검토가 필요한 문장을 확인했습니다."
             if advisory else "근거 또는 출력 안전성을 확인하지 못한 문장은 작성하지 않았습니다."
         )
+    grounded = accepted.copy()
     if advisory:
         accepted = set(identities)
 
@@ -151,10 +154,12 @@ async def review_output(
         if key in fixed:
             return value
         if isinstance(value, str):
+            # 새 과거 비교 항목의 사실·해석은 기존 분석의 advisory 모드와 별개로 검사합니다.
+            allowed = grounded if key in {"past_fact", "current_fact", "interpretation"} else accepted
             return "\n".join(
                 checked
                 for sentence in ([value] if key == "scenario" else sentences(value))
-                if (checked := safe_text(sentence)) and identity(checked, key, evidence) in accepted
+                if (checked := safe_text(sentence)) and identity(checked, key, evidence) in allowed
             )
         if isinstance(value, list):
             return [apply(item, key, evidence) for item in value]

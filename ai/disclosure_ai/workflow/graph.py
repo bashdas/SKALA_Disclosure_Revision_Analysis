@@ -7,7 +7,7 @@ from langgraph.graph import END, START, StateGraph
 from disclosure_ai.harness.runtime import Harness
 from disclosure_ai.services.business import RunCancelled
 from disclosure_ai.workflow import perspectives, reporting, shared
-from disclosure_ai.workflow.initial import collect, impact, prepare
+from disclosure_ai.workflow.initial import collect, history_auto, history_requested, impact, prepare
 
 
 class State(TypedDict, total=False):
@@ -28,6 +28,9 @@ class State(TypedDict, total=False):
     jobs: Annotated[dict, lambda a, b: {**a, **b}]
     lookups: list
     lookup_results: list
+    history: dict
+    history_reanalyzed: bool
+    history_added: bool
 
 
 class AnalysisGraph:
@@ -72,18 +75,25 @@ class AnalysisGraph:
 
     def build(self, checkpointer):
         initial = StateGraph(State)
-        for name, function in [("COLLECT", collect), ("PREPARE", prepare),
+        for name, function in [("COLLECT", collect), ("HISTORY_AUTO", history_auto),
+                               ("HISTORY_REQUESTED", history_requested), ("REIMPACT", impact),
+                               ("PREPARE", prepare),
                                ("IMPACT_NEW", impact), ("IMPACT_CORRECTION", impact),
                                ("IMPACT_UNKNOWN", impact)]:
             initial.add_node(name, partial(self.protected, name, function))
         initial.add_edge(START, "COLLECT")
-        initial.add_conditional_edges("COLLECT", lambda s: END if s.get("warnings") else "PREPARE")
+        initial.add_conditional_edges("COLLECT", lambda s: END if s.get("warnings") else "HISTORY_AUTO")
+        initial.add_edge("HISTORY_AUTO", "PREPARE")
         initial.add_conditional_edges(
             "PREPARE", lambda s: END if s.get("stage_failed") else
             "IMPACT_" + s["filing"].get("analysis_type", "UNKNOWN")
         )
         for name in ("IMPACT_NEW", "IMPACT_CORRECTION", "IMPACT_UNKNOWN"):
-            initial.add_edge(name, END)
+            initial.add_conditional_edges(name, lambda s: "HISTORY_REQUESTED"
+                if s.get("base", {}).get("history_request") and not s.get("history_reanalyzed") else END)
+        initial.add_conditional_edges("HISTORY_REQUESTED", lambda s: "REIMPACT"
+                                      if s.get("history_added") else END)
+        initial.add_edge("REIMPACT", END)
         parallel = StateGraph(State)
         parallel.add_node("REGISTER", partial(self.protected, "REGISTER", perspectives.register))
         parallel.add_node("perspective", partial(perspectives.perspective, self))

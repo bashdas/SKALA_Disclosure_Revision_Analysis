@@ -59,8 +59,46 @@ class MemoReview(Model):
     evidence: list[Source]
 
 
+class HistoryRequest(Model):
+    reason: str = Field(min_length=1, max_length=400)
+    evidence: list[Source] = Field(min_length=1, max_length=3)
+    receipt_no: str | None = Field(default=None, pattern=r"^[0-9]{14}$",
+        description="이번 본문 또는 제공된 후보에 있는 실제 접수번호만 사용합니다. 날짜만 알면 null이며 뒷자리를 추정하지 않습니다.")
+
+
+class HistoryAssessment(Model):
+    status: Literal["REQUIRED", "NOT_REQUIRED", "ALREADY_AVAILABLE", "UNAVAILABLE"]
+    reason: str = Field(min_length=1, max_length=400)
+    evidence: list[Source] = Field(default_factory=list, max_length=3)
+
+
+class HistoryComparison(Model):
+    receipt_no: str = Field(pattern=r"^[0-9]{14}$")
+    subject: str = Field(min_length=1, max_length=100)
+    past_fact: str = Field(min_length=1, max_length=300)
+    current_fact: str = Field(min_length=1, max_length=300)
+    interpretation: str = Field(min_length=1, max_length=400)
+    evidence: list[Source] = Field(min_length=2, max_length=4)
+
+
+class ReviewPoint(Model):
+    perspective_type: Perspective
+    title: str = Field(min_length=1, max_length=120)
+    memo_view: str = Field(min_length=1, max_length=400)
+    disclosure_fact: str = Field(min_length=1, max_length=400)
+    reason: str = Field(min_length=1, max_length=500)
+    question: str = Field(min_length=1, max_length=400)
+    check_items: list[str] = Field(min_length=1, max_length=3)
+    evidence: list[Source] = Field(min_length=2, max_length=6)
+
+
 class BaseAnalysis(Model):
+    history_assessment: HistoryAssessment = Field(default_factory=lambda: HistoryAssessment(
+        status="NOT_REQUIRED", reason="기존 응답에는 과거 공시 필요성의 별도 판단이 없습니다.", evidence=[]))
     summary: str
+    history_request: HistoryRequest | None = None
+    history_comparisons: list[HistoryComparison] = Field(default_factory=list, max_length=3)
+    review_points: list[ReviewPoint] = Field(default_factory=list, max_length=3)
     proposals: list[Proposal]
     selected: list[Selection]
     not_selected: list[OmittedPerspective] = Field(default_factory=list)
@@ -70,8 +108,11 @@ class BaseAnalysis(Model):
 
 
 class Lookup(Model):
-    tool: Literal["local_search", "financial", "academic"]
+    tool: Literal["local_search", "financial", "academic", "disclosure_history"]
     query: str = Field(min_length=1, max_length=500)
+    receipt_no: str | None = Field(default=None, pattern=r"^[0-9]{14}$",
+        description="본문 또는 확인된 후보의 실제 번호입니다. 공시일만 있으면 null을 사용합니다.")
+    evidence: list[Source] = Field(default_factory=list, max_length=3)
     bsns_year: int | None = Field(default=None, ge=2015, le=2100)
     reprt_code: Literal["11011", "11012", "11013", "11014"] | None = None
     fs_div: Literal["CFS", "OFS"] | None = None
@@ -94,6 +135,8 @@ class PerspectiveAnswer(Model):
 
 class ReportText(Model):
     summary: str
+    review_points: str = ""
+    history: str = ""
     correction: str
     memo_impact: str
     suggestions: str
