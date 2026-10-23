@@ -2,6 +2,7 @@
 import { ArrowRight } from 'lucide-vue-next'
 import type { Evidence, ReviewReport } from '../types/domain'
 import type { PresentationBlock } from '../lib/report-presentation'
+import { reportHeading } from '../lib/report-layout'
 import MarkdownReport from './MarkdownReport.vue'
 import MemoRevisionProposals from './MemoRevisionProposals.vue'
 import ReviewPoints from './ReviewPoints.vue'
@@ -24,6 +25,7 @@ const emit = defineEmits<{
           : { from: item.block.range.from + 3, to: item.block.range.to }
       "
       hide-report-title
+      :restore-source-lines="reportHeading(item.block.heading) === '확인된공시내용'"
       :evidence="report.evidence"
       @open-evidence="emit('openEvidence', $event)"
     />

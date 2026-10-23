@@ -242,14 +242,15 @@ test('보고서는 항상 펼치고 관점 판단과 분석 결과를 중복 없
       fullPage: false,
     })
   }
-  for (const text of [result, beforeText, afterText, reason])
-    await expect(reportView.getByText(text, { exact: true })).toHaveCount(1)
+  await expect(reportView.getByText(result, { exact: true })).toHaveCount(1)
+  for (const text of [beforeText, afterText, reason])
+    await expect(reportView.getByText(text, { exact: true })).toHaveCount(0)
   await analysis.getByRole('button', { name: '근거 6 상세 보기' }).click()
   await expect(page.getByRole('dialog')).toContainText(sources[5]!.quote)
   await page.getByRole('button', { name: '원문 닫기' }).click()
   await expect(
     reportView.getByRole('heading', { name: '메모수정 제안 1', exact: true }),
-  ).toHaveCount(1)
+  ).toHaveCount(0)
   await expect(reportView.getByRole('heading', { name: '메모 영향', exact: true })).toHaveCount(0)
   await expect(
     reportView.getByRole('heading', { name: '추가 분석을 선택한 이유', exact: true }),
@@ -262,10 +263,8 @@ test('보고서는 항상 펼치고 관점 판단과 분석 결과를 중복 없
   const scenario = reportView
     .locator('.markdown-body li')
     .filter({ hasText: '계약 이행 여부가 확인되는 경우입니다.' })
-  await expect(scenario.locator('br')).toHaveCount(1)
-  await expect(scenario).toContainText('예상 영향: 회수 일정을 재검토합니다.')
-  const chip = reportView.locator('.evidence-chips button').first()
-  await expect(chip).toHaveText('근거 1')
+  await expect(scenario).toHaveCount(0)
+  const chip = reportView.getByRole('button', { name: '근거 1 상세 보기', exact: true }).first()
   await chip.click()
   const sourceDrawer = page
     .getByRole('dialog')
@@ -291,7 +290,7 @@ test('보고서는 항상 펼치고 관점 판단과 분석 결과를 중복 없
   ).toBeVisible()
   await expect(reportView.getByRole('heading', { name: '핵심 요약', exact: true })).toBeVisible()
   await expect(analysis.getByText(result, { exact: true })).toBeVisible()
-  await reportView.getByRole('button', { name: '원문 문맥 확인' }).click()
+  await page.locator('.report-context button').click()
   const memo = page
     .getByRole('dialog')
     .filter({ has: page.getByRole('heading', { name: '기준 메모', exact: true }) })
@@ -463,7 +462,7 @@ test('재검토 카드의 긴 제목과 본문에 여백을 두고 중복 시나
   await expect(page.getByRole('dialog')).toContainText(sources[0]!.quote)
 })
 
-test('새롭게 확인한 사실의 원문 줄바꿈과 빈 줄을 유지합니다', async ({ page }) => {
+test('제거한 메모 제안의 근거도 출처 구역에서 원문 줄바꿈과 빈 줄을 유지합니다', async ({ page }) => {
   const quote =
     '2. 계약금액(원)\t227,500,000,000\t114,800,000,000\n5. 계약기간 종료일\t2026-02-28\t-\n\n9. 기타 투자판단과 관련한 주요사항\n계약취소 권한을 행사했습니다.'
   const source = { ...sources[0]!, quote }
@@ -471,6 +470,7 @@ test('새롭게 확인한 사실의 원문 줄바꿈과 빈 줄을 유지합니�
     route.fulfill({
       json: {
         ...report,
+        content: report.content.split('## 출처와 원문 인용')[0],
         report_json: {
           ...report.report_json,
           sources: [source, ...sources.slice(1)],
@@ -483,7 +483,9 @@ test('새롭게 확인한 사실의 원문 줄바꿈과 빈 줄을 유지합니�
     }),
   )
   await page.goto('/analyses/report-task')
-  const fact = page.locator('.memo-proposals .after-block > p').first()
+  await expect(page.locator('.memo-proposals')).toHaveCount(0)
+  await page.locator('.report-sources .report-fold-trigger').click()
+  const fact = page.locator('.report-sources .report-evidence blockquote').first()
   await expect(fact).toBeVisible()
   expect(await fact.textContent()).toBe(quote)
   for (const theme of ['light', 'dark']) {
@@ -506,7 +508,7 @@ test('새롭게 확인한 사실의 원문 줄바꿈과 빈 줄을 유지합니�
   }
 })
 
-test('최신 서버의 메모 유지 및 수정 제안도 비교 카드로 한 번만 표시합니다', async ({ page }) => {
+test('저장된 메모 유지 및 수정 제안은 카드나 본문으로 다시 표시하지 않습니다', async ({ page }) => {
   await page.route('**/api/v1/analyses/report-task/report', (route) =>
     route.fulfill({
       json: {
@@ -517,9 +519,9 @@ test('최신 서버의 메모 유지 및 수정 제안도 비교 카드로 한 �
   )
   await page.goto('/analyses/report-task')
   const reportView = page.locator('.unified-report')
-  await expect(reportView.locator('.memo-proposals')).toHaveCount(1)
-  await expect(reportView.getByText(afterText, { exact: true })).toHaveCount(1)
-  await expect(reportView.getByText(beforeText, { exact: true })).toHaveCount(1)
+  await expect(reportView.locator('.memo-proposals')).toHaveCount(0)
+  await expect(reportView.getByText(afterText, { exact: true })).toHaveCount(0)
+  await expect(reportView.getByText(beforeText, { exact: true })).toHaveCount(0)
   await expect(
     reportView.getByRole('heading', { name: '메모 유지 및 수정 제안', exact: true }),
   ).toHaveCount(0)
@@ -540,7 +542,7 @@ test('근거 미리보기, 키보드, 터치와 상세 패널을 정확한 자�
   const first = page.getByRole('button', { name: '근거 1 상세 보기', exact: true }).first()
   const sixth = page.getByRole('button', { name: '근거 6 상세 보기', exact: true }).first()
   await expect(first).toBeVisible()
-  await expect(page.locator('.evidence-reference')).toHaveCount(5)
+  await expect(page.locator('.evidence-reference')).toHaveCount(4)
   await expect(page.getByRole('button', { name: '근거 99 상세 보기' })).toHaveCount(0)
   if (!isMobile) {
     for (const theme of ['light', 'dark']) {
@@ -593,6 +595,90 @@ test('근거 미리보기, 키보드, 터치와 상세 패널을 정확한 자�
   await expect(noLink.getByRole('link', { name: '외부 원문 열기' })).toHaveCount(0)
   expect(errors).toEqual([])
 })
+
+test('이전 판단 구역과 내부 출처 식별자를 숨기고 번호·원문 연결은 유지합니다', async ({ page }) => {
+  const fixedSources = [
+    { ...sources[0]!, document_id: 'opendart:20251229800710:' + 'a'.repeat(64) },
+    { ...sources[1]!, document_id: 'rag:eebc531a-083f-43dc-b0dd-3e68a24d47f0:chunk:0' },
+  ]
+  await page.route('**/api/v1/analyses/report-task/report', (route) => route.fulfill({ json: {
+    ...report,
+    content: '## 핵심 요약\n\n계약 감액 확인 [근거 1] [근거 2]\n\n## 메모 영향 판단 보류\n\n숨길 판단\n\n## 향후 영향과 조건\n\n숨길 시나리오\n\n## 메모 유지 및 수정 제안\n\n숨길 제안',
+    report_json: { sources: fixedSources, base: { proposals: [] }, warnings: [],
+      memo_review: { status: 'HOLD', reason: '숨길 판단', evidence: fixedSources } },
+  } }))
+  await page.goto('/analyses/report-task')
+  const root = page.locator('.unified-report-content')
+  for (const text of ['메모 영향 판단 보류', '향후 영향과 조건', '메모 유지 및 수정 제안', '숨길 판단', '숨길 시나리오', '숨길 제안'])
+    await expect(root.getByText(text, { exact: false })).toHaveCount(0)
+  await expect(root.locator('.report-analysis')).toBeVisible()
+  await root.locator('.report-sources .report-fold-trigger').click()
+  await expect(root.getByRole('button', { name: '근거 1 · DART 공시 원문', exact: true })).toBeVisible()
+  const ragButton = root.getByRole('button', { name: '근거 2 · 검색 원문', exact: true })
+  await expect(ragButton).toBeVisible()
+  await expect(root).not.toContainText('opendart:')
+  await expect(root).not.toContainText('rag:')
+  await ragButton.click()
+  await expect(page.getByRole('dialog').getByRole('heading', { name: '검색 원문', exact: true })).toBeVisible()
+  await expect(page.getByRole('dialog')).toContainText(fixedSources[1]!.quote)
+  await page.getByRole('button', { name: '원문 닫기' }).click()
+  const reference = root.getByRole('button', { name: '근거 1 상세 보기', exact: true })
+  await reference.focus()
+  await expect(page.getByRole('tooltip')).toContainText('DART 공시 원문')
+  await expect(page.getByRole('tooltip')).not.toContainText('opendart:')
+  await reference.click()
+  await expect(page.getByRole('dialog').getByRole('heading', { name: 'DART 공시 원문', exact: true })).toBeVisible()
+  await expect(page.getByRole('dialog').getByRole('link', { name: '외부 원문 열기', exact: true })).toHaveAttribute('href', 'https://example.com/original')
+})
+
+for (const [name, quote, labels] of [
+  ['일반 본문', '투자판단 관련 주요경영사항\n\n1. 제목\t계약금액 변경\n2. 주요내용\t1. 정정사항\n\n -. 계약금액: 3,834,738,508,160원\n → 9,730,316원\n3. 확인일\t2025-12-29\n4. 기타 사항\n후속 원문은 이 화면에 추가하지 않습니다.', ['1. 제목', '2. 주요내용', '3. 확인일']],
+  ['번호 시작 본문', '1. 계약내역\t하이니켈 양극재 공급 계약\n2. 계약금액\t9,730,316원\n3. 계약기간\t2024-01-01 ~ 2025-12-29\n4. 기타 사항\n후속 원문은 이 화면에 추가하지 않습니다.', ['계약내역', '2. 계약금액', '3. 계약기간']],
+] as const) {
+  test(`${name} 공시 인용문의 줄바꿈·빈 줄·금액·근거를 공통으로 보존합니다`, async ({ page }) => {
+    const excerpt = quote.replace(/\s+/g, ' ').split(' 4. 기타 사항')[0]!
+    const fixedSource = { ...sources[0]!, quote }
+    await page.route('**/api/v1/analyses/report-task/report', (route) => route.fulfill({ json: {
+      ...report,
+      content: `## 핵심 요약\n\n첫 번째 요약 줄\n두 번째 요약 줄\n\n## 확인된 공시 내용\n\n${excerpt} [근거 1]\n\n확인한 사실의 해석입니다. [근거 1]`,
+      report_json: { sources: [fixedSource], base: { proposals: [] }, warnings: [] },
+    } }))
+    await page.goto('/analyses/report-task')
+    await expect(page.locator('.report-summary-section br')).toHaveCount(1)
+    const facts = page.locator('.report-facts')
+    await facts.locator('.report-fold-trigger').click()
+    const paragraph = facts.locator('.source-excerpt')
+    await expect(paragraph).toHaveCSS('white-space', 'pre-wrap')
+    await expect(paragraph).toContainText('9,730,316원')
+    await expect(facts.getByText('확인한 사실의 해석입니다.', { exact: false })).toBeVisible()
+    await expect(facts.getByText('후속 원문은 이 화면에 추가하지 않습니다.', { exact: false })).toHaveCount(0)
+    const tops = await paragraph.evaluate((element, labels) => {
+      const node = element.firstChild!
+      return labels.map((label) => {
+        const start = node.textContent!.indexOf(label)
+        const range = document.createRange()
+        range.setStart(node, start)
+        range.setEnd(node, start + 1)
+        return range.getBoundingClientRect().top
+      })
+    }, [...labels])
+    expect(tops[1]!).toBeGreaterThan(tops[0]!)
+    expect(tops[2]!).toBeGreaterThan(tops[1]!)
+    await paragraph.getByRole('button', { name: '근거 1 상세 보기' }).click()
+    await expect(page.getByRole('dialog')).toContainText('9,730,316원')
+    await expect(page.getByRole('dialog')).toContainText('후속 원문은 이 화면에 추가하지 않습니다.')
+    await expect(page.getByRole('link', { name: '외부 원문 열기' })).toHaveAttribute('href', 'https://example.com/original')
+    await page.getByRole('button', { name: '원문 닫기' }).click()
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+    if (process.env.E2E_ARTIFACT_DIR) {
+      await facts.locator('.report-fold-trigger').focus()
+      await page.mouse.move(0, 0)
+      await expect(page.getByRole('tooltip')).toHaveCount(0)
+      await facts.scrollIntoViewIfNeeded()
+      await page.screenshot({ path: `${process.env.E2E_ARTIFACT_DIR}/공시줄바꿈-${name}-${page.viewportSize()!.width}.png`, animations: 'disabled' })
+    }
+  })
+}
 
 test('통합 헤더의 MD·PDF 다운로드가 저장된 원본을 사용합니다', async ({ page }) => {
   await page.route('**/api/v1/analyses/report-task/report.md', (route) =>

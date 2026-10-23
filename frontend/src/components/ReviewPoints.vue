@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ExternalLink } from 'lucide-vue-next'
 import type { Evidence, ReviewPoint } from '../types/domain'
+import { evidenceTitle } from '../lib/evidence-title'
 const props = withDefaults(defineProps<{ points: ReviewPoint[]; evidence: Evidence[]; showHeading?: boolean }>(), { showHeading: true })
 const emit = defineEmits<{ openEvidence: [source: Evidence] }>()
 function sources(point: ReviewPoint) {
@@ -51,7 +52,7 @@ function sources(point: ReviewPoint) {
           v-for="{ source, number } in sources(point)"
           :key="source.id"
           :aria-label="`근거 ${number} 상세 보기`"
-          :title="source.title"
+          :title="evidenceTitle(source.title)"
           @click="emit('openEvidence', source)"
         >
           근거 {{ number }} <ExternalLink :size="12" />

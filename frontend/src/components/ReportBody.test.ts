@@ -82,6 +82,76 @@ it.each([
   wrapper.unmount()
 })
 
+it.each([false, true])(
+  '재검토 관점 유무(%s)와 관계없이 이전 판단·시나리오·수정 제안 구역을 숨깁니다',
+  (hasReviews) => {
+    const content =
+      '## 핵심 요약\n\n요약\n\n## 메모 영향 판단 보류\n\n숨길 판단\n\n## 향후 영향과 조건\n\n숨길 시나리오\n\n## 메모 유지 및 수정 제안\n\n숨길 수정안'
+    const value = report({
+      content,
+      memoReview: { status: 'HOLD', reason: '숨길 판단', evidenceIds: [] },
+      reviewPoints: hasReviews
+        ? [
+            {
+              perspectiveType: 'FINANCE',
+              title: '실제 재검토 질문',
+              memoView: '가정',
+              disclosureFact: '사실',
+              reason: '이유',
+              question: '질문',
+              checkItems: ['조건'],
+              evidenceIds: ['source-0'],
+            },
+          ]
+        : [],
+    })
+    const wrapper = mount(ReportBody, { props: props(value) })
+    for (const text of [
+      '메모 영향 판단 보류',
+      '향후 영향과 조건',
+      '메모 유지 및 수정 제안',
+      '숨길 판단',
+      '숨길 시나리오',
+      '숨길 수정안',
+    ])
+      expect(wrapper.text()).not.toContain(text)
+    expect(wrapper.find('.memo-proposals').exists()).toBe(false)
+    expect(wrapper.find('.review-points').exists()).toBe(hasReviews)
+    expect(value.content).toBe(content)
+    wrapper.unmount()
+  },
+)
+
+it('출처 제목의 내부 식별자를 숨기되 같은 원문의 근거 번호와 링크를 유지합니다', async () => {
+  const value = report({
+    evidence: [
+      {
+        id: 'source-0',
+        title: 'opendart:20251229800710:' + 'a'.repeat(64),
+        quote: '계약 감액',
+        context: '계약 감액',
+        url: 'https://example.com/filing',
+      },
+      {
+        id: 'source-1',
+        title: 'rag:long-uuid:chunk:0',
+        quote: '메모 가정',
+        context: '메모 가정',
+        url: null,
+      },
+    ] as ReviewReport['evidence'],
+  })
+  const wrapper = mount(ReportBody, { props: props(value) })
+  await wrapper.get('.report-sources .report-fold-trigger').trigger('click')
+  expect(wrapper.text()).not.toMatch(/opendart:|rag:/)
+  expect(wrapper.get('.report-sources').text()).toContain('근거 1 · DART 공시 원문')
+  expect(wrapper.get('.report-sources').text()).toContain('근거 2 · 검색 원문')
+  await wrapper.get('.report-sources .text-button').trigger('click')
+  expect(wrapper.emitted('openEvidence')?.[0]?.[0]).toEqual(value.evidence[0])
+  expect(wrapper.get('.report-sources a').attributes('href')).toBe('https://example.com/filing')
+  wrapper.unmount()
+})
+
 it('자료가 전혀 없는 보고서도 같은 제목을 사용하며 내용을 생성하지 않습니다', async () => {
   const wrapper = mount(ReportBody, { props: props(report()) })
   expect(titles(wrapper)).toEqual(reportSections.map((section) => section.title))

@@ -82,21 +82,20 @@ async function view(
   return { store, wrapper: mount(AnalysisView, { global: { plugins: [pinia, router] } }) }
 }
 
-it('하나의 보고서에 요약·관점 결과·메모수정 제안을 중복 없이 표시합니다', async () => {
+it('요약과 관점 분석을 유지하고 기존 메모 수정 제안은 표시하지 않습니다', async () => {
   const { store, wrapper } = await view()
   expect(wrapper.find('.unified-report .analysis-perspectives').exists()).toBe(true)
   expect(wrapper.text()).toContain('재무 영향 확인')
-  for (const text of ['추가 재무 검토 완료', '기존 문장', '매출 영향 검토가 필요합니다.']) {
-    expect(wrapper.text().split(text)).toHaveLength(2)
-  }
+  expect(wrapper.text().split('추가 재무 검토 완료')).toHaveLength(2)
+  for (const text of ['기존 문장', '매출 영향 검토가 필요합니다.', '메모 영향 판단 보류'])
+    expect(wrapper.text()).not.toContain(text)
   expect(
     wrapper.find('.source-list, .findings-section, .report-summary, .report-body').exists(),
   ).toBe(false)
-  expect(wrapper.get('.memo-proposals > h3').text()).toBe('메모수정 제안 1')
-  expect(wrapper.get('.unified-report .memo-proposals').isVisible()).toBe(true)
+  expect(wrapper.find('.memo-proposals').exists()).toBe(false)
   const openMemo = vi.spyOn(store, 'openMemo').mockResolvedValue()
-  await wrapper.get('.memo-proposals .text-button').trigger('click')
-  expect(openMemo).toHaveBeenCalledWith('memo', 2, null)
+  await wrapper.get('.report-context button').trigger('click')
+  expect(openMemo).toHaveBeenCalledWith('memo', 2)
   await wrapper.get('.evidence-reference').trigger('click')
   expect(store.drawer?.content).toBe('근거 인용문')
   expect(store.drawer?.url).toBe('https://example.com/filing')
@@ -104,7 +103,6 @@ it('하나의 보고서에 요약·관점 결과·메모수정 제안을 중복 
   expect(wrapper.get('.unified-report .report-fold-heading h2').text()).toBe(
     '공시 영향 분석 보고서',
   )
-  expect(wrapper.get('.memo-proposals').isVisible()).toBe(true)
   wrapper.unmount()
 })
 
@@ -126,13 +124,15 @@ it('긴 근거 식별자는 번호로 표시하고 같은 자료의 상세를 �
   const { store, wrapper } = await view(baseTask, {
     ...baseReport,
     evidence,
-    findings: [{ ...baseReport.findings[0]!, evidenceIds: ['source-1', 'source-0'] }],
+    reviewPoints: [{ perspectiveType: 'FINANCE', title: '성장 가정 확인', memoView: '기존 성장 가정',
+      disclosureFact: '계약 물량 변경', reason: '반영 여부 미확인', question: '반영됐습니까?',
+      checkItems: ['이행 조건'], evidenceIds: ['source-1', 'source-0'] }],
   })
   const chips = wrapper.findAll('.evidence-chips button')
   expect(chips.map((chip) => chip.text())).toEqual(['근거 2', '근거 1'])
-  expect(chips[1]!.attributes('title')).toBe(evidence[0]!.title)
+  expect(chips[1]!.attributes('title')).toBe('DART 공시 원문')
   await chips[0]!.trigger('click')
-  expect(store.drawer?.title).toBe(evidence[1]!.title)
+  expect(store.drawer?.title).toBe('메모 원문')
   expect(store.drawer?.content).toBe(evidence[1]!.quote)
   wrapper.unmount()
 })
@@ -207,17 +207,15 @@ it('관점 및 수정 제안이 없으면 판단 기록과 기본 검토 이유�
   wrapper.unmount()
 })
 
-it('빈 제안의 유지 또는 보류 판단과 이유를 표시합니다', async () => {
+it('빈 제안의 유지 또는 보류 판단은 화면에 추가하지 않고 저장 데이터를 보존합니다', async () => {
   const { store, wrapper } = await view(baseTask, { ...baseReport, findings: [] })
-  expect(wrapper.get('[data-testid=memo-review-decision]').text()).toContain('메모 영향 판단 보류')
+  expect(wrapper.find('[data-testid=memo-review-decision]').exists()).toBe(false)
   for (const status of ['KEEP', 'HOLD'] as const) {
     store.reports[0]!.memoReview = { status, reason: '공시와 메모를 대조한 판단 이유입니다.', evidenceIds: ['source-0'] }
     await flushPromises()
-    const decision = wrapper.get('[data-testid=memo-review-decision]')
-    expect(decision.text()).toContain(status === 'KEEP' ? '기존 메모 유지' : '메모 영향 판단 보류')
-    expect(decision.text()).toContain('공시와 메모를 대조한 판단 이유입니다.')
-    await decision.get('button').trigger('click')
-    expect(store.drawer?.content).toBe('근거 인용문')
+    expect(wrapper.find('[data-testid=memo-review-decision]').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('공시와 메모를 대조한 판단 이유입니다.')
+    expect(store.reports[0]!.memoReview?.status).toBe(status)
   }
   wrapper.unmount()
 })

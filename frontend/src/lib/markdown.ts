@@ -1,6 +1,7 @@
 import MarkdownIt from 'markdown-it'
+import { restoreExcerptWhitespace } from './source-excerpt'
 
-const parser = new MarkdownIt({ html: false, linkify: false }).disable('image')
+const parser = new MarkdownIt({ html: false, linkify: false, breaks: true }).disable('image')
 // 저장된 본문은 유지하고, 향후 영향 구역의 조건과 예상 영향만 화면에서 줄을 나눕니다.
 parser.core.ruler.after('inline', 'future_impact_lines', (state) => {
   let futureSection = false
@@ -70,6 +71,36 @@ parser.core.ruler.after('inline', 'evidence_references', (state) => {
     })
   }
 })
+parser.core.ruler.before('evidence_references', 'source_excerpt_lines', (state) => {
+  const sources = state.env.sourceQuotes as readonly { id: string; quote: string }[] | undefined
+  if (!sources?.length) return
+  for (const [index, block] of state.tokens.entries()) {
+    const paragraph = state.tokens[index - 1]
+    if (block.type !== 'inline' || paragraph?.type !== 'paragraph_open' ||
+      !block.children?.length || block.children.some((token) =>
+        !['text', 'softbreak', 'hardbreak'].includes(token.type))) continue
+    const text = block.children.map((token) => token.type === 'text' ? token.content : '\n').join('')
+    const match = /^(.*)\s+\[근거\s*(\d+)\]\s*$/su.exec(text)
+    if (!match) continue
+    const source = sources.find((item) => item.id === `source-${Number(match[2]) - 1}`)
+    if (!source) continue
+    let quote = source.quote
+    // 원문 첫 항목이 Markdown 목록으로 해석된 경우 화면에 이미 있는 목록 번호는 중복하지 않습니다.
+    const list = state.tokens[index - 3]
+    if (state.tokens[index - 2]?.type === 'list_item_open' && list?.type === 'ordered_list_open') {
+      const marker = /^(\d+)([.)])[ \t]+/u.exec(quote.trimStart())
+      if (marker && Number(marker[1]) === Number(list.attrGet('start') ?? 1) && marker[2] === list.markup)
+        quote = quote.trimStart().slice(marker[0].length)
+    }
+    const restored = restoreExcerptWhitespace(quote, match[1]!)
+    if (restored === null || !/\s/u.test(restored)) continue
+    const token = new state.Token('text', '', 0)
+    token.content = `${restored} [근거 ${match[2]}]`
+    block.children = [token]
+    const container = paragraph.hidden ? state.tokens[index - 2] : paragraph
+    container?.attrJoin('class', 'source-excerpt')
+  }
+})
 parser.renderer.rules.evidence_reference = (tokens, index) => {
   const token = tokens[index]!
   return `<button type="button" class="evidence-reference" data-evidence-id="${token.meta!.id}" aria-label="근거 ${token.meta!.number} 상세 보기">${parser.utils.escapeHtml(token.content)}</button>`
@@ -131,8 +162,9 @@ export function renderMarkdown(
   evidenceIds: readonly string[] = [],
   range?: MarkdownRange,
   hideReportTitle = false,
+  sourceQuotes?: readonly { id: string; quote: string }[],
 ) {
-  const env = { evidenceIds }
+  const env = { evidenceIds, sourceQuotes }
   const tokens = parser.parse(content, env)
   const title = tokens[1]?.children
     ?.map((token) => token.content)

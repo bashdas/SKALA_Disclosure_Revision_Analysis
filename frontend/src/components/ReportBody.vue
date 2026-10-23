@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import type { Evidence, Perspective, ReviewReport } from '../types/domain'
 import { reportHeading } from '../lib/report-layout'
 import { reportPresentation } from '../lib/report-presentation'
+import { evidenceTitle } from '../lib/evidence-title'
 import ReportSection from './ReportSection.vue'
 import ReportContent from './ReportContent.vue'
 import MarkdownReport from './MarkdownReport.vue'
@@ -75,32 +76,6 @@ const emptyText = {
       >
         <template v-if="section.id === 'reviews' && !hasReviews">
           <p class="muted report-empty">이 보고서에는 별도의 재검토 관점이 저장되지 않았습니다.</p>
-          <div
-            v-if="!report.findings.length"
-            data-testid="memo-review-decision"
-            class="memo-review-record"
-          >
-            <h3>
-              {{ report.memoReview?.status === 'KEEP' ? '기존 메모 유지' : '메모 영향 판단 보류' }}
-            </h3>
-            <p>
-              {{
-                report.memoReview?.reason ||
-                '유지 또는 수정 여부를 확인할 판단 근거가 없습니다. 재분석이 필요합니다.'
-              }}
-            </p>
-            <div class="evidence-chips">
-              <button
-                v-for="source in report.evidence.filter((e) =>
-                  report.memoReview?.evidenceIds.includes(e.id),
-                )"
-                :key="source.id"
-                @click="emit('openEvidence', source)"
-              >
-                {{ source.title }}
-              </button>
-            </div>
-          </div>
         </template>
         <ReportContent
           v-for="(item, i) in section.blocks"
@@ -121,7 +96,7 @@ const emptyText = {
             <article v-for="(source, i) in report.evidence" :key="source.id">
               <h3>
                 <button class="text-button" @click="emit('openEvidence', source)">
-                  근거 {{ i + 1 }} · {{ source.title }}
+                  근거 {{ i + 1 }} · {{ evidenceTitle(source.title) }}
                 </button>
               </h3>
               <p class="muted small">{{ source.location }}</p>
@@ -171,7 +146,6 @@ const emptyText = {
   line-height: 1.85;
   margin: 0;
 }
-.memo-review-record h3,
 .report-evidence h3 {
   font-size: 17px;
   margin: 20px 0 12px;

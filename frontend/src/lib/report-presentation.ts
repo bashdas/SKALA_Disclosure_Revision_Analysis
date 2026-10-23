@@ -12,6 +12,14 @@ export const reportSections = [
 ] as const
 type SectionId = (typeof reportSections)[number]['id']
 export type PresentationBlock = { block: ReportBlock; keepHeading: boolean }
+const hiddenHeadings = new Set([
+  '메모영향',
+  '메모영향판단보류',
+  '기존메모유지',
+  '메모수정제안',
+  '메모유지및수정제안',
+  '향후영향과조건',
+])
 
 function sectionId(block: ReportBlock): SectionId | null {
   if (block.type === 'perspective-analysis') return 'analysis'
@@ -48,6 +56,11 @@ export function reportPresentation(report: ReviewReport, perspectives: Perspecti
   }))
   const intro: ReportBlock[] = []
   for (const block of layout.blocks) {
+    if (
+      block.type === 'memo-proposals' ||
+      (block.type === 'markdown' && hiddenHeadings.has(reportHeading(block.heading)))
+    )
+      continue
     if (block.type === 'markdown' && block.heading === null) {
       if (/^#\s+공시 영향 분석 보고서\s*$/m.test(report.content)) intro.push(block)
       else
