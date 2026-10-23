@@ -5,7 +5,7 @@ import { CalendarIcon, X } from 'lucide-vue-next'
 import { Calendar } from './ui/calendar'
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover'
 import { Button } from './ui/button'
-const props = defineProps<{ min?: string; max?: string; label: string }>()
+const props = defineProps<{ min?: string; max?: string; label: string; placeholder?: string }>()
 const model = defineModel<string>({ required: true })
 const open = ref(false)
 const selected = computed(() => (model.value ? parseDate(model.value) : undefined))
@@ -25,7 +25,7 @@ function choose(value: DateValue | undefined) {
           type="button"
           :aria-label="label"
         >
-          <span>{{ model ? model.replaceAll('-', '. ') + '.' : '전체 기간' }}</span>
+          <span>{{ model ? model.replaceAll('-', '. ') + '.' : placeholder || '전체 기간' }}</span>
           <CalendarIcon v-if="!model" data-icon="inline-end" />
         </Button>
       </PopoverTrigger>

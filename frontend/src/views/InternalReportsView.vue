@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import SkeletonState from '../components/SkeletonState.vue'
+import UiSelect from '../components/UiSelect.vue'
+import UiDatePicker from '../components/UiDatePicker.vue'
 import { currentUser, request } from '../services/http'
 import { notifyError, toast } from '../lib/notifications'
 import {
@@ -121,6 +123,15 @@ function pdf(event: Event, replace = false) {
   error.value = ''
 }
 async function save() {
+  if (
+    !title.value.trim() ||
+    !corpCode.value ||
+    !publishedAt.value ||
+    (!selected.value && !file.value)
+  ) {
+    error.value = '제목, 대상 기업, 발행일과 원본 PDF를 확인해 주세요.'
+    return
+  }
   await perform(async () => {
     const metadata = {
       title: title.value.trim(),
@@ -179,7 +190,7 @@ onMounted(() => perform(load))
       </button>
     </header>
     <p v-if="!canManage" class="small muted">
-      조회 권한 · 내부 리포트를 열람하고 분석에 활용할 수 있습니다.
+      조회 권한으로 내부 리포트를 열람하고 분석에 활용할 수 있습니다.
     </p>
     <p v-if="error" class="field-error" role="alert">{{ error }}</p>
     <div class="reports-columns">
@@ -197,7 +208,7 @@ onMounted(() => perform(load))
           >
             <strong>{{ row.title }}</strong
             ><span
-              >{{ row.company_name }} · {{ row.published_at }} · v{{ row.current_version }}</span
+              >{{ row.company_name }} / {{ row.published_at }} / v{{ row.current_version }}</span
             >
           </button>
         </template>
@@ -213,9 +224,9 @@ onMounted(() => perform(load))
       <section class="surface report-detail">
         <form v-if="formOpen && canManage" @submit.prevent="save">
           <h2>{{ selected ? '리포트 정보 수정' : '내부 리포트 등록' }}</h2>
-          <fieldset :disabled="busy">
+          <fieldset class="report-fields" :disabled="busy">
             <label>제목<input v-model="title" maxlength="500" required /></label>
-            <div class="reports-actions">
+            <div class="company-search">
               <label
                 >기업 검색<input
                   v-model="companyQuery"
@@ -223,15 +234,31 @@ onMounted(() => perform(load))
                   maxlength="100" /></label
               ><button type="button" class="button secondary" @click="searchCompany">검색</button>
             </div>
-            <label
-              >대상 기업<select v-model="corpCode" required>
-                <option disabled value="">기업을 선택하세요</option>
-                <option v-for="c in companies" :key="c.corp_code" :value="c.corp_code">
-                  {{ c.company_name }} ({{ c.corp_code }})
-                </option>
-              </select></label
-            >
-            <label>발행일<input v-model="publishedAt" type="date" required /></label>
+            <div class="report-field">
+              <label for="report-company">대상 기업</label>
+              <UiSelect
+                id="report-company"
+                :model-value="corpCode"
+                :options="
+                  companies.map((c) => ({
+                    label: `${c.company_name} (${c.corp_code})`,
+                    value: c.corp_code,
+                  }))
+                "
+                :placeholder="companies.length ? '기업을 선택하세요' : '기업을 먼저 검색해 주세요'"
+                :disabled="busy || !companies.length"
+                @update:model-value="corpCode = String($event ?? '')"
+              />
+            </div>
+            <div class="report-field">
+              <span id="report-date-label">발행일</span>
+              <UiDatePicker
+                v-model="publishedAt"
+                label="리포트 발행일"
+                placeholder="발행일을 선택하세요"
+                aria-labelledby="report-date-label"
+              />
+            </div>
             <label v-if="!selected"
               >원본 PDF<input
                 type="file"
@@ -255,7 +282,7 @@ onMounted(() => perform(load))
         <template v-else-if="selected">
           <h2>{{ selected.title }}</h2>
           <p>
-            {{ selected.company_name }} · {{ selected.published_at }} · v{{
+            {{ selected.company_name }} / {{ selected.published_at }} / v{{
               selected.current_version
             }}
           </p>
@@ -292,7 +319,7 @@ onMounted(() => perform(load))
               취소
             </button>
           </div>
-          <form v-if="canManage" @submit.prevent="replace">
+          <form v-if="canManage" class="report-replacement" @submit.prevent="replace">
             <label
               >원본 PDF 교체<input
                 :key="selected.id + ':' + selected.current_version"
@@ -306,7 +333,7 @@ onMounted(() => perform(load))
             <summary>버전 이력</summary>
             <ul>
               <li v-for="v in versions" :key="v.version">
-                v{{ v.version }} · {{ v.title }} · {{ v.published_at }}
+                v{{ v.version }} / {{ v.title }} / {{ v.published_at }}
                 <button
                   class="text-button"
                   :disabled="busy"
@@ -375,16 +402,16 @@ onMounted(() => perform(load))
   gap: 8px;
   padding: 18px 8px;
   border: 0;
-  border-bottom: 1px solid var(--border, #ddd);
+  border-bottom: 1px solid var(--line);
   background: transparent;
   cursor: pointer;
 }
 .report-row.chosen {
-  background: var(--muted, #f0f3f7);
+  background: var(--primary-soft);
 }
 .report-row span {
   font-size: 13px;
-  color: var(--text-muted, #667085);
+  color: var(--muted);
 }
 .reports-actions {
   justify-content: flex-start;
@@ -400,14 +427,16 @@ label {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  margin: 14px 0;
+  margin: 0;
 }
-input,
-select {
+input {
   padding: 10px;
   width: 100%;
-  border: 1px solid var(--border, #ddd);
+  border: 1px solid var(--line);
   border-radius: 8px;
+  background: var(--surface-strong);
+  color: var(--ink);
+  min-width: 0;
 }
 .report-text {
   white-space: pre-wrap;
@@ -426,7 +455,8 @@ li {
 }
 .delete-report {
   padding: 12px;
-  border: 1px solid #c55;
+  border: 1px solid var(--danger);
+  background: var(--danger-soft);
   margin: 16px 0;
 }
 @media (max-width: 760px) {
@@ -440,5 +470,96 @@ li {
   .reports-page {
     padding: 16px;
   }
+}
+
+.reports-heading > div,
+.company-search > label,
+.report-fields,
+.report-field {
+  min-width: 0;
+}
+.reports-heading h1 {
+  margin-top: 0;
+}
+.report-detail {
+  overflow: visible;
+}
+.report-detail form > h2 {
+  margin-bottom: 20px;
+}
+.report-detail h3 {
+  margin: 24px 0 12px;
+}
+.report-replacement {
+  display: grid;
+  gap: 12px;
+}
+.report-detail h2,
+.report-row strong {
+  overflow-wrap: anywhere;
+}
+.report-fields {
+  display: grid;
+  gap: 20px;
+}
+.report-field {
+  display: grid;
+  gap: 8px;
+}
+.company-search {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: end;
+}
+.report-fields .reports-actions {
+  margin: 0;
+}
+.report-detail form + details,
+.report-detail form + form {
+  margin-top: 24px;
+}
+input::placeholder {
+  color: var(--muted);
+}
+input:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+input[type='file'] {
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+input[type='file']::file-selector-button {
+  border: 0;
+  border-radius: 6px;
+  background: var(--primary-soft);
+  color: var(--primary);
+  padding: 6px 10px;
+  margin-right: 10px;
+  font: inherit;
+  cursor: pointer;
+}
+.report-text {
+  background: var(--surface);
+  color: var(--ink);
+  padding: 16px;
+  border-radius: 8px;
+}
+.report-detail :deep(.ui-select),
+.report-detail :deep(.ui-date-trigger) {
+  min-width: 0;
+  width: 100%;
+}
+.report-detail :deep(.select-field),
+.report-detail :deep(.ui-date) {
+  margin-top: 0;
+}
+.report-row:hover {
+  background: var(--surface-strong);
+}
+.report-row.chosen:hover {
+  background: var(--primary-soft);
 }
 </style>
