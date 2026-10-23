@@ -34,6 +34,8 @@ it('opens upload and write tabs in a dialog and saves both modes to the selected
   await flushPromises()
   expect(upload).toHaveBeenCalledWith(expect.any(File), '작성한 메모', '00126566')
   expect(toast.success).toHaveBeenCalledWith('메모를 추가했습니다.', { description: '기업 메모' })
+  expect(dialog.open).toBe(false)
+  await wrapper.get('button').trigger('click')
   await wrapper.findAll('[role="tab"]')[0]!.trigger('click')
   const file = new File(['파일 메모'], 'research.txt', { type: 'text/plain' })
   Object.defineProperty(wrapper.get('input[type="file"]').element, 'files', { value: [file] })
@@ -41,7 +43,30 @@ it('opens upload and write tabs in a dialog and saves both modes to the selected
   await wrapper.get('form').trigger('submit')
   await flushPromises()
   expect(upload).toHaveBeenLastCalledWith(file, undefined, '00126566')
+  expect(dialog.open).toBe(false)
   await wrapper.get('[aria-label="메모 추가 닫기"]').trigger('click')
   expect(dialog.open).toBe(false)
+  wrapper.unmount()
+})
+
+it('저장에 실패하면 입력과 창을 유지해 다시 시도할 수 있습니다', async () => {
+  const pinia = createPinia()
+  setActivePinia(pinia)
+  vi.spyOn(useWorkspace(), 'upload').mockRejectedValue(new Error('저장 실패'))
+  const wrapper = mount(MemoUpload, {
+    props: { companyId: 'company', companyName: '검증 기업' },
+    global: { plugins: [pinia] },
+  })
+  const dialog = wrapper.get('dialog').element as HTMLDialogElement
+  dialog.showModal = () => dialog.setAttribute('open', '')
+  dialog.close = () => dialog.removeAttribute('open')
+  await wrapper.get('button').trigger('click')
+  await wrapper.findAll('[role="tab"]')[1]!.trigger('click')
+  await wrapper.get('textarea').setValue('보존할 입력')
+  await wrapper.get('form').trigger('submit')
+  await flushPromises()
+  expect(dialog.open).toBe(true)
+  expect(wrapper.get('textarea').element.value).toBe('보존할 입력')
+  expect(wrapper.get('[role="alert"]').text()).toBe('저장 실패')
   wrapper.unmount()
 })

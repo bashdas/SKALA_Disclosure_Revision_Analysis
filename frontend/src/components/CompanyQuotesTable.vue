@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, onUnmounted, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
-import { FileText, Sparkles } from 'lucide-vue-next'
 import { useWorkspace } from '../stores/workspace'
 import { getCompanyUpdates, type CompanyUpdate } from '../services/catalog'
 import { getWatchlistQuotes, type WatchlistQuote } from '../services/market'
@@ -136,8 +135,7 @@ function change(value?: number | null) {
     tabindex="0"
   >
     <table
-      class="watchlist-table"
-      :class="{ 'company-directory-table': directory }"
+      class="watchlist-table company-directory-table"
       :aria-label="directory ? '기업 목록 시세' : '관심종목 시세'"
     >
       <colgroup>
@@ -146,7 +144,7 @@ function change(value?: number | null) {
         <col />
         <col />
         <col />
-        <col v-if="directory" class="directory-updates-col" />
+        <col class="directory-updates-col" />
         <col class="watchlist-sector-col" />
         <col class="watchlist-favorite-col" />
       </colgroup>
@@ -157,7 +155,7 @@ function change(value?: number | null) {
           <th scope="col" class="numeric">등락률</th>
           <th scope="col" class="numeric">거래대금</th>
           <th scope="col" class="numeric">시가총액</th>
-          <th v-if="directory" scope="col">업데이트</th>
+          <th scope="col">업데이트</th>
           <th scope="col">산업군</th>
           <th scope="col"><span class="sr-only">관심종목 설정</span></th>
         </tr>
@@ -183,38 +181,17 @@ function change(value?: number | null) {
                   <span class="watchlist-code">{{ company.code }}</span>
                 </div>
                 <span
-                  v-if="directory && !updates[company.id]"
+                  v-if="!updates[company.id]"
                   class="skeleton skeleton-value"
                   aria-label="공시 업데이트 조회 중"
                 ></span>
                 <span
-                  v-else-if="directory"
+                  v-else
                   class="directory-last-update"
                   :title="latestUpdate(company.id)"
                 >
                   {{ latestUpdate(company.id) }}
                 </span>
-                <div
-                  v-if="
-                    !directory &&
-                    (store.countUnread(company.id, 'filing') > 0 ||
-                      store.countUnread(company.id, 'report') > 0)
-                  "
-                  class="watchlist-updates"
-                >
-                  <RouterLink
-                    v-if="store.countUnread(company.id, 'filing') > 0"
-                    :to="`/companies/${company.id}?tab=filings`"
-                    ><FileText :size="11" />공시
-                    {{ store.countUnread(company.id, 'filing') }}</RouterLink
-                  >
-                  <RouterLink
-                    v-if="store.countUnread(company.id, 'report') > 0"
-                    :to="`/companies/${company.id}?tab=reports`"
-                    ><Sparkles :size="11" />AI 보고서
-                    {{ store.countUnread(company.id, 'report') }}</RouterLink
-                  >
-                </div>
               </div>
             </div>
           </th>
@@ -258,7 +235,7 @@ function change(value?: number | null) {
             ></span
             ><template v-else>{{ amount(quotes[company.id]?.marketCap) }}</template>
           </td>
-          <td v-if="directory">
+          <td>
             <div class="directory-update-links">
               <RouterLink
                 v-for="category in categories"

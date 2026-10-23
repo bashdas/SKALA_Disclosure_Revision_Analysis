@@ -2,15 +2,14 @@
 import { notifyError } from '../lib/notifications'
 import { computed, ref, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
+import { FileText, StickyNote, Sparkles, Check, Trash2, Ellipsis, Search } from 'lucide-vue-next'
 import {
-  FileText,
-  StickyNote,
-  Sparkles,
-  ArrowUpRight,
-  Check,
-  Trash2,
-  Search,
-} from 'lucide-vue-next'
+  DropdownMenuRoot,
+  DropdownMenuTrigger,
+  DropdownMenuPortal,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from 'reka-ui'
 import { useWorkspace } from '../stores/workspace'
 import { date, disclosureUrl } from '../lib/format'
 import { request } from '../services/http'
@@ -310,16 +309,28 @@ const tabs = computed(() => [
               </p>
             </div>
             <div class="document-actions">
-              <button class="text-button" @click="store.openMemo(memo.id)">
-                본문,버전 확인 <ArrowUpRight :size="13" />
-              </button>
-              <button
-                class="text-button"
-                :aria-label="`${memo.title} 삭제`"
-                @click="deleteMemo(memo.id, memo.title)"
-              >
-                <Trash2 :size="13" />삭제
-              </button>
+              <DropdownMenuRoot>
+                <DropdownMenuTrigger as-child>
+                  <button type="button" class="icon-button" :aria-label="`${memo.title} 더 보기`">
+                    <Ellipsis :size="20" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuPortal>
+                  <DropdownMenuContent
+                    class="memo-actions-menu"
+                    align="end"
+                    :side-offset="6"
+                    :aria-label="`${memo.title} 메뉴`"
+                  >
+                    <DropdownMenuItem
+                      class="memo-delete-menu-item"
+                      @select="deleteMemo(memo.id, memo.title)"
+                    >
+                      <Trash2 :size="15" />삭제
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenuPortal>
+              </DropdownMenuRoot>
             </div>
           </article>
           <EmptyState
@@ -343,3 +354,30 @@ const tabs = computed(() => [
     ><RouterLink to="/companies" class="button secondary">기업 목록</RouterLink></EmptyState
   >
 </template>
+
+<style scoped>
+.memo-actions-menu {
+  min-width: 136px;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--card);
+  color: var(--ink);
+  box-shadow: var(--shadow-hover);
+  z-index: 60;
+}
+.memo-delete-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 7px;
+  color: var(--danger);
+  font-size: 13px;
+  cursor: pointer;
+  outline: none;
+}
+.memo-delete-menu-item[data-highlighted] {
+  background: var(--danger-soft);
+}
+</style>

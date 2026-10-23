@@ -389,6 +389,7 @@ export function createHttpServices(): Services {
       id: row.task_id,
       companyId: filing?.companyId ?? (name ? companyId(name) : ''),
       filingId: filing?.id ?? '',
+      disclosureReceiptNo: row.disclosure_receipt_no,
       memoId: row.memo_id,
       baseMemoVersion: row.base_memo_version,
       status: row.status,

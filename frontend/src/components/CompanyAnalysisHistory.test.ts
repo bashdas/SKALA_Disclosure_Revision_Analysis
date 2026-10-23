@@ -19,7 +19,7 @@ it('shows each analysis once with its report or progress, including deleted-memo
       filingId: 'filing',
       memoId: 'deleted',
       baseMemoVersion: 2,
-      status: 'COMPLETED',
+      status: 'COMPLETED_WITH_WARNINGS',
       createdAt: '2026-10-22T10:00:00Z',
     },
     {
@@ -66,16 +66,19 @@ it('shows each analysis once with its report or progress, including deleted-memo
   expect(rows()).toHaveLength(3)
   expect(rows()[0]!.text()).toContain('분석 중')
   expect(rows()[0]!.findComponent(RouterLinkStub).props('to')).toBe('/analyses/running')
-  expect(
-    wrapper.findAll('.text-button').filter((link) => link.text().includes('보고서 보기')),
-  ).toHaveLength(1)
-  expect(rows()[1]!.text()).toContain('저장된 AI 보고서')
+  expect(wrapper.text()).not.toContain('보고서 보기')
+  expect(rows().some((row) => row.text().includes('주의사항 있음'))).toBe(false)
+  expect(rows()[1]!.get('.document-title').text()).toBe('공급계약 변경 공시')
   expect(rows()[1]!.text()).toContain('기준 메모 확인 불가 · 기준 v2')
-  expect(rows()[1]!.get('.text-button').text()).toContain('보고서 보기')
-  expect(rows()[2]!.get('.text-button').text()).toContain('분석 확인')
-  await wrapper.get('select').setValue('COMPLETED')
+  expect(rows()[1]!.get('.document-actions a').attributes('aria-label')).toBe(
+    '공급계약 변경 공시 보고서 열기',
+  )
+  expect(rows()[2]!.get('.document-actions a').attributes('aria-label')).toBe(
+    '공급계약 변경 공시 분석 열기',
+  )
+  await wrapper.get('select').setValue('COMPLETED_WITH_WARNINGS')
   expect(rows()).toHaveLength(1)
-  expect(rows()[0]!.text()).toContain('저장된 AI 보고서')
+  expect(rows()[0]!.text()).toContain('공급계약 변경 공시')
   await wrapper.get('select').setValue('FAILED')
   expect(rows()).toHaveLength(1)
   expect(rows()[0]!.text()).toContain('실패')
@@ -86,5 +89,9 @@ it('shows each analysis once with its report or progress, including deleted-memo
   expect(rows()).toHaveLength(3)
   expect(store.tasks).toHaveLength(4)
   expect(store.reports).toHaveLength(1)
+  store.filings = []
+  store.tasks[0]!.disclosureReceiptNo = '20261022000123'
+  await wrapper.vm.$nextTick()
+  expect(rows()[1]!.get('.document-title').text()).toBe('공시 20261022000123 분석')
   wrapper.unmount()
 })

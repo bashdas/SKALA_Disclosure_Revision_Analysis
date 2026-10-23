@@ -50,6 +50,7 @@ async function upload() {
     title.value = ''
     content.value = ''
     if (fileInput.value) fileInput.value.value = ''
+    dialog.value?.close()
   } catch (e) {
     notifyError(e)
     error.value = e instanceof Error ? e.message : '메모를 추가하지 못했습니다.'

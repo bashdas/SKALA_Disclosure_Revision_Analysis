@@ -265,6 +265,9 @@ test('보고서는 항상 펼치고 관점 판단과 분석 결과를 중복 없
     expect(new Set(positions.map((p) => p.left)).size).toBe(4)
   }
   await expect(decisions.locator('.tag')).toHaveText(['미선택', '선택', '미선택', '판단 기록 없음'])
+  const selectedColor = await decisions.locator('.perspective-card.selected').evaluate(el => getComputedStyle(el).backgroundColor)
+  const unselectedColor = await decisions.locator('.perspective-card.unselected').first().evaluate(el => getComputedStyle(el).backgroundColor)
+  expect(selectedColor).not.toBe(unselectedColor)
   await expect(reportView.getByText(selectionReason, { exact: true })).toHaveCount(1)
   for (const item of report.report_json.base.not_selected)
     await expect(decisions.getByText(item.reason, { exact: true })).toHaveCount(1)

@@ -96,8 +96,9 @@ it.each(['filings', 'memos', 'reports', 'history'])(
     if (tab === 'reports' || tab === 'history') {
       expect(wrapper.get('.tabs a.selected').text()).toContain('AI 보고서')
       expect(rows).toHaveLength(1)
-      expect(rows[0]!.text()).toContain('분석 보고서')
-      expect(rows[0]!.get('.text-button').text()).toContain('보고서 보기')
+      expect(rows[0]!.get('.document-title').text()).toBe('분석 대상 공시')
+      expect(rows[0]!.text()).not.toContain('보고서 보기')
+      expect(rows[0]!.get('.document-actions a').attributes('aria-label')).toBe('분석 대상 공시 보고서 열기')
     }
     for (const row of rows) {
       expect(row.find('.document-info .document-actions').exists()).toBe(false)

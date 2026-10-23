@@ -222,7 +222,7 @@ async function withdraw() {
 <style scoped>
 .account-dialog {
   width: min(480px, calc(100vw - 32px));
-  max-height: calc(100dvh - 40px);
+  max-height: calc((100dvh - 40px) * 2 / 3);
   margin: auto;
   padding: 24px;
   color: var(--ink);

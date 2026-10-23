@@ -24,7 +24,10 @@ const tasks = computed(() =>
         ...task,
         report,
         title:
-          report?.title || store.filings.find((f) => f.id === task.filingId)?.title || '공시 분석',
+          store.filings.find((f) => f.id === task.filingId)?.title ||
+          (task.disclosureReceiptNo
+            ? `공시 ${task.disclosureReceiptNo} 분석`
+            : report?.title || '공시 분석'),
         memoTitle: store.memos.find((m) => m.id === task.memoId)?.title || '기준 메모 확인 불가',
       }
     }),
@@ -64,9 +67,17 @@ const tasks = computed(() =>
         </p>
       </div>
       <div class="document-actions">
-        <StatusPill :status="task.status" />
-        <RouterLink :to="`/analyses/${task.id}`" class="text-button">
-          {{ task.report ? '보고서 보기' : '분석 확인' }}<ArrowUpRight :size="13" />
+        <StatusPill
+          v-if="!task.report && task.status !== 'COMPLETED_WITH_WARNINGS'"
+          :status="task.status"
+        />
+        <RouterLink
+          :to="`/analyses/${task.id}`"
+          class="icon-button"
+          :aria-label="`${task.title} ${task.report ? '보고서' : '분석'} 열기`"
+          :title="task.report ? '보고서 열기' : '분석 열기'"
+        >
+          <ArrowUpRight :size="18" />
         </RouterLink>
       </div>
     </article>

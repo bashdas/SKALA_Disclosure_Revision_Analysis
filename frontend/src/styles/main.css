@@ -2623,6 +2623,7 @@ main.company-main {
   margin-left: 4px;
 }
 .watchlist-table-scroll {
+  position: relative;
   overflow-x: auto;
   max-width: 100%;
   scrollbar-width: thin;

@@ -82,6 +82,7 @@ export interface AnalysisTask {
   id: string
   companyId: string
   filingId: string
+  disclosureReceiptNo?: string
   memoId: string
   baseMemoVersion: number
   status: AnalysisStatus
