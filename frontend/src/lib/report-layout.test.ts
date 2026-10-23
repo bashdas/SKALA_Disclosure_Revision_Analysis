@@ -47,6 +47,8 @@ function displayedMarkdown(value: ReviewReport, perspectives: Perspective[] = []
       .flatMap((b) =>
         b.type === 'markdown'
           ? [renderMarkdown(value.content, ['source-0', 'source-5'], b.range)]
+          : b.type === 'perspective-analysis'
+            ? b.ranges.map((range) => renderMarkdown(value.content, ['source-0', 'source-5'], range))
           : [],
       )
       .join(''),
@@ -63,7 +65,7 @@ it('대체 가능한 선택 이유와 수정 제안만 제외하고 카드와 �
     null,
     '핵심 요약',
     '확인된 공시 내용',
-    '관점별 분석',
+    'perspective-analysis',
     '향후 영향과 조건',
     'memo-proposals',
     '별도 검토 사항',
@@ -84,7 +86,7 @@ it('선택 이유는 제외하고 대체 데이터가 없는 메모 검토는 �
   )
   for (const findings of [[], [{ ...finding, reason: '' }]]) {
     const { layout, html } = displayedMarkdown({ ...value, findings })
-    expect(layout.blocks.every((b) => b.type === 'markdown')).toBe(true)
+    expect(layout.blocks.filter((b) => b.type === 'perspective-analysis')).toHaveLength(1)
     expect(html).not.toContain('예전 선택 이유')
     expect(html).toContain('예전 판단 이유')
     expect(html).toContain('예전 수정 제안')
@@ -126,7 +128,7 @@ it('본문에서 빠진 요약·변경 내용·관점 결과도 구조화된 데
     'summary',
     'markdown',
     'changes',
-    'perspective-results',
+    'perspective-analysis',
     'memo-proposals',
     'markdown',
   ])
@@ -141,7 +143,7 @@ it('비교 카드가 없는 이전 보고서도 분석과 향후 영향을 메�
   )
   const { layout, html } = displayedMarkdown(value)
   expect(layout.blocks.map((b) => (b.type === 'markdown' ? b.heading : b.type))).toEqual([
-    '관점별 분석',
+    'perspective-analysis',
     '향후 영향과 조건',
     '메모 수정 제안',
     '확인 범위와 남은 질문',
@@ -165,10 +167,11 @@ it('코드·인용문 속 제목을 구역으로 오인하지 않고 구역 밖�
   expect(html).toContain('data-evidence-id="source-5"')
 })
 
-it('선택 관점과 수정 제안이 없는 보고서에는 빈 카드 영역을 추가하지 않습니다', () => {
+it('선택 관점과 수정 제안이 없어도 판단 기록을 위한 통합 구역을 요약 뒤에 추가합니다', () => {
   const value = report('## 핵심 요약\n\n추가 수정이 필요하지 않습니다.')
   const layout = reportLayout(value, [])
-  expect(layout.blocks.every((b) => b.type === 'markdown')).toBe(true)
+  expect(layout.blocks.map((b) => b.type)).toEqual(['markdown', 'perspective-analysis'])
+  expect(layout.fallbackResults).toEqual([])
 })
 
 it('출처 구역의 원문은 토글용으로 보존하고 선택 이유는 제외합니다', () => {
@@ -196,10 +199,67 @@ it('재검토 관점은 수정 제안이 없어도 공시 사실보다 먼저 �
   })
   const { layout, html } = displayedMarkdown(value)
   expect(layout.blocks.map((b) => b.type === 'markdown' ? b.heading : b.type)).toEqual([
-    '핵심 요약', 'review-points', '확인된 공시 내용',
+    '핵심 요약', 'review-points', '확인된 공시 내용', 'perspective-analysis',
   ])
   expect(html).not.toContain('원문 관점')
   const incomplete = displayedMarkdown({ ...value, reviewPoints: [{ ...point, reason: '' }] })
   expect(incomplete.html).toContain('원문 관점')
   expect(incomplete.layout.blocks.some((b) => b.type === 'review-points')).toBe(false)
+})
+
+it('화면에 재검토 관점이 있으면 향후 영향은 숨기고 저장 원문은 보존합니다', () => {
+  const content = '## 새롭게 고찰할 관점\n\n기존 가정의 반영 여부를 확인합니다.\n\n## 향후 영향과 조건\n\n조건부 시나리오 [근거 1]\n\n## 확인 범위와 남은 질문\n\n개별 계약 조건은 미확인입니다.'
+  const value = report(content)
+  const displayed = displayedMarkdown(value)
+  expect(displayed.html).toContain('기존 가정의 반영 여부')
+  expect(displayed.html).not.toContain('조건부 시나리오')
+  expect(displayed.html).toContain('개별 계약 조건은 미확인')
+  expect(value.content).toBe(content)
+})
+
+it('본문 제목이 없어도 유효한 재검토 카드가 있으면 향후 영향을 숨깁니다', () => {
+  const value = report('## 향후 영향과 조건\n\n시나리오 원문', {
+    reviewPoints: [{ perspectiveType: 'FINANCE', title: '회수 조건 재검토',
+      memoView: '성장 가정', disclosureFact: '계약 축소', reason: '반영 여부 미확인',
+      question: '반영됐습니까?', checkItems: ['회수 일정'], evidenceIds: ['source-0'] }],
+  })
+  const displayed = displayedMarkdown(value)
+  expect(displayed.layout.blocks.filter((b) => b.type === 'review-points')).toHaveLength(1)
+  expect(displayed.html).not.toContain('시나리오 원문')
+  const incomplete = displayedMarkdown({ ...value, reviewPoints: [{ ...value.reviewPoints![0]!, reason: '' }] })
+  expect(incomplete.html).toContain('시나리오 원문')
+})
+
+it('재검토 관점이 없는 이전 보고서의 향후 영향은 계속 표시합니다', () => {
+  const value = report('## 새롭게 고찰할 관점\n\n## 향후 영향과 조건\n\n조건부 시나리오')
+  expect(displayedMarkdown(value).html).toContain('조건부 시나리오')
+})
+
+it('Markdown 분석이 없으면 통합 구역을 공시 사실 뒤에 배치합니다', () => {
+  const value = report('## 핵심 요약\n\n요약\n\n## 확인된 공시 내용\n\n사실\n\n## 메모 수정 제안\n\n제안\n\n## 확인 범위와 남은 질문\n\n미확인')
+  const layout = reportLayout(value, [perspective])
+  expect(layout.blocks.map((b) => b.type === 'markdown' ? b.heading : b.type)).toEqual([
+    '핵심 요약', '확인된 공시 내용', 'perspective-analysis', '메모 수정 제안', '확인 범위와 남은 질문',
+  ])
+  expect(layout.fallbackResults).toEqual([perspective])
+})
+
+it('공시 구역이 없으면 재검토 관점 뒤에 통합 구역을 넣고 원래 본문은 바꾸지 않습니다', () => {
+  const content = '## 핵심 요약\n\n요약\n\n## 새롭게 고찰할 관점\n\n관점\n\n## 확인 범위와 남은 질문\n\n미확인'
+  const value = report(content)
+  const layout = reportLayout(value, [])
+  expect(layout.blocks.map((b) => b.type === 'markdown' ? b.heading : b.type)).toEqual([
+    '핵심 요약', '새롭게 고찰할 관점', 'perspective-analysis', '확인 범위와 남은 질문',
+  ])
+  expect(value.content).toBe(content)
+})
+
+it('관점별 분석 구역이 여러 개여도 제목은 하나로 모으고 각 본문·근거를 보존합니다', () => {
+  const value = report('## 관점별 분석\n\n### 재무\n\n첫 분석 [근거 1]\n\n## 별도 내용\n\n보존할 내용\n\n## 관점별 분석\n\n### 산업\n\n둘째 분석 [근거6]')
+  const { layout, html } = displayedMarkdown(value)
+  const analyses = layout.blocks.filter((b) => b.type === 'perspective-analysis')
+  expect(analyses).toHaveLength(1)
+  expect(analyses[0]!.ranges).toHaveLength(2)
+  for (const text of ['첫 분석', '둘째 분석', '보존할 내용', 'source-0', 'source-5'])
+    expect(html).toContain(text)
 })

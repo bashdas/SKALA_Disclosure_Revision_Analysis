@@ -14,24 +14,18 @@ import {
 } from 'lucide-vue-next'
 import { useWorkspace } from '../stores/workspace'
 import { date } from '../lib/format'
-import { stages, stageLabels, perspectiveLabels } from '../types/domain'
+import { stages, stageLabels } from '../types/domain'
 import ReportSection from '../components/ReportSection.vue'
 import SkeletonState from '../components/SkeletonState.vue'
 import StatusPill from '../components/StatusPill.vue'
 import EmptyState from '../components/EmptyState.vue'
-import MarkdownReport from '../components/MarkdownReport.vue'
 import AnalysisPerspectives from '../components/AnalysisPerspectives.vue'
-import MemoRevisionProposals from '../components/MemoRevisionProposals.vue'
-import ReviewPoints from '../components/ReviewPoints.vue'
-import { reportLayout } from '../lib/report-layout'
+import ReportBody from '../components/ReportBody.vue'
 import { downloadReport } from '../services/http'
 const store = useWorkspace(),
   route = useRoute()
 const task = computed(() => store.tasks.find((t) => t.id === route.params.taskId))
 const report = computed(() => store.reports.find((r) => r.taskId === task.value?.id))
-const layout = computed(() =>
-  report.value ? reportLayout(report.value, task.value?.perspectives ?? []) : null,
-)
 const memo = computed(() => store.memos.find((m) => m.id === task.value?.memoId))
 const filing = computed(() => store.filings.find((f) => f.id === task.value?.filingId))
 const stageIndex = computed(() =>
@@ -155,7 +149,7 @@ async function download(extension: 'md' | 'pdf') {
       </div>
     </div>
     <ReportSection
-      v-if="report && layout"
+      v-if="report"
       title="공시 영향 분석 보고서"
       :collapsible="false"
       class="surface unified-report"
@@ -175,84 +169,15 @@ async function download(extension: 'md' | 'pdf') {
           </button>
         </div>
       </template>
-      <div class="unified-report-content">
+      <ReportBody
+        :key="report.id"
+        :report="report"
+        :perspectives="task.perspectives"
+        @open-evidence="store.openEvidence"
+        @open-memo="store.openMemo(task.memoId, task.baseMemoVersion, $event)"
+      >
         <p v-if="exportError" class="inline-warning" role="alert">{{ exportError }}</p>
-        <section v-if="!report.findings.length && !report.reviewPoints?.length" class="report-fallback" data-testid="memo-review-decision">
-          <h2>{{ report.memoReview?.status === 'KEEP' ? '기존 메모 유지' : '메모 영향 판단 보류' }}</h2>
-          <p>{{ report.memoReview?.reason || '유지 또는 수정 여부를 확인할 판단 근거가 없습니다. 재분석이 필요합니다.' }}</p>
-          <div v-if="report.memoReview?.evidenceIds.length" class="evidence-chips">
-            <button v-for="source in report.evidence.filter((e) => report?.memoReview?.evidenceIds.includes(e.id))" :key="source.id" @click="store.openEvidence(source)">
-              {{ source.title }}
-            </button>
-          </div>
-        </section>
-        <AnalysisPerspectives
-          class="report-perspectives"
-          :perspectives="task.perspectives"
-          :decisions="report.perspectiveDecisions"
-          :reason="report.noAdditionalAnalysisReason"
-          :show-result="false"
-        />
-        <template v-for="(block, i) in layout.blocks" :key="i">
-          <MarkdownReport
-            v-if="block.type === 'markdown'"
-            :content="report.content"
-            :range="block.range"
-            hide-report-title
-            :evidence="report.evidence"
-            @open-evidence="store.openEvidence"
-          />
-          <ReportSection
-            v-else-if="block.type === 'sources'"
-            :title="block.heading ?? '출처와 원문 인용'"
-            :default-open="false"
-            class="report-sources"
-          >
-            <MarkdownReport
-              :content="report.content"
-              :range="block.range"
-              :evidence="report.evidence"
-              @open-evidence="store.openEvidence"
-            />
-          </ReportSection>
-          <MemoRevisionProposals
-            v-else-if="block.type === 'memo-proposals'"
-            :findings="report.findings"
-            :evidence="report.evidence"
-            @open-evidence="store.openEvidence"
-            @open-memo="store.openMemo(task.memoId, task.baseMemoVersion, $event)"
-          />
-          <ReviewPoints
-            v-else-if="block.type === 'review-points'"
-            :points="report.reviewPoints ?? []"
-            :evidence="report.evidence"
-            @open-evidence="store.openEvidence"
-          />
-          <section v-else-if="block.type === 'summary'" class="report-fallback">
-            <h2>핵심 요약</h2>
-            <p class="summary-text">{{ report.summary }}</p>
-          </section>
-          <section v-else-if="block.type === 'changes'" class="report-fallback">
-            <h2>확인된 공시 내용</h2>
-            <div class="change-grid">
-              <div v-for="change in report.changes" :key="change.label" class="change-item">
-                <span class="muted small">{{ change.label }}</span>
-                <div>
-                  <span class="before-value">{{ change.before }}</span
-                  ><ArrowRight :size="16" /><strong>{{ change.after }}</strong>
-                </div>
-              </div>
-            </div>
-          </section>
-          <section v-else-if="block.type === 'perspective-results'" class="report-fallback">
-            <h2>관점별 분석</h2>
-            <article v-for="perspective in layout.fallbackResults" :key="perspective.type">
-              <h3>{{ perspectiveLabels[perspective.type] }}</h3>
-              <p class="fallback-result">{{ perspective.result }}</p>
-            </article>
-          </section>
-        </template>
-      </div>
+      </ReportBody>
     </ReportSection>
     <div v-else-if="inProgress" class="analysis-wait" role="status">
       <SkeletonState variant="report" />
@@ -279,42 +204,9 @@ async function download(extension: 'md' | 'pdf') {
 .unified-report {
   margin: 28px 0 30px;
 }
-.unified-report :deep(.report-section-title) {
+.unified-report > :deep(.report-fold-heading .report-section-title) {
   font-size: 26px;
   line-height: 1.5;
   letter-spacing: -0.025em;
-}
-.unified-report-content {
-  padding: 0 24px 24px;
-}
-.unified-report-content :deep(.markdown-body) {
-  padding: 0;
-}
-.report-sources {
-  margin-top: 32px;
-  padding-top: 20px;
-  border-top: 1px solid var(--line);
-}
-.report-fallback {
-  margin-top: 32px;
-}
-.report-fallback > h2 {
-  margin: 0 0 14px;
-  font-size: 21px;
-}
-.report-fallback h3 {
-  margin: 24px 0 12px;
-  font-size: 17px;
-}
-.fallback-result,
-.summary-text {
-  white-space: pre-wrap;
-  line-height: 1.85;
-  overflow-wrap: anywhere;
-}
-@media (max-width: 650px) {
-  .unified-report-content {
-    padding-inline: 20px;
-  }
 }
 </style>

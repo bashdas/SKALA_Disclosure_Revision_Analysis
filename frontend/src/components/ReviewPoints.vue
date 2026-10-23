@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ExternalLink } from 'lucide-vue-next'
 import type { Evidence, ReviewPoint } from '../types/domain'
-const props = defineProps<{ points: ReviewPoint[]; evidence: Evidence[] }>()
+const props = withDefaults(defineProps<{ points: ReviewPoint[]; evidence: Evidence[]; showHeading?: boolean }>(), { showHeading: true })
 const emit = defineEmits<{ openEvidence: [source: Evidence] }>()
 function sources(point: ReviewPoint) {
   return point.evidenceIds.flatMap((id) => {
@@ -13,7 +13,7 @@ function sources(point: ReviewPoint) {
 
 <template>
   <section class="review-points" aria-label="새롭게 고찰할 관점">
-    <h2>
+    <h2 v-if="showHeading">
       새롭게 고찰할 관점 <span class="count">{{ points.length }}</span>
     </h2>
     <article v-for="(point, i) in points" :key="i" class="finding-card surface">
@@ -72,18 +72,32 @@ function sources(point: ReviewPoint) {
 }
 .review-heading {
   display: flex;
-  align-items: baseline;
+  align-items: flex-start;
   gap: 12px;
-  margin-bottom: 20px;
+  padding: 22px 24px;
+  border-bottom: 1px solid var(--line);
+}
+.finding-number {
+  flex: 0 0 22px;
+  padding-top: 5px;
 }
 .review-heading h3 {
   margin: 0;
+  min-width: 0;
   font-size: 18px;
+  line-height: 1.6;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+.before-block,
+.after-block {
+  min-width: 0;
+  padding: 22px 24px;
 }
 .review-reason,
 .review-question,
 .review-checks {
-  margin-top: 20px;
+  padding: 20px 24px 0;
 }
 h4 {
   margin: 0 0 8px;
@@ -104,9 +118,28 @@ ul {
 }
 .evidence-chips {
   margin-top: 24px;
+  padding-inline: 24px;
 }
 .evidence-chips button:focus-visible {
   outline: 2px solid var(--primary);
   outline-offset: 2px;
+}
+@media (max-width: 650px) {
+  .review-heading,
+  .before-block,
+  .after-block {
+    padding: 18px;
+  }
+  .review-heading h3 {
+    font-size: 16px;
+  }
+  .review-reason,
+  .review-question,
+  .review-checks {
+    padding: 18px 18px 0;
+  }
+  .evidence-chips {
+    padding-inline: 18px;
+  }
 }
 </style>

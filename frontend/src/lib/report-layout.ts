@@ -3,9 +3,24 @@ import type { Perspective, ReviewReport } from '../types/domain'
 
 export type ReportBlock =
   | { type: 'markdown' | 'sources'; heading: string | null; range: MarkdownRange }
+  | { type: 'perspective-analysis'; ranges: MarkdownRange[] }
   | { type: 'summary' | 'review-points' | 'changes' | 'memo-proposals' | 'perspective-results' }
 
-const key = (heading: string | null) => heading?.replace(/\s+/g, '') ?? ''
+const aliases: Record<string, string> = {
+  요약: '핵심요약', 분석요약: '핵심요약',
+  재검토관점: '새롭게고찰할관점', 재검토할관점: '새롭게고찰할관점',
+  공시내용: '확인된공시내용', 주요공시내용: '확인된공시내용',
+  정정전후비교: '확인된공시내용', 정정사항: '확인된공시내용', 정정내용: '확인된공시내용',
+  심화분석: '관점별분석', 추가분석결과: '관점별분석',
+  분석한계: '확인범위와남은질문', 한계및추가확인사항: '확인범위와남은질문',
+  근거및출처: '출처와원문인용', 출처및근거: '출처와원문인용',
+  과거공시조회결과: '조회한과거공시와비교범위',
+}
+export function reportHeading(heading: string | null) {
+  const normalized = heading?.replace(/^\s*\d+[.)]\s*/, '').replace(/\s+/g, '') ?? ''
+  return aliases[normalized] ?? normalized
+}
+const key = reportHeading
 const memoHeadings = new Set(['메모영향', '메모수정제안', '메모유지및수정제안'])
 const lateHeadings = new Set([
   '관점별분석',
@@ -29,6 +44,7 @@ export function reportLayout(report: ReviewReport, perspectives: Perspective[]) 
     (p) => p.title.trim() && p.memoView.trim() && p.disclosureFact.trim() && p.reason.trim()
       && p.question.trim() && p.checkItems.length && p.evidenceIds.length,
   )
+  const hasReviews = replaceReviews || hasSection(new Set(['새롭게고찰할관점']))
   const fallbackSummary =
     !hasSection(new Set(['핵심요약'])) &&
     !!report.summary.trim() &&
@@ -74,6 +90,7 @@ export function reportLayout(report: ReviewReport, perspectives: Perspective[]) 
   for (const section of sections) {
     const heading = key(section.heading)
     if (selectionHeadings.has(heading)) continue
+    if (heading === '향후영향과조건' && hasReviews) continue
     if (heading) addSummary()
     if (heading && heading !== '핵심요약') addReviews()
     if (heading === '새롭게고찰할관점' && replaceReviews) continue
@@ -111,16 +128,39 @@ export function reportLayout(report: ReviewReport, perspectives: Perspective[]) 
   const isMemo = (block: ReportBlock) =>
     block.type === 'memo-proposals' ||
     (block.type === 'markdown' && memoHeadings.has(key(block.heading)))
+  const isPerspective = (block: ReportBlock) =>
+    block.type === 'perspective-results' ||
+    (block.type === 'markdown' && key(block.heading) === '관점별분석')
+  function unifyPerspectives(ordered: ReportBlock[]) {
+    const ranges = ordered.flatMap((block) =>
+      block.type === 'markdown' && isPerspective(block)
+        ? [{ from: block.range.from + 3, to: block.range.to }]
+        : [],
+    )
+    let at = ordered.findIndex((block) => block.type === 'markdown' && isPerspective(block))
+    const remaining = ordered.filter((block) => !isPerspective(block))
+    if (at < 0) {
+      const facts = remaining.findIndex((block) => block.type === 'changes' ||
+        (block.type === 'markdown' && key(block.heading) === '확인된공시내용'))
+      at = facts + 1
+      if (facts < 0) {
+        remaining.forEach((block, index) => {
+          if (block.type === 'summary' || block.type === 'review-points' ||
+            (block.type === 'markdown' && ['핵심요약', '새롭게고찰할관점'].includes(key(block.heading))))
+            at = index + 1
+        })
+      }
+    }
+    remaining.splice(at, 0, { type: 'perspective-analysis', ranges })
+    return { blocks: remaining, fallbackResults }
+  }
   if (blocks.some(isMemo)) {
-    const isPerspective = (block: ReportBlock) =>
-      block.type === 'perspective-results' ||
-      (block.type === 'markdown' && key(block.heading) === '관점별분석')
     const isFuture = (block: ReportBlock) =>
       block.type === 'markdown' && key(block.heading) === '향후영향과조건'
     const analysis = [...blocks.filter(isPerspective), ...blocks.filter(isFuture)]
     const remaining = blocks.filter((block) => !isPerspective(block) && !isFuture(block))
     remaining.splice(remaining.findIndex(isMemo), 0, ...analysis)
-    return { blocks: remaining, fallbackResults }
+    return unifyPerspectives(remaining)
   }
-  return { blocks, fallbackResults }
+  return unifyPerspectives(blocks)
 }
