@@ -209,6 +209,9 @@ async def search_reports(run, state, query):
         return {"error": "INVALID_RESEARCH_INPUT"}
 
     async def invoke(_name, _args):
+        if hasattr(run.tools, "search_research_reports"):
+            # Production never falls back to the shared local fixture catalog.
+            return await run.tools.search_research_reports(run.h.task_id, query)
         try:
             return await run.research.search(
                 state["request"], state["filing"], state["scope"], query

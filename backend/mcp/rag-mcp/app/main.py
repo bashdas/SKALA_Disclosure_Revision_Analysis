@@ -74,6 +74,13 @@ def create_app(settings=None, *, sources=None, embedding=None, store=None):
         return await invoke("search_evidence", task_id, query, top_k, document_types)
 
     @mcp.tool()
+    async def search_research_reports(task_id: UUID,
+        query: Annotated[str, Field(min_length=1, max_length=2000, pattern=r"\S")],
+        top_k: Annotated[int, Field(ge=1, le=20)] = 5) -> dict:
+        """Search company internal reports authorized by the analysis task."""
+        return await invoke("search_research_reports", task_id, query, top_k)
+
+    @mcp.tool()
     async def search_market_news(task_id: UUID,
         query: Annotated[str, Field(min_length=1, max_length=2000)],
         top_k: Annotated[int, Field(ge=1, le=12)] = 6,

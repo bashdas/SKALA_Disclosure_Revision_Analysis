@@ -134,12 +134,13 @@ def test_concurrent_revoked_request_cannot_change_password(user_client, graph, d
 
 
 @pytest.mark.postgres
-def test_signup_login_and_profile(user_client, db):
-    response = user_client.post("/api/v1/auth/signup", json={"email":"signup@example.com", "password":NEW_PASSWORD, "name":"건민", "organization_name":"  New organization  "})
+@pytest.mark.parametrize("role", ["ANALYST", "RA"])
+def test_signup_login_and_profile(user_client, db, role):
+    response = user_client.post("/api/v1/auth/signup", json={"email":"signup@example.com", "password":NEW_PASSWORD, "name":"건민", "organization_name":"  New organization  ", "role":role})
     assert response.status_code == 201
     body = response.json()
     assert body["organization_name"] == "New organization"
-    assert body["role"] == "ANALYST"
+    assert body["role"] == role
     assert "password" not in body and "password_hash" not in body and "token_version" not in body
     registered = UserRepository(db).get_by_email("signup@example.com")
     assert registered.organization_id != db.scalar(select(Organization.id).where(Organization.name == "Example organization"))
@@ -161,7 +162,7 @@ def test_duplicate_signup_does_not_create_orphan_organization(user_client, db, g
 
 @pytest.mark.postgres
 @pytest.mark.parametrize("changes", [
-    {"role":"RA"}, {"organization_id":str(uuid4())}, {"user_id":str(uuid4())},
+    {"role":"ADMIN"}, {"organization_id":str(uuid4())}, {"user_id":str(uuid4())},
     {"email":"invalid-email"}, {"password":"short"}, {"password":" " * 12},
     {"name":"건민", "organization_name":" "}, {"name":"건민", "organization_name":"x" * 256},
     {"name":"건민", "organization_name":"bad\x00name"}, {"password":"abc\x00defghijklmnop"},

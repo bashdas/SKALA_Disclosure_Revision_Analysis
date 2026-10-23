@@ -177,6 +177,10 @@ class RagService:
             "results": results,
         }
 
+    async def search_research_reports(self, task_id, query, top_k=5):
+        from app.research import search_reports
+        return await search_reports(self, task_id, query, top_k)
+
     async def news_context(self, task_id):
         context = await self.context(task_id)
         if not context.created_at or context.created_at.tzinfo is None:

@@ -37,14 +37,14 @@ class UserService:
             session.rollback()
             raise
 
-    def signup(self, email: str, password: str, organization_name: str, name: str = "") -> SignupResponse:
+    def signup(self, email: str, password: str, organization_name: str, name: str = "", role: UserRole = UserRole.ANALYST) -> SignupResponse:
         session = self.users.session
         try:
             if self.users.get_by_email(email) is not None:
                 raise EmailAlreadyRegistered()
             organization = OrganizationRepository(session).add(Organization(name=organization_name))
             user = self.users.add(User(organization_id=organization.id, email=email,
-                name=name, password_hash=hash_password(password), role=UserRole.ANALYST, token_version=0))
+                name=name, password_hash=hash_password(password), role=role, token_version=0))
             result = SignupResponse(**UserResponse.model_validate(user).model_dump(), organization_name=organization.name)
             session.commit()
             return result

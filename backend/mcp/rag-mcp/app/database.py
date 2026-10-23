@@ -19,7 +19,7 @@ class RagDocument(Base):
     __table_args__ = (
         UniqueConstraint("organization_id", "document_type", "identifier", "version", "content_hash", "fingerprint", name="uq_document_identity"),
         UniqueConstraint("id", "organization_id", name="uq_document_organization"),
-        CheckConstraint("document_type IN ('MEMO', 'DISCLOSURE')", name="ck_document_type"),
+        CheckConstraint("document_type IN ('MEMO', 'DISCLOSURE', 'INTERNAL_REPORT')", name="ck_document_type"),
         {"schema": "rag"},
     )
     id: Mapped[uuid.UUID] = mapped_column(UUID, primary_key=True, default=uuid.uuid4)
@@ -119,3 +119,18 @@ class RagStore:
                 "score": max(0.0, min(1.0, 1 - float(dist) / 2)),
                 "source": {**document.source, **chunk.metadata_json, "document_id": str(document.id), "chunk_index": chunk.chunk_index}}
                 for chunk, document, dist in rows]
+
+    def search_reports(self, organization_id, document_ids, fingerprint, vector, top_k, minimum):
+        with self.sessions() as session:
+            distance = RagChunk.embedding.cosine_distance(vector)
+            rows = session.execute(select(RagChunk, RagDocument, distance.label("distance"))
+                .join(RagDocument, RagDocument.id == RagChunk.document_id)
+                .where(RagChunk.organization_id == organization_id,
+                    RagDocument.organization_id == organization_id,
+                    RagDocument.document_type == "INTERNAL_REPORT",
+                    RagDocument.fingerprint == fingerprint,
+                    RagChunk.document_id.in_(document_ids), distance <= 2 * (1 - minimum))
+                .order_by(distance, RagChunk.document_id, RagChunk.chunk_index).limit(top_k))
+            return [{**doc.source, **chunk.metadata_json, "quote": chunk.text,
+                "chunk_id": str(chunk.id), "score": max(0., min(1., 1 - float(dist) / 2))}
+                for chunk, doc, dist in rows]

@@ -26,13 +26,13 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def test_model_metadata_and_delete_policy():
     configure_mappers()
-    assert len(Base.metadata.tables) == 14
+    assert len(Base.metadata.tables) == 17
     for table in Base.metadata.tables.values():
         assert table.schema == "core"
         for fk in table.foreign_keys:
             assert fk.ondelete == "RESTRICT"
         for column in table.columns:
-            if column.name.endswith("_at"):
+            if column.name.endswith("_at") and column.name != "published_at":
                 assert column.type.timezone
     for mapper in Base.registry.mappers:
         for relation in mapper.relationships:

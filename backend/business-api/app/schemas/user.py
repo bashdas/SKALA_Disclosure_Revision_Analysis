@@ -65,6 +65,7 @@ class SignupRequest(NameChangeRequest):
     email: EmailStr = Field(max_length=320)
     password: SecretStr = Field(min_length=12, max_length=128, repr=False)
     organization_name: str = Field(min_length=1, max_length=255)
+    role: UserRole = UserRole.ANALYST
 
     @field_validator("organization_name")
     @classmethod

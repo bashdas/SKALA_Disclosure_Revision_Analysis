@@ -125,6 +125,9 @@ class Tools:
             return result if result.get("error") else normalize_evidence(result, name, args)
         return {"error": "TOOL_NOT_AVAILABLE", "tool": name}
 
+    async def search_research_reports(self, task_id: str, query: str) -> dict:
+        return await mcp_call("RAG", "search_research_reports", {"task_id": task_id, "query": query})
+
     async def authorize(self, request: dict) -> dict:
         base = os.environ.get("BUSINESS_API_BASE_URL", "http://127.0.0.1:8080")
         async with httpx.AsyncClient(base_url=base, timeout=10) as client:

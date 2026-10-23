@@ -67,6 +67,9 @@ onBeforeUnmount(() => {
           <RouterLink to="/companies" :class="{ active: route.path.startsWith('/companies') }"
             >기업 목록</RouterLink
           >
+          <RouterLink to="/internal-reports" :class="{ active: route.path === '/internal-reports' }"
+            >내부 리포트</RouterLink
+          >
         </nav>
         <AccountView v-if="hasSession()" />
       </header>

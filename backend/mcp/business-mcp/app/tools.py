@@ -13,6 +13,11 @@ def register_tools(mcp: FastMCP, client: BusinessAPIClient) -> None:
         return await client.request("GET", f"/internal/analyses/{task_id}/context")
 
     @mcp.tool()
+    async def get_research_reports(task_id: UUID) -> dict[str, Any]:
+        """Get organization-scoped, fixed-version company reports for this task."""
+        return await client.request("GET", f"/internal/analyses/{task_id}/research-reports")
+
+    @mcp.tool()
     async def get_analysis_status(task_id: UUID) -> dict[str, Any]:
         """Get current status; stop analysis work if cancelled is true."""
         return await client.request("GET", f"/internal/analyses/{task_id}/status")

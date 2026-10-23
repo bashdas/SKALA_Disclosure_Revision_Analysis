@@ -86,3 +86,14 @@ downgrade는 공유될 수 있는 vector extension과 rag schema 자체를 제�
 
 이번 요청에 따라 테스트, PostgreSQL smoke test, migration upgrade/downgrade, 실제 embedding API 호출은 실행하지 않았습니다.
 API key를 Tool 입력이나 응답으로 전달하지 않으며 Business API/OpenDART를 직접 호출하지 않습니다.
+
+## 내부 리포트 검색
+
+`search_research_reports(task_id, query, top_k=5)`는 Business MCP의 작업별 리포트 목록을 가져와
+회사 내부 리포트를 임베딩하고 검색합니다. 조직과 기업은 작업 컨텍스트로 검증하며 클라이언트가 지정하지 않습니다.
+공시 기준일과 문서 버전은 Business API가 고정합니다. 캐시가 있어도 매 요청마다 허용된 목록을 다시 확인해 삭제 자료를 제외합니다.
+검색 전 허용된 문서 ID·조직·fingerprint를 필터링합니다. 본문에서 페이지별로 줄 경계를 보존해 나누고
+`research:{report_id}:v{version}`, `page:{page}:chars:{start}-{end}`로 인용 위치를 유지합니다.
+응답은 AI 계약인 `documents`, `sources`, `research_reports`입니다. 결과가 없으면 각 배열이 비어 있습니다.
+새 문서는 최초 검색 시 색인하며 `0004_internal_reports` migration이 필요합니다.
+원문과 검색어는 기존 OpenAI 임베딩 API에 전송됩니다. MCP는 기존과 같이 내부 네트워크 전용입니다.

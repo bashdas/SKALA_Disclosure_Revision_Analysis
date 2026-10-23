@@ -10,3 +10,6 @@ __all__ = [
     "Contract", "CompanyFavorite", "Filing", "FilingVersion", "Memo", "MemoVersion", "Organization",
     "RevisionProposal", "User",
 ]
+
+from app.models.internal_report import InternalReport, InternalReportVersion, AnalysisReportReference
+__all__ += ["InternalReport", "InternalReportVersion", "AnalysisReportReference"]

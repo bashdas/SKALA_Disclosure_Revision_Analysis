@@ -92,7 +92,7 @@ async def call(harness, name, args, invoke, *, report=False, scope=""):
                 )
                 harness.ledger.lookup_state(harness.task_id, key, name, "RUNNING", counts[name])
             try:
-                async with asyncio.timeout(min(10, harness.remaining(report))):
+                async with asyncio.timeout(min(60 if name == "search_research_reports" else 10, harness.remaining(report))):
                     result = await invoke(name, args)
                 if not isinstance(result, dict):
                     result = {"error": "INVALID_TOOL_OUTPUT"}

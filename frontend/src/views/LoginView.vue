@@ -5,6 +5,7 @@ import { useRouter } from 'vue-router'
 import SkeletonState from '../components/SkeletonState.vue'
 import { login, signup } from '../services/http'
 const router = useRouter()
+const role = ref<'RA' | 'ANALYST'>('ANALYST')
 const registering = ref(false),
   organizationName = ref(''),
   name = ref(''),
@@ -25,7 +26,13 @@ async function signIn() {
   error.value = ''
   try {
     if (registering.value) {
-      await signup(email.value, password.value, organizationName.value, name.value.trim())
+      await signup(
+        email.value,
+        password.value,
+        organizationName.value,
+        name.value.trim(),
+        role.value,
+      )
       registering.value = false
       password.value = ''
       notice.value = '회원가입을 완료했습니다. 비밀번호를 입력해 로그인하세요.'
@@ -61,6 +68,12 @@ async function signIn() {
           maxlength="255"
           autocomplete="organization"
       /></label>
+      <label v-if="registering"
+        >역할<select v-model="role">
+          <option value="ANALYST">ANALYST · 내부 리포트 관리</option>
+          <option value="RA">RA · 내부 리포트 조회</option>
+        </select></label
+      >
       <label
         >이메일<input v-model="email" type="email" autocomplete="username" required maxlength="320"
       /></label>
