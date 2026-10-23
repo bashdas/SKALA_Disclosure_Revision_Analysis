@@ -1,5 +1,11 @@
 # Business API — Core Domain Schema
 
+현재 서비스는 **단일 기업 납품형**입니다. `Organization`과 `organization_id`는 현재 모델·API·JWT에서 제거했습니다.
+직원은 같은 공시·메모·내부 리포트·분석 결과를 조회하며 내부 리포트 변경은 ANALYST만 가능합니다.
+가입 필드는 이메일·비밀번호·이름·역할이며 조직 입력은 없습니다. 즐겨찾기는 기존처럼 사용자별입니다.
+과거 단계의 조직 관련 설명보다 이 단일 기업 정책이 우선합니다.
+
+
 구현 담당자: 박다솔. 기존 SQLAlchemy 2.x sync + psycopg 3, Base 및 세션 관리 방식을 유지합니다. 현재 Domain schema, 상태 머신, sync Repository와 JWT 인증/인가 기반을 제공합니다. AuthService/로그인, Memo 텍스트 업로드 및 조직 범위 Filing/Memo 조회 API를 제공합니다. 분석 API와 Queue 연동은 아직 없습니다.
 
 ## 모델과 관계
@@ -338,7 +344,7 @@ NULL 회사명이 있거나 metadata가 하나라도 저장되어 있으면 down
 
 기존 메모는 핵심 분석 대상으로 유지합니다. 내부 리포트는 메모와 별도의 회사 공통 참고 DB입니다.
 `/api/v1/internal-reports`에서 ANALYST는 등록·정보 수정·PDF 교체·삭제를, RA는 목록·상세·버전·PDF 조회를 할 수 있습니다.
-가입 요청의 `role`은 `ANALYST` 또는 `RA`이며 생략 시 기존 호환을 위해 ANALYST입니다. 기존처럼 가입마다 새 조직을 생성하며, 조직 이름만으로 합류시키지 않습니다.
+가입 요청의 `role`은 `ANALYST` 또는 `RA`이며 생략 시 기존 호환을 위해 ANALYST입니다. 단일 기업 납품형으로 가입 시 조직을 생성하거나 선택하지 않습니다. 로그인한 직원은 같은 회사 자료를 공유합니다.
 
 등록 필드는 `title`, `corp_code` (DART 기업코드), `published_at`, `file`입니다. 기업명은 서버에서 확인합니다.
 PDF는 20 MiB·300쪽·추출 텍스트 100만 자 이하이며 암호화 문서와 텍스트 없는 스캔 문서는 거부합니다. OCR은 포함하지 않습니다.
@@ -347,7 +353,15 @@ PDF는 20 MiB·300쪽·추출 텍스트 100만 자 이하이며 암호화 문서
 원본 교체는 `POST /{id}/versions` (file, base_version), 정보 수정은 `PATCH /{id}`입니다.
 삭제는 논리 삭제이며 기존 분석 결과·버전은 보존하고 이후 조회와 검색에서는 제외합니다.
 
-Business MCP의 `get_research_reports(task_id)`는 내부 인증 API를 호출합니다. 작업 조직·기업·등록 공시 날짜로
+Business MCP의 `get_research_reports(task_id)`는 내부 인증 API를 호출합니다. 작업 기업·등록 공시 날짜로
 리포트를 제한하고 최초 조회에서 현재 버전 목록을 고정합니다. 메모 연결이나 분석 시작 시 리포트 첨부는 없습니다.
 빈 목록도 고정하며 이후 업로드는 새 분석부터 적용됩니다. 삭제된 자료는 이미 고정된 목록에서도 제외합니다.
 이 기능에는 업무 DB migration `0011_internal_reports`가 필요합니다.
+
+## 단일 기업 DB 전환
+
+업무 DB `0012_single_company`, RAG DB `0005_single_company`까지 `alembic upgrade head` 후 관련 서비스를 재시작합니다.
+기존 업무 문서와 사용자 ID는 보존하고 조직 열·조직 테이블을 제거합니다. 기존 JWT는 token_version 증가로 무효화되므로 다시 로그인합니다.
+이전 조직별로 같은 공시 접수번호가 중복 저장돼 있으면 업무 migration은 자료를 자동 삭제하지 않고 중단합니다. 해당 중복을 먼저 정리해야 합니다.
+RAG의 동일한 문서 캐시는 하나로 합치고 분석 작업의 참조를 갱신합니다. 서로 다른 내용의 문서·벡터는 유지합니다.
+다운그레이드는 하나의 공통 legacy 조직으로만 돌아가며 기존 조직별 구분을 복원하지 않습니다.

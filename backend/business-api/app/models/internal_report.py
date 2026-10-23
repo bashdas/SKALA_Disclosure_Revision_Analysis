@@ -13,7 +13,6 @@ from app.models.common import IdentityCreatedMixin, UpdatedMixin
 class InternalReport(IdentityCreatedMixin, UpdatedMixin, Base):
     __tablename__ = "internal_reports"
     __table_args__ = {"schema": "core"}
-    organization_id: Mapped[UUID] = mapped_column(ForeignKey("core.organizations.id", ondelete="RESTRICT"), index=True)
     title: Mapped[str] = mapped_column(String(500))
     corp_code: Mapped[str] = mapped_column(String(8), index=True)
     company_name: Mapped[str] = mapped_column(String(255))

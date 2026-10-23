@@ -20,7 +20,6 @@ class TokenResponse(BaseModel):
 
 class TokenPayload(BaseModel):
     sub: UUID
-    organization_id: UUID
     role: UserRole
     token_version: StrictInt = Field(default=0, ge=0)
     exp: StrictInt
@@ -37,6 +36,5 @@ class CurrentUser(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     id: UUID
-    organization_id: UUID
     email: str
     role: UserRole

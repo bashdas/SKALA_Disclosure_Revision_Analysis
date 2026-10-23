@@ -7,12 +7,12 @@ from fastapi import Depends, FastAPI
 from fastapi.testclient import TestClient
 
 from app.api.auth import router as auth_router
-from app.api.dependencies import get_current_organization_id, get_current_user, require_roles
+from app.api.dependencies import get_current_user, require_roles
 from app.api.exception_handlers import install_exception_handlers
 from app.core.config import Settings, get_settings
 from app.core.database import get_db
 from app.core.security import create_access_token, decode_access_token
-from app.models import Organization, User
+from app.models import User
 from app.models.enums import UserRole
 from app.schemas.auth import CurrentUser
 from test_auth_security import TEST_PASSWORD, TEST_SECRET, auth_settings, stored_password_hash
@@ -28,10 +28,6 @@ def build_test_app():
     @app.get("/protected")
     def protected(user: Annotated[CurrentUser, Depends(get_current_user)]):
         return user
-
-    @app.get("/organization")
-    def organization(organization_id: Annotated[UUID, Depends(get_current_organization_id)]):
-        return {"organization_id": str(organization_id)}
 
     @app.get("/ra")
     def ra(user: Annotated[CurrentUser, Depends(require_roles(UserRole.RA))]):
@@ -88,13 +84,10 @@ def test_login_failures_are_indistinguishable(client, graph):
 
 
 @pytest.mark.postgres
-def test_current_user_and_organization_come_from_db(client, graph, auth_settings):
-    headers = bearer(graph.user, auth_settings)
-    response = client.get("/protected", headers=headers)
+def test_current_user_comes_from_db_without_organization(client, graph, auth_settings):
+    response = client.get("/protected", headers=bearer(graph.user, auth_settings))
     assert response.status_code == 200
-    assert response.json() == {"id": str(graph.user.id), "organization_id": str(graph.org.id), "email": graph.user.email, "role": "ANALYST"}
-    response = client.get("/organization", headers=headers, params={"organization_id": str(uuid4())})
-    assert response.json() == {"organization_id": str(graph.org.id)}
+    assert response.json() == {"id": str(graph.user.id), "email": graph.user.email, "role": "ANALYST"}
 
 
 @pytest.mark.postgres
@@ -114,7 +107,7 @@ def test_expired_token_http(client, graph, auth_settings):
 
 @pytest.mark.postgres
 def test_missing_user_is_masked_as_invalid_token(client, graph, auth_settings):
-    deleted = User(id=uuid4(), organization_id=graph.org.id, role=graph.user.role)
+    deleted = User(id=uuid4(), role=graph.user.role)
     response = client.get("/protected", headers=bearer(deleted, auth_settings))
     assert response.status_code == 401
     assert response.json()["error"]["code"] == "INVALID_TOKEN"
@@ -122,14 +115,11 @@ def test_missing_user_is_masked_as_invalid_token(client, graph, auth_settings):
 
 
 @pytest.mark.postgres
-@pytest.mark.parametrize("field", ["organization", "role"])
+@pytest.mark.parametrize("field", ["token_version", "role"])
 def test_stale_claims_rejected_against_current_db_user(client, db, graph, auth_settings, field):
     headers = bearer(graph.user, auth_settings)
-    if field == "organization":
-        org = Organization(name="Moved org")
-        db.add(org)
-        db.flush()
-        graph.user.organization_id = org.id
+    if field == "token_version":
+        graph.user.token_version += 1
     else:
         graph.user.role = UserRole.RA
     db.flush()

@@ -17,36 +17,36 @@ class FilingService:
     def __init__(self, filings: FilingRepository, source: DisclosureSource | None = None):
         self.filings, self.source = filings, source
 
-    def list_filings(self, organization_id: UUID, *, limit: int = 20, offset: int = 0, company_name: str | None = None, filing_type: str | None = None) -> list[Filing]:
-        return self.filings.list_by_organization(organization_id, limit=limit, offset=offset, company_name=company_name, filing_type=filing_type)
+    def list_filings(self, *, limit: int = 20, offset: int = 0, company_name: str | None = None, filing_type: str | None = None) -> list[Filing]:
+        return self.filings.list_all(limit=limit, offset=offset, company_name=company_name, filing_type=filing_type)
 
-    def get_filing(self, filing_id: UUID, organization_id: UUID) -> Filing:
-        filing = self.filings.get_by_id_and_organization(filing_id, organization_id)
+    def get_filing(self, filing_id: UUID) -> Filing:
+        filing = self.filings.get_by_id(filing_id)
         if filing is None:
             raise FilingNotFound()
         return filing
 
-    def get_by_receipt_no_and_organization(self, receipt_no: str, organization_id: UUID) -> Filing:
-        filing = self.filings.get_by_receipt_no_and_organization(receipt_no, organization_id)
+    def get_by_receipt_no(self, receipt_no: str) -> Filing:
+        filing = self.filings.get_by_receipt_no(receipt_no)
         if filing is None:
             raise FilingNotFound()
         return filing
 
-    def list_versions(self, filing_id: UUID, organization_id: UUID, *, limit: int = 20, offset: int = 0) -> list[FilingVersion]:
-        self.get_filing(filing_id, organization_id)
-        return self.filings.list_versions(filing_id, organization_id=organization_id, limit=limit, offset=offset)
+    def list_versions(self, filing_id: UUID, *, limit: int = 20, offset: int = 0) -> list[FilingVersion]:
+        self.get_filing(filing_id)
+        return self.filings.list_versions(filing_id, limit=limit, offset=offset)
 
-    def get_version(self, filing_id: UUID, version: int, organization_id: UUID) -> FilingVersion:
-        self.get_filing(filing_id, organization_id)
-        result = self.filings.get_version(filing_id, version, organization_id=organization_id)
+    def get_version(self, filing_id: UUID, version: int) -> FilingVersion:
+        self.get_filing(filing_id)
+        result = self.filings.get_version(filing_id, version)
         if result is None:
             raise FilingVersionNotFound()
         return result
 
 
-    def register(self, receipt_no: str, organization_id: UUID, *, origin: str | None = None, automatic: bool = False) -> Filing:
+    def register(self, receipt_no: str, *, origin: str | None = None, automatic: bool = False) -> Filing:
         session = self.filings.session
-        existing = self.filings.get_by_receipt_no_and_organization(receipt_no, organization_id)
+        existing = self.filings.get_by_receipt_no(receipt_no)
         if automatic and existing is not None:
             return existing
         if self.source is None:
@@ -68,17 +68,17 @@ class FilingService:
             is_correction = bool(re.match(r"^\[(?:기재|첨부)?정정\]", title)) or (
                 receipt_no.startswith("SEC:") and title.startswith("8-K/A ")
             )
-            values = dict(organization_id=organization_id, receipt_no=receipt_no,
+            values = dict(receipt_no=receipt_no,
                 company_name=name, corp_code=corp, title=title,
                 filing_type="정정공시" if is_correction else "신규공시",
                 is_correction=is_correction, is_registered=True, filed_at=filed)
             if origin:
                 values["origin_receipt_no"] = origin
-            # 같은 공시를 동시에 등록해도 조직별 접수번호의 고유 제약으로 한 건만 저장합니다.
+            # 같은 공시를 동시에 등록해도 접수번호의 고유 제약으로 한 건만 저장합니다.
             command = insert(Filing).values(**values)
-            changes = {key: value for key, value in values.items() if key not in ("organization_id", "receipt_no")}
+            changes = {key: value for key, value in values.items() if key != "receipt_no"}
             filing = session.scalar(command.on_conflict_do_update(
-                constraint="uq_filings_organization_receipt", set_=changes).returning(Filing), execution_options={"populate_existing": True})
+                constraint="uq_filings_receipt", set_=changes).returning(Filing), execution_options={"populate_existing": True})
             digest = sha256(content.encode("utf-8")).hexdigest()
             session.execute(insert(FilingVersion).values(filing_id=filing.id, version=1,
                 raw_content=content, content_hash=digest).on_conflict_do_nothing(constraint="uq_filing_versions_filing_version"))
@@ -88,22 +88,21 @@ class FilingService:
             session.rollback()
             raise
 
-    def unregister(self, filing_id: UUID, organization_id: UUID) -> None:
+    def unregister(self, filing_id: UUID) -> None:
         session = self.filings.session
         try:
-            filing = self.get_filing(filing_id, organization_id)
+            filing = self.get_filing(filing_id)
             # 기존 분석과 근거가 참조하는 원문은 보존하고 등록 목록에서 제외합니다.
             filing.is_registered = False
             if filing.origin_receipt_no is None:
-                session.execute(update(Filing).where(Filing.organization_id == organization_id,
-                    Filing.origin_receipt_no == filing.receipt_no).values(is_registered=False))
+                session.execute(update(Filing).where(Filing.origin_receipt_no == filing.receipt_no).values(is_registered=False))
             session.commit()
         except Exception:
             session.rollback()
             raise
 
-    def check_corrections(self, filing_id: UUID, organization_id: UUID) -> list[Filing]:
-        filing = self.get_filing(filing_id, organization_id)
+    def check_corrections(self, filing_id: UUID) -> list[Filing]:
+        filing = self.get_filing(filing_id)
         if not filing.is_registered or self.source is None:
             raise FilingNotFound()
         receipt = filing.origin_receipt_no or filing.receipt_no
@@ -112,7 +111,7 @@ class FilingService:
             correction = row.get("receipt_no", "")
             if (row.get("is_correction") is True and isinstance(correction, str)
                 and re.fullmatch(r"[0-9]{14}", correction) and correction > receipt):
-                self.register(correction, organization_id, origin=receipt, automatic=True)
+                self.register(correction, origin=receipt, automatic=True)
         return list(self.filings.session.scalars(select(Filing).where(
-            Filing.organization_id == organization_id, Filing.origin_receipt_no == receipt,
+            Filing.origin_receipt_no == receipt,
             Filing.is_registered.is_(True)).order_by(Filing.filed_at.desc(), Filing.id)))

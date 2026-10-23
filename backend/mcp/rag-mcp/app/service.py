@@ -21,7 +21,6 @@ class MemoContext(BaseModel):
 
 class AnalysisContext(BaseModel):
     task_id: UUID
-    organization_id: UUID
     memo: MemoContext
     corp_code: str | None = None
     company_name: str | None = None
@@ -75,7 +74,6 @@ class RagService:
         self, context, kind, identifier, version, text, source, document=None
     ):
         identity = dict(
-            organization_id=context.organization_id,
             document_type=kind,
             identifier=identifier,
             version=str(version),
@@ -141,7 +139,7 @@ class RagService:
             document,
         )
         await self.db(
-            self.store.link, task_id, context.organization_id, memo["id"], filing["id"]
+            self.store.link, task_id, memo["id"], filing["id"]
         )
         return {
             "task_id": str(task_id),
@@ -157,7 +155,6 @@ class RagService:
         results = await self.db(
             self.store.search,
             task_id,
-            context.organization_id,
             context.memo.id,
             context.memo.version,
             context.disclosure_receipt_no,

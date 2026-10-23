@@ -16,7 +16,7 @@ from app.core.database import get_db
 from app.core.security import create_access_token
 from app.domain.memo_upload_exceptions import InvalidMemoFilename, MemoFileTooLarge
 from app.main import app
-from app.models import Memo, MemoVersion, Organization, User
+from app.models import Memo, MemoVersion, User
 from app.models.enums import UserRole
 from app.repositories import MemoRepository
 from app.services.memo import MemoService
@@ -27,28 +27,22 @@ from test_domain import migrated_engine
 
 @pytest.fixture
 def upload_context(migrated_engine, auth_settings):
-    # Committed setup + independent request sessions verifies real commit visibility,
-    # unlike a Session bound to a test's external rollback-only transaction.
     auth_settings.memo_upload_max_bytes = 256
     factory = sessionmaker(migrated_engine, expire_on_commit=False, autoflush=False)
     with factory() as session:
-        organizations = [Organization(name="Upload organization A"), Organization(name="Upload organization B")]
-        session.add_all(organizations)
-        session.flush()
-        users = [User(organization_id=org.id, email=f"{uuid4()}@example.test", password_hash="unused-for-bearer-test", role=role) for org, role in zip(organizations, [UserRole.RA, UserRole.ANALYST])]
+        users = [User(email=f"{uuid4()}@example.test", password_hash="unused-for-bearer-test", role=role)
+            for role in (UserRole.RA, UserRole.ANALYST)]
         session.add_all(users)
         session.commit()
-    result = SimpleNamespace(engine=migrated_engine, factory=factory, users=users, organizations=organizations, settings=auth_settings)
+    result = SimpleNamespace(engine=migrated_engine, factory=factory, users=users, settings=auth_settings)
     try:
         yield result
     finally:
-        organization_ids = [org.id for org in organizations]
         with factory() as session:
-            memo_ids = select(Memo.id).where(Memo.organization_id.in_(organization_ids))
+            memo_ids = list(session.scalars(select(MemoVersion.memo_id).where(MemoVersion.created_by.in_([u.id for u in users]))))
             session.execute(delete(MemoVersion).where(MemoVersion.memo_id.in_(memo_ids)))
-            session.execute(delete(Memo).where(Memo.organization_id.in_(organization_ids)))
-            session.execute(delete(User).where(User.id.in_([user.id for user in users])))
-            session.execute(delete(Organization).where(Organization.id.in_(organization_ids)))
+            session.execute(delete(Memo).where(Memo.id.in_(memo_ids)))
+            session.execute(delete(User).where(User.id.in_([u.id for u in users])))
             session.commit()
 
 
@@ -77,7 +71,8 @@ def post(client, raw=b"Original memo content", name="company_review.txt", mime="
 
 def assert_empty(context):
     with context.factory() as session:
-        assert session.scalar(select(func.count()).select_from(Memo).where(Memo.organization_id.in_([org.id for org in context.organizations]))) == 0
+        assert session.scalar(select(func.count()).select_from(MemoVersion).where(
+            MemoVersion.created_by.in_([u.id for u in context.users]))) == 0
 
 
 @pytest.mark.postgres
@@ -101,7 +96,6 @@ def test_upload_roles_and_atomic_v1_persistence(upload_client, upload_context, u
     with upload_context.factory() as session:
         memo = session.get(Memo, UUID(body["id"]))
         version = session.scalar(select(MemoVersion).where(MemoVersion.memo_id == memo.id))
-        assert memo.organization_id == user.organization_id
         assert memo.company_name is None and memo.current_version == 1
         assert version.version == 1 and version.created_by == user.id
         assert version.content == raw.decode("utf-8")
@@ -112,14 +106,12 @@ def test_upload_roles_and_atomic_v1_persistence(upload_client, upload_context, u
 
 @pytest.mark.postgres
 def test_explicit_title_and_client_scope_fields_not_trusted(upload_client, upload_context):
-    other_org = upload_context.organizations[1]
-    response = post(upload_client, title="Explicit display title", organization_id=str(other_org.id), company_name="Do not infer or trust", corp_code="12345678", receipt_no="not-an-analysis", version="99")
+    response = post(upload_client, title="Explicit display title", company_name="Do not infer or trust", corp_code="12345678", receipt_no="not-an-analysis", version="99")
     assert response.status_code == 201
     assert response.json()["title"] == "Explicit display title"
     assert response.json()["company_name"] is None
     with upload_context.factory() as session:
         memo = session.get(Memo, UUID(response.json()["id"]))
-        assert memo.organization_id == upload_context.users[0].organization_id
         assert memo.current_version == 1
 
 
@@ -165,7 +157,7 @@ def test_same_file_can_be_uploaded_twice(upload_client):
 
 
 @pytest.mark.postgres
-def test_upload_read_api_metadata_pagination_and_organization_isolation(upload_client, upload_context):
+def test_upload_read_api_metadata_pagination_and_company_sharing(upload_client, upload_context):
     ids = [post(upload_client, title=f"Memo {index}").json()["id"] for index in range(3)]
     memo_id = ids[0]
     response = upload_client.get("/api/v1/memos", params={"limit": 1, "offset": 1})
@@ -183,9 +175,9 @@ def test_upload_read_api_metadata_pagination_and_organization_isolation(upload_c
     assert upload_client.get(f"/api/v1/memos/{uuid4()}").status_code == 404
     user_b = upload_context.users[1]
     upload_client.headers["Authorization"] = "Bearer " + create_access_token(user_b, settings=upload_context.settings)
-    assert upload_client.get("/api/v1/memos").json() == []
+    assert len(upload_client.get("/api/v1/memos").json()) == 3
     for suffix in ("", "/versions", "/versions/1"):
-        assert upload_client.get(f"/api/v1/memos/{memo_id}{suffix}").status_code == 404
+        assert upload_client.get(f"/api/v1/memos/{memo_id}{suffix}").status_code == 200
 
 
 @pytest.mark.postgres
@@ -211,7 +203,7 @@ def test_upload_rolls_back_both_rows_and_recovers_session(upload_context, failur
             replacement = invalid_row
         with patch.object(target, name, side_effect=replacement):
             with pytest.raises((IntegrityError, RuntimeError)):
-                service.create_from_upload(stream=BytesIO(b"memo"), filename="memo.txt", content_type="text/plain", organization_id=upload_context.users[0].organization_id, created_by=upload_context.users[0].id)
+                service.create_from_upload(stream=BytesIO(b"memo"), filename="memo.txt", content_type="text/plain", created_by=upload_context.users[0].id)
         # Checked before closing Session: Service must explicitly rollback flush failure.
         assert not session.in_transaction()
         assert session.scalar(text("SELECT 1")) == 1
@@ -223,7 +215,7 @@ def test_repository_only_flushes_memo_and_version(upload_context):
     user = upload_context.users[0]
     with upload_context.factory() as session:
         repo = MemoRepository(session)
-        memo = repo.add_memo(Memo(organization_id=user.organization_id, company_name=None, title="Uncommitted", current_version=1))
+        memo = repo.add_memo(Memo(company_name=None, title="Uncommitted", current_version=1))
         repo.add_version(MemoVersion(memo_id=memo.id, version=1, content="Uncommitted", created_by=user.id))
         assert memo.id is not None
         assert_empty(upload_context)  # observer does not see uncommitted insertion

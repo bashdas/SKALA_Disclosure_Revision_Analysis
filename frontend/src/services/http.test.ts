@@ -34,7 +34,7 @@ function respond(path: string, init?: RequestInit) {
     path === '/api/v1/auth/login'
       ? { access_token: 'server-token' }
       : path === '/api/v1/users/me'
-        ? { id: 'user-id', email: 'user@example.test', role: 'RA', organization_id: 'org-id' }
+        ? { id: 'user-id', email: 'user@example.test', role: 'RA' }
         : path.startsWith('/api/v1/filings?')
           ? [
               {
@@ -194,7 +194,7 @@ it('비밀번호 변경의 204 응답을 처리하고 토큰을 폐기합니다'
       return Promise.resolve(new Response(JSON.stringify({ id: 'new-user' }), { status: 201 }))
     return respond(path, options)
   })
-  await signup('new@example.com', 'password-test-123', '새 조직', '박건민')
+  await signup('new@example.com', 'password-test-123', '박건민', 'ANALYST')
   await changePassword('password', 'new-password-123')
   expect(hasSession()).toBe(false)
   const call = fetcher.mock.calls.find(([url]) => url.endsWith('/password'))!

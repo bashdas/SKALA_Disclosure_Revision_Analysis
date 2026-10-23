@@ -186,13 +186,14 @@ def test_live_queue_to_report(internal_client, analysis_context, tmp_path):
     finally:
         producer.close()
         with analysis_context.factory() as db:
-            organization = analysis_context.users[0].organization_id
+            user_id = analysis_context.users[0].id
             db.execute(
                 update(AnalysisTask)
-                .where(AnalysisTask.organization_id == organization)
+                .where(AnalysisTask.requested_by == user_id)
                 .values(filing_id=None)
             )
-            filing_ids = select(Filing.id).where(Filing.organization_id == organization)
+            receipts = select(AnalysisTask.disclosure_receipt_no).where(AnalysisTask.requested_by == user_id)
+            filing_ids = select(Filing.id).where(Filing.receipt_no.in_(receipts))
             db.execute(delete(FilingVersion).where(FilingVersion.filing_id.in_(filing_ids)))
-            db.execute(delete(Filing).where(Filing.organization_id == organization))
+            db.execute(delete(Filing).where(Filing.id.in_(filing_ids)))
             db.commit()

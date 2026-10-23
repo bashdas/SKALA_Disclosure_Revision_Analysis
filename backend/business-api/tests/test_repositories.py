@@ -8,7 +8,7 @@ from sqlalchemy.exc import IntegrityError
 from app.domain.analysis_state_machine import advance_analysis_stage, transition_analysis
 from app.models import (
     AnalysisEvent, AnalysisPerspectiveTask, AnalysisReport, AnalysisTask, AuditLog,
-    Filing, FilingVersion, MemoVersion, Organization, RevisionProposal,
+    Filing, FilingVersion, MemoVersion, RevisionProposal,
 )
 from app.models.enums import AnalysisStage as G, AnalysisStatus as S, ImpactType, PerspectiveStatus, PerspectiveType
 from app.repositories import (
@@ -22,7 +22,7 @@ pytestmark = pytest.mark.postgres
 
 
 def new_task(graph, **changes):
-    values = dict(organization_id=graph.org.id, requested_by=graph.user.id, memo_id=graph.memo.id, base_memo_version=1, disclosure_receipt_no="new-receipt", company_name_snapshot="Example", thread_id=str(uuid4()))
+    values = dict(requested_by=graph.user.id, memo_id=graph.memo.id, base_memo_version=1, disclosure_receipt_no="new-receipt", company_name_snapshot="Example", thread_id=str(uuid4()))
     values.update(changes)
     return AnalysisTask(**values)
 
@@ -33,13 +33,11 @@ def new_perspective(graph, **changes):
     return AnalysisPerspectiveTask(**values)
 
 
-def test_user_queries_and_organization_scope(db, graph):
+def test_user_queries(db, graph):
     repo = UserRepository(db)
     assert repo.get_by_id(graph.user.id) is graph.user
     assert repo.get_by_email(graph.user.email) is graph.user
     assert repo.get_by_email("absent@example.test") is None
-    assert repo.get_by_id_and_organization(graph.user.id, graph.org.id) is graph.user
-    assert repo.get_by_id_and_organization(graph.user.id, uuid4()) is None
     assert repo.get_by_id(uuid4()) is None
 
 
@@ -50,54 +48,35 @@ def test_memo_current_version_and_version_history(db, graph):
     graph.memo.current_version = 2
     db.flush()
     assert repo.get_by_id(graph.memo.id) is graph.memo
-    assert repo.get_by_id_and_organization(graph.memo.id, uuid4()) is None
-    assert repo.get_by_id_and_organization(graph.memo.id, graph.org.id, for_update=True) is graph.memo
-    assert repo.get_current_version(graph.memo.id, organization_id=graph.org.id, for_update=True) == 2
+    assert repo.get_by_id(graph.memo.id, for_update=True) is graph.memo
+    assert repo.get_current_version(graph.memo.id, for_update=True) == 2
     assert graph.task.base_memo_version == 1
-    assert repo.get_current_version(graph.memo.id, organization_id=uuid4()) is None
     assert repo.get_version(graph.memo.id, 1) is graph.version
-    assert repo.get_version(graph.memo.id, 2, organization_id=graph.org.id) is version2
-    assert repo.get_version(graph.memo.id, 1, organization_id=uuid4()) is None
+    assert repo.get_version(graph.memo.id, 2) is version2
     assert repo.get_version(graph.memo.id, 999) is None
     assert repo.list_versions(graph.memo.id) == [graph.version, version2]
-    assert repo.list_versions(graph.memo.id, organization_id=uuid4()) == []
     assert repo.get_current_version(uuid4()) is None
 
 
-def test_filing_receipt_is_not_global_unique_and_cache_can_be_absent(db, graph):
+def test_filing_receipt_is_global_unique_and_cache_can_be_absent(db, graph):
     repo = FilingRepository(db)
-    other_org = Organization(name="Other")
-    db.add(other_org)
-    db.flush()
-    other_filing = Filing(organization_id=other_org.id, company_name="Example", receipt_no=graph.filing.receipt_no, filing_type="correction", filed_at=datetime.now(timezone.utc))
-    db.add(other_filing)
-    db.add_all([FilingVersion(filing_id=graph.filing.id, version=2, raw_content="second", content_hash="hash2"), FilingVersion(filing_id=graph.filing.id, version=1, raw_content="first", content_hash="hash1")])
+    db.add_all([FilingVersion(filing_id=graph.filing.id, version=2, raw_content="second", content_hash="hash2"),
+        FilingVersion(filing_id=graph.filing.id, version=1, raw_content="first", content_hash="hash1")])
     db.flush()
     assert repo.get_by_id(graph.filing.id) is graph.filing
-    matches = repo.list_by_receipt_no(graph.filing.receipt_no)
-    assert isinstance(matches, list)
-    assert set(matches) == {graph.filing, other_filing}
-    assert not hasattr(repo, "get_by_receipt_no")
-    assert repo.get_by_receipt_no_and_organization(graph.filing.receipt_no, graph.org.id) is graph.filing
-    assert repo.get_by_receipt_no_and_organization(graph.filing.receipt_no, other_org.id) is other_filing
-    assert repo.get_by_receipt_no_and_organization(graph.filing.receipt_no, uuid4()) is None
-    assert repo.get_by_id_and_organization(graph.filing.id, uuid4()) is None
+    assert repo.list_by_receipt_no(graph.filing.receipt_no) == [graph.filing]
+    assert repo.get_by_receipt_no(graph.filing.receipt_no) is graph.filing
+    assert repo.get_by_receipt_no("absent") is None
     assert repo.get_latest_version(graph.filing.id).version == 2
-    assert repo.get_latest_version(graph.filing.id, organization_id=uuid4()) is None
     assert repo.get_latest_version(uuid4()) is None
-    assert repo.list_by_receipt_no("missing") == []
 
 
-def test_analysis_add_get_and_scoped_list(db, graph):
+def test_analysis_add_get_and_company_list(db, graph):
     repo = AnalysisRepository(db)
     other = repo.add(new_task(graph))
-    assert other.id is not None
     assert repo.get_by_id(other.id) is other
-    assert repo.get_by_id_and_organization(other.id, graph.org.id) is other
-    assert repo.get_by_id_and_organization(other.id, uuid4()) is None
     assert repo.get_by_thread_id(other.thread_id) is other
-    assert set(repo.list_by_organization(graph.org.id)) == {graph.task, other}
-    assert repo.list_by_organization(uuid4()) == []
+    assert set(repo.list_all()) == {graph.task, other}
     assert repo.get_by_id(uuid4()) is None
     assert repo.get_by_thread_id("missing") is None
 
@@ -107,16 +86,16 @@ def test_active_duplicate_statuses(db, graph, status):
     repo = AnalysisRepository(db)
     graph.task.status = status
     db.flush()
-    found = repo.find_active_duplicate(graph.org.id, graph.memo.id, 1, graph.task.disclosure_receipt_no)
+    found = repo.find_active_duplicate(graph.memo.id, 1, graph.task.disclosure_receipt_no)
     if status in (S.CREATED, S.QUEUED, S.RUNNING, S.SAVING, S.SAVE_FAILED):
         assert found is graph.task
     else:
         assert found is None
 
 
-@pytest.mark.parametrize("field,value", [("organization_id", uuid4()), ("memo_id", uuid4()), ("base_memo_version", 2), ("disclosure_receipt_no", "other-receipt")])
-def test_duplicate_requires_all_four_input_keys(db, graph, field, value):
-    values = dict(organization_id=graph.org.id, memo_id=graph.memo.id, base_memo_version=1, disclosure_receipt_no=graph.task.disclosure_receipt_no)
+@pytest.mark.parametrize("field,value", [("memo_id", uuid4()), ("base_memo_version", 2), ("disclosure_receipt_no", "other-receipt")])
+def test_duplicate_requires_all_three_input_keys(db, graph, field, value):
+    values = dict(memo_id=graph.memo.id, base_memo_version=1, disclosure_receipt_no=graph.task.disclosure_receipt_no)
     values[field] = value
     assert AnalysisRepository(db).find_active_duplicate(**values) is None
 
@@ -127,7 +106,7 @@ def test_locked_get_refreshes_cached_analysis_and_memo(db, graph):
     db.execute(text("UPDATE core.memos SET title='Updated in SQL' WHERE id=:id"), {"id": graph.memo.id})
     assert graph.task.status is S.CREATED
     assert graph.memo.title == "Memo"
-    assert AnalysisRepository(db).get_by_id_and_organization(graph.task.id, graph.org.id, for_update=True).status is S.QUEUED
+    assert AnalysisRepository(db).get_by_id(graph.task.id, for_update=True).status is S.QUEUED
     assert MemoRepository(db).get_by_id(graph.memo.id, for_update=True).title == "Updated in SQL"
 
 
@@ -185,13 +164,12 @@ def test_events_order_and_latest_sequence_do_not_allocate_sequence(db, graph):
             repo.add(AnalysisEvent(analysis_task_id=graph.task.id, sequence=3, event_type="duplicate"))
 
 
-def test_audit_resource_lookup_is_organization_scoped(db, graph):
+def test_audit_resource_lookup_is_company_wide(db, graph):
     repo = AuditLogRepository(db)
-    item = repo.add(AuditLog(organization_id=graph.org.id, user_id=graph.user.id, action="request", resource_type="analysis", resource_id=str(graph.task.id)))
-    repo.add(AuditLog(organization_id=graph.org.id, user_id=graph.user.id, action="other", resource_type="memo", resource_id=str(graph.task.id)))
-    assert repo.list_by_resource("analysis", str(graph.task.id), organization_id=graph.org.id) == [item]
-    assert repo.list_by_resource("analysis", str(graph.task.id), organization_id=uuid4()) == []
-    assert repo.list_by_resource("analysis", "missing", organization_id=graph.org.id) == []
+    item = repo.add(AuditLog(user_id=graph.user.id, action="request", resource_type="analysis", resource_id=str(graph.task.id)))
+    repo.add(AuditLog(user_id=graph.user.id, action="other", resource_type="memo", resource_id=str(graph.task.id)))
+    assert repo.list_by_resource("analysis", str(graph.task.id)) == [item]
+    assert repo.list_by_resource("analysis", "missing") == []
     assert not hasattr(repo, "delete") and not hasattr(repo, "update")
 
 
@@ -208,7 +186,7 @@ def test_add_only_flushes_and_caller_can_rollback(db, graph, migrated_engine, ki
     elif kind == "event":
         repo, item = AnalysisEventRepository(db), AnalysisEvent(analysis_task_id=graph.task.id, sequence=1, event_type="rollback")
     else:
-        repo, item = AuditLogRepository(db), AuditLog(organization_id=graph.org.id, user_id=graph.user.id, action="rollback", resource_type="task", resource_id=str(graph.task.id))
+        repo, item = AuditLogRepository(db), AuditLog(user_id=graph.user.id, action="rollback", resource_type="task", resource_id=str(graph.task.id))
     nested = db.begin_nested()
     assert repo.add(item) is item
     key = item.id

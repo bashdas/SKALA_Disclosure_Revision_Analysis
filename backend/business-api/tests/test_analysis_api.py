@@ -16,7 +16,7 @@ from app.core.database import get_db
 from app.core.security import create_access_token
 from app.domain.analysis_exceptions import AnalysisAlreadyRunning, RabbitMQPublishFailed
 from app.main import app
-from app.models import AnalysisEvent, AnalysisPerspectiveTask, AnalysisReport, AnalysisTask, CompanyFavorite, Filing, FilingVersion, Memo, MemoVersion, Organization, User
+from app.models import AnalysisEvent, AnalysisPerspectiveTask, AnalysisReport, AnalysisTask, CompanyFavorite, Filing, FilingVersion, Memo, MemoVersion, User
 from app.models.enums import AnalysisStage, AnalysisStatus as S, UserRole
 from app.repositories import AnalysisRepository, MemoRepository
 from app.services.analysis import AnalysisService
@@ -30,50 +30,46 @@ RECEIPT = "20261020000123"
 def analysis_context(migrated_engine, auth_settings):
     factory = sessionmaker(migrated_engine, expire_on_commit=False, autoflush=False)
     with factory() as db:
-        orgs = [Organization(name="Analysis A"), Organization(name="Analysis B")]
-        db.add_all(orgs)
-        db.flush()
-        users = [User(organization_id=org.id, email=f"{uuid4()}@example.test", password_hash="unused", role=role) for org, role in zip(orgs, [UserRole.RA, UserRole.ANALYST])]
+        users = [User(email=f"{uuid4()}@example.test", password_hash="unused", role=role)
+            for role in (UserRole.RA, UserRole.ANALYST)]
         db.add_all(users)
         db.flush()
-        memos = [Memo(organization_id=user.organization_id, company_name=None, title="Memo", current_version=3) for user in users]
+        memos = [Memo(company_name=None, title="Memo", current_version=3) for _ in users]
         db.add_all(memos)
         db.flush()
-        db.add_all([MemoVersion(memo_id=memo.id, version=3, content="private memo body", created_by=user.id) for memo, user in zip(memos, users)])
-        db.add_all([Filing(organization_id=user.organization_id, company_name="검사기업", receipt_no=receipt,
-            filing_type="정정공시", is_correction=True, filed_at=datetime.now(timezone.utc))
-            for user in users for receipt in (RECEIPT, "20261020000124")])
+        db.add_all([MemoVersion(memo_id=memo.id, version=3, content="company memo body", created_by=user.id)
+            for memo, user in zip(memos, users)])
+        db.add_all([Filing(company_name="검사기업", receipt_no=receipt, filing_type="정정공시",
+            is_correction=True, filed_at=datetime.now(timezone.utc)) for receipt in (RECEIPT, "20261020000124")])
         db.commit()
     context = SimpleNamespace(factory=factory, users=users, memos=memos, settings=auth_settings, calls=[], fail=False)
-
     class Producer:
         def publish_analysis(self, task_id):
-            # Broker delivery must only occur after QUEUED becomes visible outside request Session.
             with factory() as db:
                 row = db.get(AnalysisTask, task_id)
                 assert row is not None and row.status == S.QUEUED
             context.calls.append(task_id)
             if context.fail:
                 raise RabbitMQPublishFailed()
-
     context.producer = Producer()
     try:
         yield context
     finally:
+        from app.models import AnalysisReportReference, RevisionProposal
         with factory() as db:
-            ids = [org.id for org in orgs]
-            task_ids = select(AnalysisTask.id).where(AnalysisTask.organization_id.in_(ids))
-            db.execute(delete(AnalysisEvent).where(AnalysisEvent.analysis_task_id.in_(task_ids)))
-            db.execute(delete(AnalysisPerspectiveTask).where(AnalysisPerspectiveTask.analysis_task_id.in_(task_ids)))
-            db.execute(delete(AnalysisReport).where(AnalysisReport.analysis_task_id.in_(task_ids)))
-            db.execute(delete(AnalysisTask).where(AnalysisTask.organization_id.in_(ids)))
-            db.execute(delete(MemoVersion).where(MemoVersion.memo_id.in_([memo.id for memo in memos])))
-            db.execute(delete(Memo).where(Memo.organization_id.in_(ids)))
-            db.execute(delete(CompanyFavorite).where(CompanyFavorite.user_id.in_([user.id for user in users])))
-            db.execute(delete(User).where(User.organization_id.in_(ids)))
-            db.execute(delete(FilingVersion).where(FilingVersion.filing_id.in_(select(Filing.id).where(Filing.organization_id.in_(ids)))))
-            db.execute(delete(Filing).where(Filing.organization_id.in_(ids)))
-            db.execute(delete(Organization).where(Organization.id.in_(ids)))
+            task_ids = select(AnalysisTask.id).where(AnalysisTask.requested_by.in_([u.id for u in users]))
+            for model, column in [(AnalysisReportReference, AnalysisReportReference.task_id),
+                (RevisionProposal, RevisionProposal.analysis_task_id), (AnalysisEvent, AnalysisEvent.analysis_task_id),
+                (AnalysisPerspectiveTask, AnalysisPerspectiveTask.analysis_task_id), (AnalysisReport, AnalysisReport.analysis_task_id)]:
+                db.execute(delete(model).where(column.in_(task_ids)))
+            db.execute(delete(AnalysisTask).where(AnalysisTask.requested_by.in_([u.id for u in users])))
+            db.execute(delete(MemoVersion).where(MemoVersion.memo_id.in_([m.id for m in memos])))
+            db.execute(delete(Memo).where(Memo.id.in_([m.id for m in memos])))
+            db.execute(delete(CompanyFavorite).where(CompanyFavorite.user_id.in_([u.id for u in users])))
+            db.execute(delete(User).where(User.id.in_([u.id for u in users])))
+            filing_ids = select(Filing.id).where(Filing.receipt_no.in_([RECEIPT, "20261020000124"]))
+            db.execute(delete(FilingVersion).where(FilingVersion.filing_id.in_(filing_ids)))
+            db.execute(delete(Filing).where(Filing.id.in_(filing_ids)))
             db.commit()
 
 
@@ -111,7 +107,6 @@ def test_roles_creation_and_fixed_context(analysis_client, analysis_context, ind
     assert context.calls == [UUID(body["task_id"])]
     with context.factory() as db:
         row = db.get(AnalysisTask, UUID(body["task_id"]))
-        assert row.organization_id == context.users[index].organization_id
         assert row.requested_by == context.users[index].id
         assert row.base_memo_version == 3
         assert row.disclosure_receipt_no == RECEIPT
@@ -128,11 +123,10 @@ def test_roles_creation_and_fixed_context(analysis_client, analysis_context, ind
 
 @pytest.mark.postgres
 def test_scope_missing_auth_and_no_client_scope(analysis_client, analysis_context):
-    assert request(analysis_client, analysis_context, user=1).status_code == 404
     result = request(analysis_client, analysis_context, memo_id=str(uuid4()))
     assert result.status_code == 404 and result.json()["error"]["code"] == "MEMO_NOT_FOUND"
     assert analysis_client.post("/api/v1/analyses", json={"memo_id": str(uuid4()), "disclosure_receipt_no": RECEIPT}).status_code == 401
-    assert request(analysis_client, analysis_context, organization_id=str(uuid4())).status_code == 422
+    assert request(analysis_client, analysis_context).status_code == 422
     assert analysis_context.calls == []
 
 
@@ -145,7 +139,7 @@ def test_receipt_format(analysis_client, analysis_context, receipt):
 
 def seed_task(context, status):
     with context.factory() as db:
-        row = AnalysisTask(organization_id=context.users[0].organization_id, requested_by=context.users[0].id,
+        row = AnalysisTask(requested_by=context.users[0].id,
             memo_id=context.memos[0].id, base_memo_version=3, disclosure_receipt_no=RECEIPT,
             status=status, thread_id=str(uuid4()))
         db.add(row)
@@ -174,7 +168,7 @@ def test_terminal_can_repeat(analysis_client, analysis_context, status):
 
 
 @pytest.mark.postgres
-@pytest.mark.parametrize("difference", ["version", "receipt", "organization"])
+@pytest.mark.parametrize("difference", ["version", "receipt", "memo"])
 def test_duplicate_key_dimensions(analysis_client, analysis_context, difference):
     seed_task(analysis_context, S.QUEUED)
     params = {}
@@ -213,7 +207,7 @@ def test_commit_failure_rolls_back_and_does_not_publish(analysis_context):
         service = AnalysisService(AnalysisRepository(db), MemoRepository(db), context.producer)
         with patch.object(db, "commit", side_effect=RuntimeError("injected commit failure")):
             with pytest.raises(RuntimeError):
-                service.create(memo_id=context.memos[0].id, disclosure_receipt_no=RECEIPT, organization_id=context.users[0].organization_id, requested_by=context.users[0].id)
+                service.create(memo_id=context.memos[0].id, disclosure_receipt_no=RECEIPT, requested_by=context.users[0].id)
         assert not db.in_transaction()
     with context.factory() as db:
         assert db.scalar(select(AnalysisTask).where(AnalysisTask.memo_id == context.memos[0].id)) is None
@@ -230,7 +224,7 @@ def test_concurrent_identical_requests_create_only_one(analysis_context):
             service = AnalysisService(AnalysisRepository(db), MemoRepository(db), context.producer)
             barrier.wait(timeout=5)
             try:
-                return service.create(memo_id=context.memos[0].id, disclosure_receipt_no=RECEIPT, organization_id=context.users[0].organization_id, requested_by=context.users[0].id).task_id
+                return service.create(memo_id=context.memos[0].id, disclosure_receipt_no=RECEIPT, requested_by=context.users[0].id).task_id
             except AnalysisAlreadyRunning:
                 return None
 

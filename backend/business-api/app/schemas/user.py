@@ -10,7 +10,6 @@ class UserResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: UUID
-    organization_id: UUID
     email: str
     name: str
     role: UserRole
@@ -64,20 +63,7 @@ class SignupRequest(NameChangeRequest):
 
     email: EmailStr = Field(max_length=320)
     password: SecretStr = Field(min_length=12, max_length=128, repr=False)
-    organization_name: str = Field(min_length=1, max_length=255)
     role: UserRole = UserRole.ANALYST
-
-    @field_validator("organization_name")
-    @classmethod
-    def validate_organization(cls, value):
-        value = value.strip()
-        if not value or "\x00" in value:
-            raise ValueError("Organization name must not be blank or contain NUL")
-        try:
-            value.encode("utf-8")
-        except UnicodeError:
-            raise ValueError("Organization name must be valid UTF-8") from None
-        return value
 
     @field_validator("password")
     @classmethod
@@ -86,4 +72,4 @@ class SignupRequest(NameChangeRequest):
 
 
 class SignupResponse(UserResponse):
-    organization_name: str
+    pass

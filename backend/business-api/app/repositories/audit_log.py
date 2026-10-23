@@ -15,5 +15,5 @@ class AuditLogRepository:
         self.session.flush()
         return log
 
-    def list_by_resource(self, resource_type: str, resource_id: str, *, organization_id: UUID) -> list[AuditLog]:
-        return list(self.session.scalars(select(AuditLog).where(AuditLog.organization_id == organization_id, AuditLog.resource_type == resource_type, AuditLog.resource_id == resource_id).order_by(AuditLog.created_at, AuditLog.id)))
+    def list_by_resource(self, resource_type: str, resource_id: str) -> list[AuditLog]:
+        return list(self.session.scalars(select(AuditLog).where(AuditLog.resource_type == resource_type, AuditLog.resource_id == resource_id).order_by(AuditLog.created_at, AuditLog.id)))

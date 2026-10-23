@@ -1,4 +1,4 @@
-"""Concrete sync repositories; callers own transactions and organization authorization."""
+"""Concrete sync repositories; callers own transactions and role authorization."""
 from app.repositories.analysis import AnalysisRepository
 from app.repositories.analysis_event import AnalysisEventRepository
 from app.repositories.analysis_report import AnalysisReportRepository

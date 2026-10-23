@@ -22,19 +22,19 @@ class MemoService:
         self.extractor = extractor if extractor is not None else PlainTextMemoExtractor()
         self.max_upload_bytes = max_upload_bytes
 
-    def list_memos(self, organization_id: UUID, *, limit: int = 20, offset: int = 0, company_name: str | None = None) -> list[Memo]:
-        return self.memos.list_by_organization(organization_id, limit=limit, offset=offset, company_name=company_name)
+    def list_memos(self, *, limit: int = 20, offset: int = 0, company_name: str | None = None) -> list[Memo]:
+        return self.memos.list_all(limit=limit, offset=offset, company_name=company_name)
 
-    def get_memo(self, memo_id: UUID, organization_id: UUID) -> Memo:
-        memo = self.memos.get_by_id_and_organization(memo_id, organization_id)
+    def get_memo(self, memo_id: UUID) -> Memo:
+        memo = self.memos.get_by_id(memo_id)
         if memo is None:
             raise MemoNotFound()
         return memo
 
-    def delete(self, memo_id: UUID, organization_id: UUID) -> None:
+    def delete(self, memo_id: UUID) -> None:
         session = self.memos.session
         try:
-            memo = self.memos.get_by_id_and_organization(memo_id, organization_id, for_update=True)
+            memo = self.memos.get_by_id(memo_id, for_update=True)
             if memo is None:
                 raise MemoNotFound()
             memo.is_deleted = True
@@ -43,29 +43,29 @@ class MemoService:
             session.rollback()
             raise
 
-    def list_versions(self, memo_id: UUID, organization_id: UUID, *, limit: int = 20, offset: int = 0) -> list[MemoVersion]:
-        self.get_memo(memo_id, organization_id)
-        return self.memos.list_versions(memo_id, organization_id=organization_id, limit=limit, offset=offset)
+    def list_versions(self, memo_id: UUID, *, limit: int = 20, offset: int = 0) -> list[MemoVersion]:
+        self.get_memo(memo_id)
+        return self.memos.list_versions(memo_id, limit=limit, offset=offset)
 
-    def get_version(self, memo_id: UUID, version: int, organization_id: UUID) -> MemoVersion:
-        self.get_memo(memo_id, organization_id)
-        result = self.memos.get_version(memo_id, version, organization_id=organization_id)
+    def get_version(self, memo_id: UUID, version: int) -> MemoVersion:
+        self.get_memo(memo_id)
+        result = self.memos.get_version(memo_id, version)
         if result is None:
             raise MemoVersionNotFound()
         return result
 
-    def get_current_version(self, memo_id: UUID, organization_id: UUID) -> MemoVersion:
-        memo = self.get_memo(memo_id, organization_id)
-        result = self.memos.get_version(memo_id, memo.current_version, organization_id=organization_id)
+    def get_current_version(self, memo_id: UUID) -> MemoVersion:
+        memo = self.get_memo(memo_id)
+        result = self.memos.get_version(memo_id, memo.current_version)
         if result is None:
             raise MemoVersionNotFound()
         return result
 
 
-    def assign_company(self, memo_id: UUID, organization_id: UUID, company_name: str) -> MemoSummaryResponse:
+    def assign_company(self, memo_id: UUID, company_name: str) -> MemoSummaryResponse:
         session = self.memos.session
         try:
-            memo = self.memos.get_by_id_and_organization(memo_id, organization_id, for_update=True)
+            memo = self.memos.get_by_id(memo_id, for_update=True)
             if memo is None or memo.is_deleted:
                 raise MemoNotFound()
             memo.company_name = company_name
@@ -77,7 +77,7 @@ class MemoService:
             session.rollback()
             raise
 
-    def create_from_upload(self, *, stream: BinaryIO, filename: str | None, content_type: str | None, organization_id: UUID, created_by: UUID, title: str | None = None, company_name: str | None = None) -> MemoUploadResponse:
+    def create_from_upload(self, *, stream: BinaryIO, filename: str | None, content_type: str | None, created_by: UUID, title: str | None = None, company_name: str | None = None) -> MemoUploadResponse:
         limit = self.max_upload_bytes if self.max_upload_bytes is not None else get_settings().memo_upload_max_bytes
         extracted = self.extractor.extract(stream, filename=filename, content_type=content_type, max_bytes=limit)
         display_title = title.strip() if title is not None else PurePosixPath(extracted.original_filename).stem
@@ -87,7 +87,7 @@ class MemoService:
         # Authentication has already autobegun this request Session. This write service
         # owns its transaction; do not open a second session.begin() or commit in Repository.
         try:
-            memo = self.memos.add_memo(Memo(organization_id=organization_id, company_name=company_name, title=display_title, current_version=1))
+            memo = self.memos.add_memo(Memo(company_name=company_name, title=display_title, current_version=1))
             self.memos.add_version(MemoVersion(
                 memo_id=memo.id, version=1, content=extracted.content, created_by=created_by,
                 original_filename=extracted.original_filename, content_type=extracted.content_type,
@@ -104,11 +104,11 @@ class MemoService:
             raise
         return response
 
-    def edit(self, memo_id: UUID, organization_id: UUID, created_by: UUID, content: str, base_version: int) -> MemoSummaryResponse:
+    def edit(self, memo_id: UUID, created_by: UUID, content: str, base_version: int) -> MemoSummaryResponse:
         session = self.memos.session
         try:
             # 같은 버전을 동시에 편집해도 한 요청만 다음 버전을 만들도록 메모 행을 잠급니다.
-            memo = self.memos.get_by_id_and_organization(memo_id, organization_id, for_update=True)
+            memo = self.memos.get_by_id(memo_id, for_update=True)
             if memo is None or memo.is_deleted:
                 raise MemoNotFound()
             if memo.current_version != base_version:
@@ -119,7 +119,7 @@ class MemoService:
                 raise InvalidMemoEncoding() from None
             limit = self.max_upload_bytes if self.max_upload_bytes is not None else get_settings().memo_upload_max_bytes
             extracted = self.extractor.extract(BytesIO(raw), filename="memo.txt", content_type="text/plain", max_bytes=limit)
-            previous = self.get_current_version(memo_id, organization_id)
+            previous = self.get_current_version(memo_id)
             if extracted.content != previous.content:
                 memo.current_version += 1
                 self.memos.add_version(MemoVersion(

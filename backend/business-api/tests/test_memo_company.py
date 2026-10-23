@@ -89,7 +89,7 @@ def test_unknown_company_rejected_and_sec_supported(upload_client):
 
 
 @pytest.mark.postgres
-def test_assignment_cannot_change_another_organization(upload_client, upload_context):
+def test_assignment_is_shared_with_colleagues(upload_client, upload_context):
     from app.core.security import create_access_token
 
     app.dependency_overrides[get_disclosure_source] = Companies
@@ -101,10 +101,10 @@ def test_assignment_cannot_change_another_organization(upload_client, upload_con
         upload_client.patch(
             f"/api/v1/memos/{memo_id}/company", json={"company_id": "00126478"}
         ).status_code
-        == 404
+        == 200
     )
     with upload_context.factory() as session:
-        assert session.get(Memo, UUID(memo_id)).company_name is None
+        assert session.get(Memo, UUID(memo_id)).company_name == "삼성중공업"
     assert (
         upload_client.patch(
             f"/api/v1/memos/{uuid4()}/company", json={"company_id": "00126478"}

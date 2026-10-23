@@ -50,10 +50,9 @@ def test_pdf_rejects_invalid_and_empty_documents():
 
 
 @pytest.mark.postgres
-def test_report_crud_roles_scope_and_fixed_versions(db, graph):
+def test_report_crud_shared_readers_and_fixed_versions(db, graph):
     service = InternalReportService(db)
-    principal = CurrentUser(id=graph.user.id, organization_id=graph.org.id,
-        email=graph.user.email, role=UserRole.ANALYST)
+    principal = CurrentUser(id=graph.user.id, email=graph.user.email, role=UserRole.ANALYST)
     graph.task.corp_code = graph.filing.corp_code = "00126478"
     db.flush()
     class Source:
@@ -87,10 +86,11 @@ def test_report_crud_roles_scope_and_fixed_versions(db, graph):
                 files={"file": ("new.pdf", pdf(), "application/pdf")}).status_code == 403
             assert client.post("/api/v1/internal-reports", data=data,
                 files={"file": ("new.pdf", pdf(), "application/pdf")}).status_code == 403
-            principal = principal.model_copy(update={"organization_id": uuid4()})
-            assert client.get(path).status_code == 404
-            assert client.get("/api/v1/internal-reports").json() == []
-            principal = principal.model_copy(update={"role": UserRole.ANALYST, "organization_id": graph.org.id})
+            # Another employee reads the same company database.
+            principal = principal.model_copy(update={"id": uuid4(), "email": "reader@example.test"})
+            assert client.get(path).status_code == 200
+            assert client.get("/api/v1/internal-reports").json()[0]["id"] == report["id"]
+            principal = principal.model_copy(update={"role": UserRole.ANALYST})
             assert client.delete(path).status_code == 204
             assert client.get(path).status_code == 404
             assert not service.for_analysis(graph.task.id)["reports"]

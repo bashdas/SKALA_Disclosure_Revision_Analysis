@@ -51,7 +51,7 @@ async def search_reports(service, task_id, query, top_k):
     context = await service.context(task_id)
     payload = await service.sources.get_research_reports(task_id)
     try:
-        if UUID(payload["task_id"]) != task_id or UUID(payload["organization_id"]) != context.organization_id:
+        if UUID(payload["task_id"]) != task_id:
             raise ValueError()
         if len(payload["reports"]) > 100:
             raise ValueError()
@@ -65,7 +65,7 @@ async def search_reports(service, task_id, query, top_k):
     fingerprint = service.settings.rag_embedding_model + ":1536:report-page-lines-v1"
     indexed = []
     for report in reports:
-        identity = dict(organization_id=context.organization_id, document_type="INTERNAL_REPORT",
+        identity = dict(document_type="INTERNAL_REPORT",
             identifier=str(report.report_id), version=str(report.version), content_hash=report.content_hash,
             fingerprint=fingerprint)
         document_id = f"research:{report.report_id}:v{report.version}"
@@ -79,7 +79,7 @@ async def search_reports(service, task_id, query, top_k):
             cached = await service.db(service.store.save_document, identity, source, chunks, vectors)
         indexed.append(cached["id"])
     vector = validate_vectors(await service.embedding.embed([query]), 1)[0]
-    rows = await service.db(service.store.search_reports, context.organization_id, indexed, fingerprint,
+    rows = await service.db(service.store.search_reports, indexed, fingerprint,
         vector, top_k, service.settings.rag_min_similarity)
     selected = {row["document_id"] for row in rows}
     return {"documents": [{"document_id": f"research:{r.report_id}:v{r.version}", "text": r.text,

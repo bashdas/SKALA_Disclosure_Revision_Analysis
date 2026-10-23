@@ -1,13 +1,13 @@
 """Register Business Core models with the existing SQLAlchemy metadata."""
 from app.models.domain import (
     AnalysisEvent, AnalysisPerspectiveTask, AnalysisReport, AnalysisTask, AuditLog,
-    Contract, CompanyFavorite, Filing, FilingVersion, Memo, MemoVersion, Organization,
+    Contract, CompanyFavorite, Filing, FilingVersion, Memo, MemoVersion,
     RevisionProposal, User,
 )
 
 __all__ = [
     "AnalysisEvent", "AnalysisPerspectiveTask", "AnalysisReport", "AnalysisTask", "AuditLog",
-    "Contract", "CompanyFavorite", "Filing", "FilingVersion", "Memo", "MemoVersion", "Organization",
+    "Contract", "CompanyFavorite", "Filing", "FilingVersion", "Memo", "MemoVersion",
     "RevisionProposal", "User",
 ]
 

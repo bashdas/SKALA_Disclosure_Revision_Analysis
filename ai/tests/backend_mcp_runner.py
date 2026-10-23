@@ -64,13 +64,12 @@ class Store:
         self.documents.append(document)
         return document
 
-    def link(self, task_id, organization_id, memo_id, disclosure_id):
-        self.manifests[task_id] = (organization_id, {memo_id, disclosure_id})
+    def link(self, task_id, memo_id, disclosure_id):
+        self.manifests[task_id] = {memo_id, disclosure_id}
 
     def search(
         self,
         task_id,
-        organization_id,
         memo_id,
         version,
         receipt_no,
@@ -81,11 +80,11 @@ class Store:
         minimum,
     ):
         manifest = self.manifests.get(task_id)
-        if not manifest or manifest[0] != organization_id:
+        if not manifest:
             return None
         rows = []
         for doc in self.documents:
-            if doc["id"] not in manifest[1] or doc["identity"]["document_type"] not in types:
+            if doc["id"] not in manifest or doc["identity"]["document_type"] not in types:
                 continue
             for index, chunk in enumerate(doc["rows"]):
                 rows.append(

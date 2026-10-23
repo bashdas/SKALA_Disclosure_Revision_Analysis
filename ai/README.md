@@ -193,6 +193,6 @@ AI_RESEARCH_REPORTS_PATH를 생략하면 패키지의 data/research_reports.json
 
 실제 `Tools`를 사용하는 실행은 `RAG MCP.search_research_reports(task_id, query)`로 내부 리포트를 조회합니다.
 메모 기능과 분석 입력은 유지하며 사용자가 분석 시작 시 리포트를 첨부하지 않습니다.
-조직·기업·공시 기준일·버전 범위는 Business API와 RAG MCP가 확정합니다. 로컬 JSON은 테스트용으로만 사용하며
+기업·공시 기준일·버전 범위는 Business API와 RAG MCP가 확정합니다. 로컬 JSON은 테스트용으로만 사용하며
 MCP 오류 시 로컬 자료로 대체하지 않습니다. 기존 원문 검증·메모 보완 제안·리포트 수정 검토는 유지합니다.
 리포트 초기 색인을 위해 해당 도구의 제한 시간은 전체 실행 예산 안에서 최대 60초입니다.

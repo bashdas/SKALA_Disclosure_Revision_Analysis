@@ -38,45 +38,45 @@ def company_name(source: DisclosureSource, company_id: str) -> str:
 
 @router.get("", response_model=list[MemoSummaryResponse])
 def list_memos(user: Reader, service: Service, limit: Limit = 20, offset: Offset = 0, company_name: Annotated[str | None, Query(max_length=255)] = None) -> list[MemoSummaryResponse]:
-    return [MemoSummaryResponse.model_validate(item) for item in service.list_memos(user.organization_id, limit=limit, offset=offset, company_name=company_name)]
+    return [MemoSummaryResponse.model_validate(item) for item in service.list_memos(limit=limit, offset=offset, company_name=company_name)]
 
 
 @router.get("/{memo_id}", response_model=MemoDetailResponse)
 def get_memo(memo_id: UUID, user: Reader, service: Service) -> MemoDetailResponse:
-    return MemoDetailResponse.model_validate(service.get_memo(memo_id, user.organization_id))
+    return MemoDetailResponse.model_validate(service.get_memo(memo_id))
 
 
 @router.get("/{memo_id}/versions", response_model=list[MemoVersionSummaryResponse])
 def list_versions(memo_id: UUID, user: Reader, service: Service, limit: Limit = 20, offset: Offset = 0) -> list[MemoVersionSummaryResponse]:
-    return [MemoVersionSummaryResponse.model_validate(item) for item in service.list_versions(memo_id, user.organization_id, limit=limit, offset=offset)]
+    return [MemoVersionSummaryResponse.model_validate(item) for item in service.list_versions(memo_id, limit=limit, offset=offset)]
 
 
 @router.get("/{memo_id}/versions/{version}", response_model=MemoVersionDetailResponse)
 def get_version(memo_id: UUID, version: Annotated[int, Path(ge=1, le=2147483647)], user: Reader, service: Service) -> MemoVersionDetailResponse:
-    return MemoVersionDetailResponse.model_validate(service.get_version(memo_id, version, user.organization_id))
+    return MemoVersionDetailResponse.model_validate(service.get_version(memo_id, version))
 
 
 @router.post("", response_model=MemoUploadResponse, status_code=201)
 def upload_memo(user: Reader, service: Service, source: Source, file: Annotated[UploadFile, File()], title: Annotated[str | None, Form(max_length=500)] = None, company_id: Annotated[str | None, Form(pattern=r"^(?:[0-9]{8}|SEC:[0-9]{1,10})$")] = None) -> MemoUploadResponse:
     return service.create_from_upload(
         stream=file.file, filename=file.filename, content_type=file.content_type,
-        organization_id=user.organization_id, created_by=user.id, title=title,
+        created_by=user.id, title=title,
         company_name=company_name(source, company_id) if company_id else None,
     )
 
 
 @router.patch("/{memo_id}/company", response_model=MemoSummaryResponse)
 def assign_company(memo_id: UUID, request: MemoCompanyRequest, user: Reader, service: Service, source: Source) -> MemoSummaryResponse:
-    service.get_memo(memo_id, user.organization_id)
-    return service.assign_company(memo_id, user.organization_id, company_name(source, request.company_id))
+    service.get_memo(memo_id)
+    return service.assign_company(memo_id, company_name(source, request.company_id))
 
 
 @router.delete("/{memo_id}", status_code=204)
 def delete_memo(memo_id: UUID, user: Reader, service: Service) -> Response:
-    service.delete(memo_id, user.organization_id)
+    service.delete(memo_id)
     return Response(status_code=204)
 
 
 @router.post("/{memo_id}/versions", response_model=MemoSummaryResponse)
 def edit_memo(memo_id: UUID, request: MemoEditRequest, user: Reader, service: Service) -> MemoSummaryResponse:
-    return service.edit(memo_id, user.organization_id, user.id, request.content, request.base_version)
+    return service.edit(memo_id, user.id, request.content, request.base_version)

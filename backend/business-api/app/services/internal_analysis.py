@@ -85,7 +85,7 @@ class InternalAnalysisService:
 
     def _emit(self, task, event_type, payload):
         self.session.flush()
-        return self.events.append_in_transaction(task.id, task.organization_id, event_type, payload)
+        return self.events.append_in_transaction(task.id, event_type, payload)
 
     @staticmethod
     def _status(task):
@@ -94,16 +94,15 @@ class InternalAnalysisService:
 
     def get_context(self, task_id: UUID) -> AnalysisContextResponse:
         task = self._task(task_id)
-        memo = self.memos.get_by_id_and_organization(task.memo_id, task.organization_id)
+        memo = self.memos.get_by_id(task.memo_id)
         if memo is None:
             raise InternalAPIError("ANALYSIS_CONTEXT_NOT_FOUND", "Analysis memo context not found", 404)
-        version = self.memos.get_version(task.memo_id, task.base_memo_version, organization_id=task.organization_id)
+        version = self.memos.get_version(task.memo_id, task.base_memo_version)
         if version is None:
             raise MemoVersionNotFound()
-        filing = FilingRepository(self.session).get_by_receipt_no_and_organization(
-            task.disclosure_receipt_no, task.organization_id)
-        return AnalysisContextResponse(task_id=task.id, organization_id=task.organization_id,
-            requested_by=task.requested_by, status=task.status, current_stage=task.current_stage,
+        filing = FilingRepository(self.session).get_by_receipt_no(
+            task.disclosure_receipt_no)
+        return AnalysisContextResponse(task_id=task.id, requested_by=task.requested_by, status=task.status, current_stage=task.current_stage,
             memo=ContextMemo(id=memo.id, version=version.version, title=memo.title, content=version.content,
                 content_hash=version.content_hash, original_filename=version.original_filename),
             disclosure_receipt_no=task.disclosure_receipt_no, corp_code=task.corp_code,

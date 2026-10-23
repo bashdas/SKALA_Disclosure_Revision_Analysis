@@ -204,7 +204,7 @@ async function withdraw() {
       aria-label="계정 탈퇴 확인"
       @submit.prevent="withdraw"
     >
-      <p>탈퇴하면 로그인할 수 없으며 이름과 이메일이 삭제됩니다. 작성한 조직 자료는 보존됩니다.</p>
+      <p>탈퇴하면 로그인할 수 없으며 이름과 이메일이 삭제됩니다. 작성한 회사 자료는 보존됩니다.</p>
       <label
         >현재 비밀번호<input
           v-model="deletePassword"

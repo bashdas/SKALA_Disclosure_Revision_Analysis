@@ -63,14 +63,14 @@ def test_concurrent_edit_and_rollback_are_atomic(request):
         with context.factory() as session:
             barrier.wait(timeout=5)
             try:
-                MemoService(MemoRepository(session)).edit(memo_id, user.organization_id, user.id, content, 1)
+                MemoService(MemoRepository(session)).edit(memo_id, user.id, content, 1)
                 return "saved"
             except MemoVersionConflict:
                 return "conflict"
     with ThreadPoolExecutor(max_workers=2) as pool:
         assert sorted(pool.map(edit, ["first", "second"])) == ["conflict", "saved"]
     with context.factory() as session, patch.object(session, "commit", side_effect=RuntimeError("commit failed")), pytest.raises(RuntimeError):
-        MemoService(MemoRepository(session)).edit(memo_id, user.organization_id, user.id, "rollback", 2)
+        MemoService(MemoRepository(session)).edit(memo_id, user.id, "rollback", 2)
     with context.factory() as session:
         assert session.get(Memo, memo_id).current_version == 2
         assert session.scalar(select(func.count()).select_from(MemoVersion).where(MemoVersion.memo_id == memo_id)) == 2

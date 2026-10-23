@@ -39,7 +39,7 @@ def path(task_id, suffix=""):
 def append(context, task_id, event_type=E.ANALYSIS_WARNING, payload=None):
     with context.factory() as db:
         return AnalysisEventService(AnalysisRepository(db), AnalysisEventRepository(db)).append_event(
-            task_id, context.users[0].organization_id, event_type, payload or {"message": "Summary"})
+            task_id, event_type, payload or {"message": "Summary"})
 
 
 def service(db, context):
@@ -184,7 +184,7 @@ def test_terminal_cancel_is_conflict(analysis_client, analysis_context, status):
 def test_same_organization_nonrequester_cannot_cancel(analysis_client, analysis_context):
     task_id = seed_task(analysis_context, S.QUEUED)
     with analysis_context.factory() as db:
-        other = User(organization_id=analysis_context.users[0].organization_id, email=f"{uuid4()}@example.test", password_hash="unused", role=UserRole.ANALYST)
+        other = User(email=f"{uuid4()}@example.test", password_hash="unused", role=UserRole.ANALYST)
         db.add(other)
         db.commit()
     try:
@@ -204,7 +204,7 @@ def test_cancel_and_queued_creation_roll_back_when_event_fails(analysis_client, 
         workflow = service(db, analysis_context)
         with patch.object(workflow.events.events, "add", side_effect=RuntimeError("injected event insert failure")):
             with pytest.raises(RuntimeError):
-                workflow.cancel_analysis(task_id, analysis_context.users[0].organization_id, analysis_context.users[0].id)
+                workflow.cancel_analysis(task_id, analysis_context.users[0].id)
         assert not db.in_transaction()
         assert db.get(AnalysisTask, task_id).status == S.RUNNING
         assert AnalysisEventRepository(db).get_latest_sequence(task_id) == 0
@@ -214,7 +214,7 @@ def test_cancel_and_queued_creation_roll_back_when_event_fails(analysis_client, 
         workflow = service(db, analysis_context)
         with patch.object(workflow.events.events, "add", side_effect=RuntimeError("injected event insert failure")):
             with pytest.raises(RuntimeError):
-                workflow.create(memo_id=analysis_context.memos[0].id, disclosure_receipt_no="20261020000123", organization_id=analysis_context.users[0].organization_id, requested_by=analysis_context.users[0].id)
+                workflow.create(memo_id=analysis_context.memos[0].id, disclosure_receipt_no="20261020000123", requested_by=analysis_context.users[0].id)
         assert len(list(db.scalars(select(AnalysisTask).where(AnalysisTask.memo_id == analysis_context.memos[0].id)))) == 1
     assert analysis_context.calls == []
 
@@ -310,11 +310,11 @@ def test_save_failed_heartbeat_disconnect_and_no_session_during_wait(analysis_co
             return state.time >= 3
 
     stream = AnalysisEventStream(factory, poll_interval=1, heartbeat_seconds=2, clock=lambda: state.time, sleeper=pause)
-    initial = stream.snapshot(task_id, analysis_context.users[0].organization_id, 0)
+    initial = stream.snapshot(task_id, 0)
     assert not initial.terminal
 
     async def collect():
-        return [value async for value in stream.stream(Request(), task_id, analysis_context.users[0].organization_id, 0, initial)]
+        return [value async for value in stream.stream(Request(), task_id, 0, initial)]
 
     assert asyncio.run(collect()) == [": heartbeat\n\n"]
     assert state.time == 3 and state.active == 0 and state.polls == 3
@@ -340,7 +340,7 @@ def test_concurrent_cancel_and_stale_session_are_idempotent(analysis_context):
             stale = db.get(AnalysisTask, task_id)
             assert stale.status == S.RUNNING
             barrier.wait(timeout=5)
-            return service(db, context).cancel_analysis(task_id, context.users[0].organization_id, context.users[0].id)
+            return service(db, context).cancel_analysis(task_id, context.users[0].id)
 
     with ThreadPoolExecutor(max_workers=2) as pool:
         results = list(pool.map(lambda _: cancel(), range(2)))
@@ -440,7 +440,7 @@ def test_stream_polls_new_committed_events_then_terminal(analysis_context):
     async def pause(interval):
         pauses.append(interval)
         with context.factory() as db:
-            service(db, context).cancel_analysis(task_id, context.users[0].organization_id, context.users[0].id)
+            service(db, context).cancel_analysis(task_id, context.users[0].id)
 
     class Request:
         async def is_disconnected(self):
@@ -449,7 +449,7 @@ def test_stream_polls_new_committed_events_then_terminal(analysis_context):
     stream = AnalysisEventStream(context.factory, poll_interval=1, heartbeat_seconds=15, sleeper=pause)
 
     async def collect():
-        return [frame async for frame in stream.stream(Request(), task_id, context.users[0].organization_id, 0, initial)]
+        return [frame async for frame in stream.stream(Request(), task_id, 0, initial)]
 
     result = asyncio.run(collect())
     assert len(result) == 1 and "event: ANALYSIS_CANCELLED" in result[0]

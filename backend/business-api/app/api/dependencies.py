@@ -42,14 +42,11 @@ def get_current_user(
     user = UserRepository(session).get_by_id(payload.sub)
     if user is None:
         raise UserNotFound()
-    if (not user.is_active or user.organization_id != payload.organization_id or user.role != payload.role
+    if (not user.is_active or user.role != payload.role
             or user.token_version != payload.token_version):
         raise InvalidToken()
-    return CurrentUser(id=user.id, organization_id=user.organization_id, email=user.email, role=user.role)
+    return CurrentUser(id=user.id, email=user.email, role=user.role)
 
-
-def get_current_organization_id(current_user: Annotated[CurrentUser, Depends(get_current_user)]) -> UUID:
-    return current_user.organization_id
 
 
 def require_roles(*roles: UserRole, user_dependency=get_current_user):

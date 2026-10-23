@@ -39,7 +39,7 @@ Source = Annotated[DisclosureSource, Depends(get_disclosure_source)]
 @router.get("", response_model=list[ReportSummary])
 def list_reports(user: Reader, service: Service, limit: int = Query(20, ge=1, le=100),
     offset: int = Query(0, ge=0), corp_code: str | None = Query(None, pattern=r"^[0-9]{8}$")):
-    return service.list(user.organization_id, limit, offset, corp_code)
+    return service.list(limit, offset, corp_code)
 
 
 @router.post("", response_model=ReportSummary, status_code=201)
@@ -56,7 +56,7 @@ def create_report(user: Writer, service: Service, source: Source,
 
 @router.get("/{report_id}", response_model=ReportDetail)
 def detail(report_id: UUID, user: Reader, service: Service):
-    report = service.get(report_id, user.organization_id)
+    report = service.get(report_id)
     version = service.version(report)
     return {**ReportSummary.model_validate(report).model_dump(), "content": version.content,
         "original_filename": version.original_filename}
@@ -64,7 +64,7 @@ def detail(report_id: UUID, user: Reader, service: Service):
 
 @router.patch("/{report_id}", response_model=ReportSummary)
 def edit(report_id: UUID, body: ReportEdit, user: Writer, service: Service, source: Source):
-    service.get(report_id, user.organization_id)
+    service.get(report_id)
     return service.save(user, body.model_dump(exclude={"base_version"}), company_name(source, body.corp_code),
         report_id=report_id, base_version=body.base_version)
 
@@ -72,7 +72,7 @@ def edit(report_id: UUID, body: ReportEdit, user: Writer, service: Service, sour
 @router.post("/{report_id}/versions", response_model=ReportSummary)
 def replace_pdf(report_id: UUID, user: Writer, service: Service,
     file: Annotated[UploadFile, File()], base_version: Annotated[int, Form(ge=1)]):
-    report = service.get(report_id, user.organization_id)
+    report = service.get(report_id)
     metadata = {key: getattr(report, key) for key in ("title", "corp_code", "published_at")}
     return service.save(user, metadata, report.company_name, extract_pdf(file.file, file.filename),
         report_id=report_id, base_version=base_version)
@@ -81,14 +81,14 @@ def replace_pdf(report_id: UUID, user: Writer, service: Service,
 @router.get("/{report_id}/versions", response_model=list[ReportVersion])
 def versions(report_id: UUID, user: Reader, service: Service,
     limit: int = Query(20, ge=1, le=100), offset: int = Query(0, ge=0)):
-    service.get(report_id, user.organization_id)
+    service.get(report_id)
     return service.session.scalars(select(InternalReportVersion).where(InternalReportVersion.report_id == report_id)
         .order_by(InternalReportVersion.version.desc()).limit(limit).offset(offset)).all()
 
 
 @router.get("/{report_id}/file")
 def download(report_id: UUID, user: Reader, service: Service, version: int | None = Query(None, ge=1)):
-    report = service.get(report_id, user.organization_id)
+    report = service.get(report_id)
     row = service.version(report, version)
     return StreamingResponse(BytesIO(row.pdf_data), media_type="application/pdf", headers={
         "Content-Disposition": "attachment; filename*=UTF-8''" + quote(row.original_filename),
@@ -97,7 +97,7 @@ def download(report_id: UUID, user: Reader, service: Service, version: int | Non
 
 @router.delete("/{report_id}", status_code=204)
 def delete(report_id: UUID, user: Writer, service: Service):
-    service.delete(report_id, user.organization_id)
+    service.delete(report_id)
 
 
 @internal_router.get("/{task_id}/research-reports")

@@ -14,7 +14,7 @@ def register_tools(mcp: FastMCP, client: BusinessAPIClient) -> None:
 
     @mcp.tool()
     async def get_research_reports(task_id: UUID) -> dict[str, Any]:
-        """Get organization-scoped, fixed-version company reports for this task."""
+        """Get task-bound, fixed-version company reports for this task."""
         return await client.request("GET", f"/internal/analyses/{task_id}/research-reports")
 
     @mcp.tool()

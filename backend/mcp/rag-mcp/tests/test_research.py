@@ -18,10 +18,10 @@ def test_report_chunks_preserve_page_and_original_text():
     assert all(c.text in report.text for c in chunks)
 
 
-def test_report_search_rejects_wrong_organization_before_embedding():
-    task_id, organization_id = uuid4(), uuid4()
-    service = SimpleNamespace(context=AsyncMock(return_value=SimpleNamespace(organization_id=organization_id)),
+def test_report_search_rejects_wrong_task_before_embedding():
+    task_id = uuid4()
+    service = SimpleNamespace(context=AsyncMock(return_value=SimpleNamespace()),
         sources=SimpleNamespace(get_research_reports=AsyncMock(return_value={
-            "task_id": str(task_id), "organization_id": str(uuid4()), "reports": []})))
+            "task_id": str(uuid4()), "reports": []})))
     with pytest.raises(RagError, match="조회 범위"):
         asyncio.run(search_reports(service, task_id, "query", 5))

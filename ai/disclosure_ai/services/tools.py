@@ -150,7 +150,7 @@ class Tools:
         ):
             raise BusinessError("TASK_INPUT_MISMATCH")
         return {
-            "scope": f"{context['organization_id']}:{request['memo_id']}:{request['base_memo_version']}"
+            "scope": f"{request['memo_id']}:{request['base_memo_version']}"
         }
 
     async def ensure_active(self, task_id: str):

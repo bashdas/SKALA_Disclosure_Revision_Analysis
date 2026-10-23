@@ -44,9 +44,9 @@ class InternalReportService:
     def __init__(self, session):
         self.session = session
 
-    def get(self, report_id, organization_id, lock=False):
+    def get(self, report_id, lock=False):
         stmt = select(InternalReport).where(InternalReport.id == report_id,
-            InternalReport.organization_id == organization_id, InternalReport.is_deleted.is_(False))
+            InternalReport.is_deleted.is_(False))
         row = self.session.scalar(stmt.with_for_update() if lock else stmt)
         if row is None:
             raise HTTPException(404, "내부 리포트를 찾을 수 없습니다.")
@@ -60,9 +60,8 @@ class InternalReportService:
             raise HTTPException(404, "리포트 버전을 찾을 수 없습니다.")
         return row
 
-    def list(self, organization_id, limit, offset, corp_code=None):
-        stmt = select(InternalReport).where(InternalReport.organization_id == organization_id,
-            InternalReport.is_deleted.is_(False))
+    def list(self, limit, offset, corp_code=None):
+        stmt = select(InternalReport).where(InternalReport.is_deleted.is_(False))
         if corp_code:
             stmt = stmt.where(InternalReport.corp_code == corp_code)
         return self.session.scalars(stmt.order_by(InternalReport.created_at.desc(), InternalReport.id).limit(limit).offset(offset)).all()
@@ -70,7 +69,7 @@ class InternalReportService:
     def save(self, user, metadata, company_name, extracted=None, report_id=None, base_version=None):
         try:
             if report_id:
-                report = self.get(report_id, user.organization_id, lock=True)
+                report = self.get(report_id, lock=True)
                 if report.current_version != base_version:
                     raise HTTPException(409, "리포트가 변경되었습니다. 다시 조회해 주세요.")
                 previous = self.version(report)
@@ -79,7 +78,7 @@ class InternalReportService:
                     extracted = {key: getattr(previous, key) for key in (
                         "pdf_data", "pages", "content", "original_filename", "content_hash")}
             else:
-                report = InternalReport(organization_id=user.organization_id, current_version=1)
+                report = InternalReport(current_version=1)
                 self.session.add(report)
             for key, value in metadata.items():
                 setattr(report, key, value)
@@ -93,9 +92,9 @@ class InternalReportService:
             self.session.rollback()
             raise
 
-    def delete(self, report_id, organization_id):
+    def delete(self, report_id):
         try:
-            report = self.get(report_id, organization_id, lock=True)
+            report = self.get(report_id, lock=True)
             report.is_deleted = True
             self.session.commit()
         except Exception:
@@ -103,21 +102,19 @@ class InternalReportService:
             raise
 
     def for_analysis(self, task_id):
-        # A task-owned snapshot is fixed once, including empty manifests. No client org/cutoff input.
+        # A task-owned snapshot is fixed once, including empty manifests. No client cutoff input.
         try:
             task = self.session.scalar(select(AnalysisTask).where(AnalysisTask.id == task_id).with_for_update())
             if task is None:
                 raise HTTPException(404, "분석을 찾을 수 없습니다.")
             manifest = self.session.get(AnalysisReportReference, task_id)
             if manifest is None:
-                filing = self.session.scalar(select(Filing).where(Filing.organization_id == task.organization_id,
-                    Filing.receipt_no == task.disclosure_receipt_no))
+                filing = self.session.scalar(select(Filing).where(Filing.receipt_no == task.disclosure_receipt_no))
                 if filing is None or filing.filed_at is None:
                     raise HTTPException(409, "공시 기준일을 확인하지 못했습니다.")
                 cutoff = filing.filed_at.date()
                 versions = self.session.scalars(select(InternalReportVersion).join(InternalReport,
                     InternalReport.id == InternalReportVersion.report_id).where(
-                    InternalReport.organization_id == task.organization_id,
                     InternalReport.is_deleted.is_(False), InternalReport.corp_code == task.corp_code,
                     InternalReportVersion.version == InternalReport.current_version,
                     InternalReportVersion.corp_code == task.corp_code,
@@ -130,14 +127,13 @@ class InternalReportService:
             versions = self.session.scalars(select(InternalReportVersion).join(InternalReport,
                 InternalReport.id == InternalReportVersion.report_id).where(
                 InternalReportVersion.id.in_([UUID(v) for v in manifest.versions]),
-                InternalReport.organization_id == task.organization_id,
                 InternalReport.is_deleted.is_(False)).order_by(InternalReport.id)).all()
             reports = [{"report_id": str(v.report_id), "version": v.version, "title": v.title,
                 "corp_code": v.corp_code, "company_name": v.company_name,
                 "published_at": v.published_at.isoformat(), "source_file": v.original_filename,
                 "text": v.content, "pages": v.pages, "content_hash": v.content_hash} for v in versions]
             self.session.commit()
-            return {"task_id": str(task_id), "organization_id": str(task.organization_id), "reports": reports}
+            return {"task_id": str(task_id), "reports": reports}
         except Exception:
             self.session.rollback()
             raise
