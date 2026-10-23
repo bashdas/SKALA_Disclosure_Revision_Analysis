@@ -3,7 +3,7 @@ import { onMounted, onBeforeUnmount, ref, watch, computed } from 'vue'
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
 import { RefreshCw } from 'lucide-vue-next'
 import { useWorkspace } from './stores/workspace'
-import { hasSession, restoreSession, logout } from './services/http'
+import { currentUser, hasSession, restoreSession, logout } from './services/http'
 import ToastOutlet from './components/ToastOutlet.vue'
 import { notifyError } from './lib/notifications'
 import SkeletonState from './components/SkeletonState.vue'
@@ -14,6 +14,7 @@ const store = useWorkspace(),
 const router = useRouter(),
   checking = ref(true),
   sessionError = ref('')
+const canManageReports = computed(() => currentUser.value?.role === 'ANALYST')
 const pageSkeleton = computed(() => {
   if (route.path === '/login') return 'login'
   if (route.path === '/home' || route.path === '/') return 'home'
@@ -40,7 +41,8 @@ onMounted(async () => {
     checking.value = false
   }
   if (!hasSession()) await router.replace('/login')
-  else if (route.path === '/login') await router.replace('/home')
+  else if (route.path === '/login' || (route.meta.analystOnly && !canManageReports.value))
+    await router.replace('/home')
   if (hasSession()) await store.initialize()
 })
 watch(
@@ -48,6 +50,7 @@ watch(
   async (path) => {
     if (checking.value) return
     if (!hasSession() && path !== '/login') await router.replace('/login')
+    else if (route.meta.analystOnly && !canManageReports.value) await router.replace('/home')
     else if (hasSession() && path !== '/login') await store.initialize()
   },
 )
@@ -67,7 +70,10 @@ onBeforeUnmount(() => {
           <RouterLink to="/companies" :class="{ active: route.path.startsWith('/companies') }"
             >기업 목록</RouterLink
           >
-          <RouterLink to="/internal-reports" :class="{ active: route.path === '/internal-reports' }"
+          <RouterLink
+            v-if="canManageReports"
+            to="/internal-reports"
+            :class="{ active: route.path === '/internal-reports' }"
             >내부 리포트</RouterLink
           >
         </nav>
@@ -97,7 +103,7 @@ onBeforeUnmount(() => {
         </div>
         <template v-else-if="store.ready"
           ><p v-if="store.syncError" role="alert" class="inline-warning">{{ store.syncError }}</p>
-          <RouterView
+          <RouterView v-if="!route.meta.analystOnly || canManageReports"
         /></template>
       </main>
     </div>

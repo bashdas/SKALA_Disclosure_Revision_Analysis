@@ -16,7 +16,11 @@ export const router = createRouter({
     { path: '/login', component: LoginView, meta: { title: '로그인' } },
     { path: '/companies', component: CompaniesView, meta: { title: '기업 목록' } },
     { path: '/companies/:companyId', component: CompanyView, meta: { title: '기업 리서치' } },
-    { path: '/internal-reports', component: InternalReportsView, meta: { title: '내부 리포트' } },
+    {
+      path: '/internal-reports',
+      component: InternalReportsView,
+      meta: { title: '내부 리포트', analystOnly: true },
+    },
     { path: '/memos', redirect: '/companies' },
     { path: '/analyses', redirect: '/companies' },
     { path: '/analyses/:taskId', component: AnalysisView, meta: { title: '분석 보고서' } },
