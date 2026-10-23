@@ -207,6 +207,19 @@ it('재검토 관점은 수정 제안이 없어도 공시 사실보다 먼저 �
   expect(incomplete.layout.blocks.some((b) => b.type === 'review-points')).toBe(false)
 })
 
+it('메모가 null인 새 관점도 공통 카드로 표시해 Markdown 중복을 없앱니다', () => {
+  const value = report('## 새롭게 고찰할 관점\n\n중복 원문\n\n## 향후 영향과 조건\n\n이전 구역', {
+    reviewPoints: [{ viewType: 'DISCLOSURE_REVIEW', perspectiveType: 'FX_HEDGE', title: '만기 대조',
+      memoView: null, condition: '환헤지 보유 시', disclosureFact: '지급일 연기', reason: '일정 대응',
+      question: '만기가 대응합니까?', checkItems: ['만기 확인'], evidenceIds: ['source-0'] }],
+  })
+  const displayed = displayedMarkdown(value)
+  expect(displayed.layout.blocks.filter((b) => b.type === 'review-points')).toHaveLength(1)
+  expect(displayed.html).not.toContain('중복 원문')
+  expect(displayed.html).not.toContain('이전 구역')
+  expect(value.content).toContain('중복 원문')
+})
+
 it('화면에 재검토 관점이 있으면 향후 영향은 숨기고 저장 원문은 보존합니다', () => {
   const content = '## 새롭게 고찰할 관점\n\n기존 가정의 반영 여부를 확인합니다.\n\n## 향후 영향과 조건\n\n조건부 시나리오 [근거 1]\n\n## 확인 범위와 남은 질문\n\n개별 계약 조건은 미확인입니다.'
   const value = report(content)

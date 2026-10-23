@@ -206,7 +206,7 @@ async def impact(run, state):
             state["documents"], state["context"],
         )
         if len(points) != len(data["review_points"]):
-            data["limitations"].append("기존 메모와 이번 공시 양쪽의 근거를 확인하지 못한 재검토 관점은 제외했습니다.")
+            data["limitations"].append("유형별 필수 근거(기존 관점은 메모와 공시 양쪽의 근거, 새 관점은 이번 공시 근거) 또는 구조를 확인하지 못한 관점과 중복 질문은 제외했습니다.")
         data["review_points"] = points
         if state.get("research_reports"):
             try:

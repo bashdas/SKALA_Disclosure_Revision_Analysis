@@ -138,9 +138,11 @@ export interface ReviewReport {
   noAdditionalAnalysisReason: string | null
 }
 export interface ReviewPoint {
+  viewType?: 'MEMO_REVIEW' | 'DISCLOSURE_REVIEW'
   perspectiveType: PerspectiveType
   title: string
-  memoView: string
+  memoView: string | null
+  condition?: string | null
   disclosureFact: string
   reason: string
   question: string

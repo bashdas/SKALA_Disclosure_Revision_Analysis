@@ -20,10 +20,13 @@ function sources(point: ReviewPoint) {
     <article v-for="(point, i) in points" :key="i" class="finding-card surface">
       <div class="review-heading">
         <span class="finding-number">{{ String(i + 1).padStart(2, '0') }}</span>
-        <h3>{{ point.title }}</h3>
+        <div class="review-title">
+          <span class="review-type">{{ point.viewType === 'DISCLOSURE_REVIEW' ? '새로운 검토 관점' : '기존 관점 재검토' }}</span>
+          <h3>{{ point.title }}</h3>
+        </div>
       </div>
-      <div class="finding-comparison">
-        <div class="before-block">
+      <div class="finding-comparison" :class="{ 'disclosure-comparison': point.viewType === 'DISCLOSURE_REVIEW' }">
+        <div v-if="point.viewType !== 'DISCLOSURE_REVIEW'" class="before-block">
           <span class="eyebrow">기존 메모의 관점과 가정</span>
           <p>{{ point.memoView }}</p>
         </div>
@@ -31,6 +34,10 @@ function sources(point: ReviewPoint) {
           <span class="eyebrow">새 공시에서 확인한 사실</span>
           <p>{{ point.disclosureFact }}</p>
         </div>
+      </div>
+      <div v-if="point.condition" class="review-condition">
+        <h4>검토 조건</h4>
+        <p>{{ point.condition }}</p>
       </div>
       <div class="review-reason">
         <h4>다시 고찰할 이유</h4>
@@ -47,7 +54,7 @@ function sources(point: ReviewPoint) {
         </ul>
       </div>
       <div class="evidence-chips">
-        <span class="small muted">메모와 공시의 연결 근거</span>
+        <span class="small muted">{{ point.viewType === 'DISCLOSURE_REVIEW' ? '공시와 검토 질문의 근거' : '메모와 공시의 연결 근거' }}</span>
         <button
           v-for="{ source, number } in sources(point)"
           :key="source.id"
@@ -90,6 +97,22 @@ function sources(point: ReviewPoint) {
   word-break: keep-all;
   overflow-wrap: anywhere;
 }
+.review-title {
+  min-width: 0;
+}
+.review-type {
+  display: inline-block;
+  margin-bottom: 8px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  color: var(--muted);
+  background: var(--surface-strong);
+  font-size: 12px;
+}
+.disclosure-comparison {
+  grid-template-columns: minmax(0, 1fr);
+}
+.review-condition,
 .before-block,
 .after-block {
   min-width: 0;
@@ -127,6 +150,7 @@ ul {
 }
 @media (max-width: 650px) {
   .review-heading,
+  .review-condition,
   .before-block,
   .after-block {
     padding: 18px;

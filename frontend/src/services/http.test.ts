@@ -295,7 +295,22 @@ it('수정 문장 없이 재검토 관점과 메모·공시 양쪽의 근거를 
   expect(report.memoReview).toBeUndefined()
   expect(report.evidence).toHaveLength(2)
   expect(report.reviewPoints?.[0]).toMatchObject({
+    viewType: 'MEMO_REVIEW', condition: null,
     title: '로열티 성장 가정 재검토', question: '기존 전망에 반영되어 있습니까?',
     evidenceIds: ['source-0', 'source-1'],
   })
+})
+
+it('메모와 무관한 새 관점은 null 메모와 검토 조건 및 공시 근거만으로 읽습니다', () => {
+  const source = { document_id: 'filing:new', location: 'line:1', quote: '대금 지급일 연기' }
+  const report = mapReport({ id: 'r', analysis_task_id: task.task_id, content: '보고서', generated_at: now,
+    saved_at: now, no_additional_analysis_reason: null, report_json: { base: { review_points: [{
+      view_type: 'DISCLOSURE_REVIEW', perspective_type: 'FX_HEDGE', title: '만기를 대조합니다.',
+      memo_view: null, condition: '해당 대금의 환헤지를 보유한 경우입니다.',
+      disclosure_fact: source.quote, reason: '일정 대응을 확인합니다.', question: '만기와 금액이 대응합니까?',
+      check_items: ['보유 여부 확인'], evidence: [source],
+    }] } } })
+  expect(report.reviewPoints?.[0]).toMatchObject({ viewType: 'DISCLOSURE_REVIEW', memoView: null,
+    condition: '해당 대금의 환헤지를 보유한 경우입니다.', evidenceIds: ['source-0'] })
+  expect(report.memoReview).toBeUndefined()
 })

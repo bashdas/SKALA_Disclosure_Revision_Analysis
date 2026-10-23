@@ -296,7 +296,8 @@ async def report(run, state):
         "history_comparisons": comparisons,
     }
     checked, check_warnings = await run.h.review_output(
-        payload, grounding=True, corrections=corrections, advisory=True
+        payload, grounding=True, corrections=corrections, advisory=True,
+        current_document_ids={d["document_id"] for d in state.get("filing", {}).get("documents", [])},
     )
     warnings.extend(check_warnings)
     # 검사에서 이유나 수정문이 제거된 제안은 승인된 제안처럼 표시하지 않습니다.
@@ -313,6 +314,27 @@ async def report(run, state):
         checked["base"]["review_points"], state.get("filing", {}), state.get("memo", {}),
         documents, fragments,
     )
+    if not any(item.get("text", "").strip() for item in checked.get("summary_claims", [])):
+        # 검사 실패를 '공시 사실이 없음'으로 표시하지 않습니다. 새 해석 대신 검증된 현재 원문만 남깁니다.
+        filing_ids = {doc["document_id"] for doc in state.get("filing", {}).get("documents", [])}
+        fallback = validated_sources(
+            [item["source"] for item in corrections] + filing_facts,
+            documents, fragments,
+        )
+        if not fallback:
+            fallback = validated_sources(
+                [s for s in fragments if s.get("document_id") in filing_ids], documents, fragments
+            )
+        unique = {}
+        for source in fallback:
+            unique.setdefault((source["document_id"], re.sub(r"\s+", "", source["quote"])), source)
+        fallback = list(unique.values())
+        checked["summary_claims"] = [
+            {"text": "공시 원문에서 확인한 내용: " + source["quote"], "evidence": [source]}
+            for source in fallback[:2] if source["document_id"] in filing_ids
+        ]
+        if checked["summary_claims"]:
+            warnings.append("SUMMARY_SOURCE_FALLBACK: 해석 요약을 검증하지 못해 확인된 이번 공시 원문 인용을 요약 대신 표시합니다.")
     if not checked["base"]["proposals"] and not checked["base"]["review_points"] and not checked.get("memo_supplements") and (
         not checked.get("memo_review") or not checked["memo_review"].get("reason", "").strip()
     ):
@@ -413,9 +435,12 @@ def compose(data):
     )
     sections["review_points"] = "\n\n".join(
         f"### {i + 1}. {escape(point['title'])}\n\n"
-        f"**기존 메모의 관점과 가정:** {escape(point['memo_view'])}\n\n"
-        f"**새 공시에서 확인한 사실:** {escape(point['disclosure_fact'])}\n\n"
-        f"**다시 고찰할 이유:** {escape(point['reason'])}\n\n"
+        + ("**유형:** 새로운 검토 관점\n\n" if point.get("view_type") == "DISCLOSURE_REVIEW"
+           else "**유형:** 기존 관점 재검토\n\n"
+           f"**기존 메모의 관점과 가정:** {escape(point['memo_view'])}\n\n")
+        + f"**새 공시에서 확인한 사실:** {escape(point['disclosure_fact'])}\n\n"
+        + (f"**검토 조건:** {escape(point['condition'])}\n\n" if point.get("condition") else "")
+        + f"**다시 고찰할 이유:** {escape(point['reason'])}\n\n"
         f"**검토 질문:** {escape(point['question'])}\n\n"
         + "**확인할 자료와 조건:**\n\n"
         + "\n".join("- " + escape(item) for item in point["check_items"])

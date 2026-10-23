@@ -191,7 +191,8 @@ interface ReportRow {
     memo_review?: { status: 'KEEP' | 'HOLD'; reason: string; evidence: Source[] } | null
     base?: { summary?: string; proposals?: Proposal[];
       review_points?: { perspective_type: Perspective['type']; title: string;
-        memo_view: string; disclosure_fact: string; reason: string; question: string;
+        view_type?: 'MEMO_REVIEW' | 'DISCLOSURE_REVIEW'; condition?: string | null;
+        memo_view: string | null; disclosure_fact: string; reason: string; question: string;
         check_items: string[]; evidence: Source[] }[];
       selected?: { perspective_type: Perspective['type']; selection_reason: string }[];
       not_selected?: { perspective_type: Perspective['type']; reason: string }[] }
@@ -254,9 +255,11 @@ export function mapReport(row: ReportRow): ReviewReport {
       ),
     },
     reviewPoints: reviewPoints.map((p) => ({
+      viewType: p.view_type ?? 'MEMO_REVIEW',
       perspectiveType: p.perspective_type,
       title: p.title,
       memoView: p.memo_view,
+      condition: p.condition ?? null,
       disclosureFact: p.disclosure_fact,
       reason: p.reason,
       question: p.question,

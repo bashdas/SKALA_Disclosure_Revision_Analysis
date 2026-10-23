@@ -443,21 +443,36 @@ def validated_sources(sources: list[dict], documents: list[dict], fragments=()) 
 
 
 def validated_review_points(points, filing, memo, documents, fragments):
-    """재검토 관점은 기준 메모와 이번 공시 양쪽의 원문 연결을 요구합니다."""
+    """현재 공시는 필수이며 기존 관점 재검토에만 메모 근거를 요구합니다."""
+    from pydantic import ValidationError
+
+    from disclosure_ai.schemas import ReviewPoint
+
     filing_ids = {doc["document_id"] for doc in filing.get("documents", [])}
     memo_id = memo.get("document_id")
-    accepted = []
+    accepted, seen = [], set()
     for point in points:
+        try:
+            point = ReviewPoint.model_validate(point).model_dump()
+        except (ValidationError, TypeError):
+            continue
         evidence = validated_sources(point.get("evidence", []), documents, fragments)
         ids = {source["document_id"] for source in evidence}
-        if (memo_id not in ids or not (ids - {memo_id}) & filing_ids
+        if (not ids & filing_ids
+                or (point["view_type"] == "MEMO_REVIEW" and memo_id not in ids)
                 or any(not point.get(key, "").strip() for key in
-                       ("title", "memo_view", "disclosure_fact", "reason", "question"))
+                       ("title", "disclosure_fact", "reason", "question"))
+                or (point["condition"] is not None and not point["condition"].strip())
                 or not point.get("check_items")
                 or any(not item.strip() for item in point["check_items"])):
             continue
+        # 같은 질문을 유형만 바꿔 두 번 표시하지 않고 모델의 우선순위를 보존합니다.
+        key = re.sub(r"\W+", "", point["question"]).lower()
+        if key in seen:
+            continue
+        seen.add(key)
         accepted.append({**point, "evidence": evidence})
-    return accepted
+    return accepted[:5]
 
 
 def normalize_evidence(result, kind, args):

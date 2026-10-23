@@ -41,7 +41,9 @@ export function reportLayout(report: ReviewReport, perspectives: Perspective[]) 
     report.findings.length > 0 &&
     report.findings.every((f) => f.beforeText?.trim() && f.reason?.trim())
   const replaceReviews = !!report.reviewPoints?.length && report.reviewPoints.every(
-    (p) => p.title.trim() && p.memoView.trim() && p.disclosureFact.trim() && p.reason.trim()
+    (p) => p.title.trim()
+      && (p.viewType === 'DISCLOSURE_REVIEW' ? p.memoView == null : p.memoView?.trim())
+      && p.disclosureFact.trim() && p.reason.trim()
       && p.question.trim() && p.checkItems.length && p.evidenceIds.length,
   )
   const hasReviews = replaceReviews || hasSection(new Set(['새롭게고찰할관점']))

@@ -60,7 +60,7 @@ class Harness:
                 )
             self.ledger.db.commit()
 
-    async def model(self, role: str, context: dict, schema, report: bool = False):
+    def model_input_spec(self, role: str, context: dict, schema):
         prompts = Path(__file__).parents[1] / "prompts"
         system = (prompts / "common.md").read_text() + (prompts / f"{role}.md").read_text()
         if role == "base":
@@ -83,11 +83,21 @@ class Harness:
             input_limit = 8000
         if role in {"base", "research"}:
             output_limit = 4000
-        content = mask(json.dumps(context, ensure_ascii=False))
         schema_tokens = len(
             self.encoding.encode(json.dumps(schema.model_json_schema(), ensure_ascii=False))
         )
         available = input_limit - len(self.encoding.encode(system)) - schema_tokens - 100
+        return system, input_limit, output_limit, schema_tokens, available
+
+    def fits_model_input(self, role: str, context: dict, schema) -> bool:
+        *_, available = self.model_input_spec(role, context, schema)
+        return len(self.encoding.encode(mask(json.dumps(context, ensure_ascii=False)))) <= available
+
+    async def model(self, role: str, context: dict, schema, report: bool = False):
+        system, input_limit, output_limit, schema_tokens, available = self.model_input_spec(
+            role, context, schema
+        )
+        content = mask(json.dumps(context, ensure_ascii=False))
         encoded = self.encoding.encode(content)
         if role == "output_check" and len(encoded) > available:
             raise LimitReached("출력 검사 문맥을 일부만 검사할 수 없습니다.")
@@ -214,10 +224,12 @@ class Harness:
                 await asyncio.sleep(min(0.2 * retries, max(0, self.remaining(report))))
 
     async def review_output(
-        self, payload: dict, *, grounding=False, corrections=(), advisory=False
+        self, payload: dict, *, grounding=False, corrections=(), advisory=False,
+        current_document_ids=(),
     ) -> tuple[dict, list[str]]:
         return await review_output(
-            self, payload, grounding=grounding, corrections=corrections, advisory=advisory
+            self, payload, grounding=grounding, corrections=corrections, advisory=advisory,
+            current_document_ids=current_document_ids,
         )
 
     async def tool(self, name, args, invoke, *, report=False, scope=""):

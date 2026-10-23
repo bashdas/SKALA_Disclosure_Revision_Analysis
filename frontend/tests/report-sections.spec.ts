@@ -165,6 +165,41 @@ test.beforeEach(async ({ page }) => {
   })
 })
 
+test('기존 관점과 새 공시 관점을 한 구역에서 조건과 원문 근거로 표시합니다', async ({ page }, testInfo) => {
+  const common = {
+    perspective_type: 'FX_HEDGE', title: '변경된 달러 대금 수취 일정과 해당 대금의 헤지 만기 및 대상 금액이 대응하는지 확인합니다.',
+    disclosure_fact: '계약 대금 지급일이 다음 분기로 연기됐습니다.',
+    reason: '해당 대금의 환헤지를 보유했다면 만기 대응을 확인해야 합니다.',
+    question: '해당 대금의 환헤지를 보유한 경우 만기와 금액이 대응합니까?',
+    check_items: ['해당 대금의 환헤지 보유 여부와 만기 및 금액을 확인합니다.'], evidence: [sources[0]],
+  }
+  const points = [
+    { ...common, memo_view: '기존 메모는 분기 중 대금 수취를 가정했습니다.', condition: null },
+    ...Array.from({ length: 4 }, (_, i) => ({ ...common, view_type: 'DISCLOSURE_REVIEW', memo_view: null,
+      title: `${i + 1}. ${common.title}`, condition: '해당 대금을 대상으로 환헤지를 보유한 경우입니다.' })),
+  ]
+  await page.route('**/api/v1/analyses/report-task/report', (route) => route.fulfill({ json: {
+    ...report, content: report.content.replace('## 확인된 공시 내용', '## 새롭게 고찰할 관점\n\n중복 원문\n\n## 확인된 공시 내용'),
+    report_json: { ...report.report_json, base: { ...report.report_json.base, review_points: points } },
+  } }))
+  await page.goto('/analyses/report-task')
+  const cards = page.locator('.review-points .finding-card')
+  await expect(cards).toHaveCount(5)
+  await expect(page.getByText('새로운 검토 관점', { exact: true })).toHaveCount(4)
+  await expect(page.getByText('기존 관점 재검토', { exact: true })).toHaveCount(1)
+  await expect(cards.first().locator('.before-block')).toHaveText(/기존 메모는 분기 중/)
+  await expect(cards.nth(1).locator('.before-block')).toHaveCount(0)
+  await expect(cards.nth(1).locator('.review-condition')).toContainText('보유한 경우')
+  await expect(page.getByText('중복 원문', { exact: true })).toHaveCount(0)
+  await expect(page.getByRole('heading', { name: '향후 영향과 조건', exact: true })).toHaveCount(0)
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+  await cards.nth(1).getByRole('button', { name: '근거 1 상세 보기' }).click()
+  await expect(page.getByRole('dialog')).toContainText(sources[0]!.quote)
+  await page.getByRole('dialog').getByRole('button', { name: /닫기/ }).click()
+  await cards.nth(1).scrollIntoViewIfNeeded()
+  await page.screenshot({ path: testInfo.outputPath('disclosure-review.png') })
+})
+
 test('보고서는 항상 펼치고 관점 판단과 분석 결과를 중복 없이 표시하며 출처 토글을 유지합니다', async ({
   page,
 }) => {

@@ -1,7 +1,7 @@
 from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 Perspective = Literal["INDUSTRY_CONTRACT", "FINANCE", "FX_HEDGE", "MARKET_NEWS"]
 Impact = Literal["FACT_UPDATE", "CALCULATION_UPDATE", "INTERPRETATION_REVIEW", "NO_IMPACT", "HOLD"]
@@ -82,14 +82,26 @@ class HistoryComparison(Model):
 
 
 class ReviewPoint(Model):
+    view_type: Literal["MEMO_REVIEW", "DISCLOSURE_REVIEW"] = "MEMO_REVIEW"
     perspective_type: Perspective
     title: str = Field(min_length=1, max_length=120)
-    memo_view: str = Field(min_length=1, max_length=400)
+    memo_view: str | None = Field(default=None, min_length=1, max_length=400)
+    condition: str | None = Field(default=None, min_length=1, max_length=400)
     disclosure_fact: str = Field(min_length=1, max_length=400)
     reason: str = Field(min_length=1, max_length=500)
     question: str = Field(min_length=1, max_length=400)
     check_items: list[str] = Field(min_length=1, max_length=3)
-    evidence: list[Source] = Field(min_length=2, max_length=6)
+    evidence: list[Source] = Field(min_length=1, max_length=6)
+
+    @model_validator(mode="after")
+    def validate_view(self):
+        if self.view_type == "MEMO_REVIEW" and (
+            not self.memo_view or not self.memo_view.strip() or len(self.evidence) < 2
+        ):
+            raise ValueError("Memo reviews require a memo view and both sources")
+        if self.view_type == "DISCLOSURE_REVIEW" and self.memo_view is not None:
+            raise ValueError("Disclosure reviews must not invent a memo view")
+        return self
 
 
 class MemoSupplement(Model):
@@ -122,7 +134,7 @@ class BaseAnalysis(Model):
     summary: str
     history_request: HistoryRequest | None = None
     history_comparisons: list[HistoryComparison] = Field(default_factory=list, max_length=3)
-    review_points: list[ReviewPoint] = Field(default_factory=list, max_length=3)
+    review_points: list[ReviewPoint] = Field(default_factory=list, max_length=5)
     proposals: list[Proposal]
     selected: list[Selection]
     not_selected: list[OmittedPerspective] = Field(default_factory=list)
