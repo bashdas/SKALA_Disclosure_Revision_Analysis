@@ -33,7 +33,7 @@ def downgrade():
     op.create_table("organizations", sa.Column("id", UUID(), primary_key=True),
         sa.Column("name", sa.String(255), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False), schema="core")
-    op.execute(sa.text("INSERT INTO core.organizations(id, name) VALUES (:id, 'Single company')").bindparams(id=LEGACY_ID))
+    op.execute(sa.text("INSERT INTO core.organizations(id, name) VALUES (CAST(:id AS uuid), 'Single company')").bindparams(id=LEGACY_ID))
     op.drop_constraint("uq_filings_receipt", "filings", schema="core", type_="unique")
     op.drop_index("ix_analysis_tasks_duplicate_lookup", table_name="analysis_tasks", schema="core")
     op.drop_index("ix_audit_logs_created", table_name="audit_logs", schema="core")

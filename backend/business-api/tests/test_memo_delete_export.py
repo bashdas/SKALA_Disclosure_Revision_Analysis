@@ -28,19 +28,22 @@ def test_deleted_memo_cannot_start_analysis_and_old_report_remains(analysis_clie
         db.add(AnalysisReport(analysis_task_id=UUID(task),content=content,report_json={},generated_at=datetime.now(timezone.utc),saved_at=datetime.now(timezone.utc)))
         db.commit()
     path=f'/api/v1/memos/{ctx.memos[0].id}'
-    assert analysis_client.delete(path,headers=other).status_code==404
     assert analysis_client.delete(path).status_code==401
-    assert analysis_client.delete(path,headers=headers).status_code==204
-    assert analysis_client.get('/api/v1/memos',headers=headers).json()==[]
+    assert analysis_client.delete(path,headers=other).status_code==204
+    assert str(ctx.memos[0].id) not in [row['id'] for row in analysis_client.get('/api/v1/memos',headers=headers).json()]
     assert request(analysis_client,ctx).status_code==404
-    assert analysis_client.get(path+'/versions/3',headers=headers).json()['content']=='private memo body'
+    assert analysis_client.get(path+'/versions/3',headers=headers).json()['content']=='company memo body'
     report_path=f'/api/v1/analyses/{task}/report'
     assert analysis_client.get(report_path,headers=headers).json()['content']==content
     md=analysis_client.get(report_path+'.md',headers=headers)
     assert md.status_code==200 and md.text==content
     assert 'attachment;' in md.headers['content-disposition']
+    assert analysis_client.get(report_path+'.md',headers=other).text==content
     for suffix in ('.md','.pdf'):
-        assert analysis_client.get(report_path+suffix,headers=other).status_code==404
+        response=analysis_client.get(report_path+suffix,headers=other)
+        assert response.status_code==200
+        if suffix=='.pdf':
+            assert response.content.startswith(b'%PDF-')
         assert analysis_client.get(report_path+suffix).status_code==401
     assert analysis_client.delete(path,headers=headers).status_code==204
     with ctx.factory() as db:

@@ -44,7 +44,7 @@ def test_favorites_corrections_and_analysis_gate(analysis_client,analysis_contex
             assert metadata.memo.version == ctx.memos[0].current_version
         root_id=root.json()['id']
         path=f'/api/v1/filings/{root_id}/corrections/check'
-        assert analysis_client.post(path,headers=other).status_code==404
+        assert analysis_client.post(path,headers=other).status_code==200
         children=analysis_client.post(path,headers=headers).json()
         assert len(children)==1 and children[0]['is_correction']
         assert children[0]['origin_receipt_no']==ROOT

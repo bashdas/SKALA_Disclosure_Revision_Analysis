@@ -24,7 +24,7 @@ def test_public_workspace_contract(analysis_client, analysis_context):
     assert analysis_client.get("/api/v1/users/me", headers=headers).json()["id"] == str(context.users[0].id)
     rows = analysis_client.get("/api/v1/analyses", headers=headers).json()
     assert len(rows) == 1 and rows[0]["base_memo_version"] == 1
-    assert analysis_client.get("/api/v1/analyses", headers=other).json() == []
+    assert analysis_client.get("/api/v1/analyses", headers=other).json() == rows
     assert analysis_client.get(path + "/perspectives", headers=headers).json() == []
     assert analysis_client.get(path + "/report", headers=headers).json() is None
     with context.factory() as db:
@@ -32,7 +32,7 @@ def test_public_workspace_contract(analysis_client, analysis_context):
         db.commit()
     assert analysis_client.get(path + "/report", headers=headers).json()["content"] == "stored report"
     for suffix in ("/report", "/perspectives"):
-        assert analysis_client.get(path + suffix, headers=other).status_code == 404
+        assert analysis_client.get(path + suffix, headers=other).json() == analysis_client.get(path + suffix, headers=headers).json()
         assert analysis_client.get(path + suffix).status_code == 401
     assert request(analysis_client, context, memo_version=99).status_code == 404
     assert request(analysis_client, context, memo_version=0).status_code == 422

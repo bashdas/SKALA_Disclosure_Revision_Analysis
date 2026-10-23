@@ -10,6 +10,14 @@ from sqlalchemy import create_engine, inspect, text
 from app.core.database import Base
 
 
+def reconcile_synthetic_session(engine, user_id):
+    # Only the disposable legacy fixture: its signing key is never used by a service.
+    # 0012 invalidates sessions, so older-schema guard tests must reconcile this first.
+    with engine.begin() as connection:
+        result = connection.execute(text("UPDATE core.users SET token_version=0 WHERE id=:id AND email='legacy@example.test'"), {"id": user_id})
+        assert result.rowcount == 1
+
+
 @pytest.mark.postgres
 def test_upgrade_downgrade_reupgrade_and_schema_isolation(monkeypatch):
     url = os.environ.get("TEST_DATABASE_URL")
@@ -99,6 +107,8 @@ def legacy_database(monkeypatch):
 
 @pytest.mark.postgres
 def test_populated_legacy_upgrade_and_downgrade(legacy_database):
+    from sqlalchemy.exc import DBAPIError
+
     engine, config, ids = legacy_database
     command.upgrade(config, "head")
     command.check(config)
@@ -113,6 +123,10 @@ def test_populated_legacy_upgrade_and_downgrade(legacy_database):
         assert row["has_warnings"] is False
         assert connection.execute(text("SELECT content FROM core.memo_versions WHERE id=:version"), ids).scalar_one() == "Original content"
         assert connection.execute(text("SELECT count(*) FROM core.revision_proposals")).scalar_one() == 1
+        assert connection.execute(text("SELECT token_version FROM core.users WHERE id=:user"), ids).scalar_one() == 1
+    with pytest.raises(DBAPIError, match="Rotate JWT signing key"):
+        command.downgrade(config, "0001_initial_core")
+    reconcile_synthetic_session(engine, ids["user"])
     # Compatible tasks can return to the old schema, but deleted approval history is not fabricated.
     command.downgrade(config, "0001_initial_core")
     assert {"approvals", "approval_items", "revision_applications"} <= set(inspect(engine).get_table_names(schema="core"))
@@ -158,6 +172,7 @@ def test_downgrade_guards_preserve_new_flow_data(legacy_database, incompatibilit
             connection.execute(text("UPDATE core.analysis_tasks SET status='SAVE_FAILED'"))
         else:
             connection.execute(text("UPDATE core.analysis_tasks SET filing_id=NULL"))
+    reconcile_synthetic_session(engine, ids["user"])
     with pytest.raises(DBAPIError, match="before downgrading"):
         command.downgrade(config, "0001_initial_core")
     with engine.connect() as connection:
@@ -180,6 +195,7 @@ def test_upload_metadata_migration_preserves_legacy_and_roundtrips(legacy_databa
         assert row["content"] == "Original content"
         assert all(row[key] is None for key in ("original_filename", "content_type", "size_bytes", "content_hash"))
         assert connection.execute(text("SELECT company_name FROM core.memos WHERE id=:memo"), ids).scalar_one() == "Legacy Company"
+    reconcile_synthetic_session(engine, ids["user"])
     command.downgrade(config, "0002_align_report_flow")
     assert "content_hash" not in {column["name"] for column in inspect(engine).get_columns("memo_versions", schema="core")}
     assert not next(column for column in inspect(engine).get_columns("memos", schema="core") if column["name"] == "company_name")["nullable"]
@@ -196,6 +212,7 @@ def test_upload_downgrade_cannot_fabricate_company_or_lose_metadata(legacy_datab
     table, key = ("memos", "memo") if field == "company_name" else ("memo_versions", "version")
     with engine.begin() as connection:
         connection.execute(text(f"UPDATE core.{table} SET {field}=:value WHERE id=:id"), {"value": value, "id": ids[key]})
+    reconcile_synthetic_session(engine, ids["user"])
     with pytest.raises(DBAPIError, match="Archive upload metadata"):
         command.downgrade(config, "0002_align_report_flow")
     with engine.connect() as connection:
@@ -222,6 +239,7 @@ def test_unknown_analysis_company_downgrade_guard(legacy_database):
     assert next(column for column in inspect(engine).get_columns("analysis_tasks", schema="core") if column["name"] == "company_name_snapshot")["nullable"]
     with engine.begin() as connection:
         connection.execute(text("UPDATE core.analysis_tasks SET company_name_snapshot=NULL WHERE id=:task"), ids)
+    reconcile_synthetic_session(engine, ids["user"])
     with pytest.raises(DBAPIError, match="Reconcile unknown analysis companies"):
         command.downgrade(config, "0003_memo_upload")
     with engine.connect() as connection:

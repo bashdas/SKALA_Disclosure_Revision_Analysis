@@ -68,14 +68,18 @@ def test_detail_roles_and_no_internal_fields(analysis_client, analysis_context, 
 
 @pytest.mark.postgres
 @pytest.mark.parametrize("suffix,method", [("", "get"), ("/events", "get"), ("/events/stream", "get"), ("/cancel", "post")])
-def test_scope_and_auth_on_every_endpoint(analysis_client, analysis_context, suffix, method):
-    task_id = seed_task(analysis_context, S.QUEUED)
+def test_company_shared_reads_and_requester_only_cancel(analysis_client, analysis_context, suffix, method):
+    # A completed stream closes normally after the shared read succeeds.
+    task_id = seed_task(analysis_context, S.QUEUED if suffix == "/cancel" else S.COMPLETED)
     old = app.dependency_overrides.get(get_stream_session_factory)
     app.dependency_overrides[get_stream_session_factory] = lambda: analysis_context.factory
     try:
         call = getattr(analysis_client, method)
         assert call(path(task_id, suffix)).status_code == 401
-        assert call(path(task_id, suffix), headers=headers(analysis_context, 1)).status_code == 404
+        response = call(path(task_id, suffix), headers=headers(analysis_context, 1))
+        assert response.status_code == (403 if suffix == "/cancel" else 200)
+        if suffix == "/cancel":
+            assert response.json()["error"]["code"] == "ANALYSIS_CANCEL_FORBIDDEN"
         assert call(path(uuid4(), suffix), headers=headers(analysis_context)).status_code == 404
     finally:
         if old is None:
@@ -181,7 +185,7 @@ def test_terminal_cancel_is_conflict(analysis_client, analysis_context, status):
 
 
 @pytest.mark.postgres
-def test_same_organization_nonrequester_cannot_cancel(analysis_client, analysis_context):
+def test_nonrequester_cannot_cancel(analysis_client, analysis_context):
     task_id = seed_task(analysis_context, S.QUEUED)
     with analysis_context.factory() as db:
         other = User(email=f"{uuid4()}@example.test", password_hash="unused", role=UserRole.ANALYST)

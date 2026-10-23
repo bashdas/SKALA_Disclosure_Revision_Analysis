@@ -7,7 +7,7 @@ from uuid import UUID, uuid4
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import delete, select
+from sqlalchemy import delete, or_, select
 from sqlalchemy.orm import sessionmaker
 
 from app.api.dependencies import get_analysis_producer
@@ -58,6 +58,7 @@ def analysis_context(migrated_engine, auth_settings):
         from app.models import AnalysisReportReference, RevisionProposal
         with factory() as db:
             task_ids = select(AnalysisTask.id).where(AnalysisTask.requested_by.in_([u.id for u in users]))
+            linked_filing_ids = list(db.scalars(select(AnalysisTask.filing_id).where(AnalysisTask.id.in_(task_ids))))
             for model, column in [(AnalysisReportReference, AnalysisReportReference.task_id),
                 (RevisionProposal, RevisionProposal.analysis_task_id), (AnalysisEvent, AnalysisEvent.analysis_task_id),
                 (AnalysisPerspectiveTask, AnalysisPerspectiveTask.analysis_task_id), (AnalysisReport, AnalysisReport.analysis_task_id)]:
@@ -67,7 +68,7 @@ def analysis_context(migrated_engine, auth_settings):
             db.execute(delete(Memo).where(Memo.id.in_([m.id for m in memos])))
             db.execute(delete(CompanyFavorite).where(CompanyFavorite.user_id.in_([u.id for u in users])))
             db.execute(delete(User).where(User.id.in_([u.id for u in users])))
-            filing_ids = select(Filing.id).where(Filing.receipt_no.in_([RECEIPT, "20261020000124"]))
+            filing_ids = select(Filing.id).where(or_(Filing.receipt_no.in_([RECEIPT, "20261020000124"]), Filing.id.in_(linked_filing_ids)))
             db.execute(delete(FilingVersion).where(FilingVersion.filing_id.in_(filing_ids)))
             db.execute(delete(Filing).where(Filing.id.in_(filing_ids)))
             db.commit()
@@ -126,7 +127,7 @@ def test_scope_missing_auth_and_no_client_scope(analysis_client, analysis_contex
     result = request(analysis_client, analysis_context, memo_id=str(uuid4()))
     assert result.status_code == 404 and result.json()["error"]["code"] == "MEMO_NOT_FOUND"
     assert analysis_client.post("/api/v1/analyses", json={"memo_id": str(uuid4()), "disclosure_receipt_no": RECEIPT}).status_code == 401
-    assert request(analysis_client, analysis_context).status_code == 422
+    assert request(analysis_client, analysis_context, organization_id=str(uuid4())).status_code == 422
     assert analysis_context.calls == []
 
 

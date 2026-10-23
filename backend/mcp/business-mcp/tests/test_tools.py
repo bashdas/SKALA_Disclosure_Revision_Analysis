@@ -13,7 +13,7 @@ from app.main import create_app
 KEY = "test-only-internal-mcp-key-not-for-production-12345"
 TASK, PERSPECTIVE = str(uuid4()), str(uuid4())
 HEADERS = {"Accept": "application/json, text/event-stream", "Host": "localhost:8081"}
-NAMES = {"get_analysis_context", "get_analysis_status", "report_analysis_event", "update_analysis_state", "register_perspective", "update_perspective", "save_analysis_report"}
+NAMES = {"get_analysis_context", "get_analysis_status", "report_analysis_event", "update_analysis_state", "register_perspective", "update_perspective", "save_analysis_report", "get_research_reports"}
 
 
 def settings():
@@ -26,7 +26,7 @@ def rpc(client, name, args):
     return response.json()["result"]
 
 
-def test_exact_seven_tools_and_no_key_argument():
+def test_exact_tools_and_no_key_argument():
     with TestClient(create_app(settings())) as client:
         response = client.post("/mcp", headers=HEADERS, json={"jsonrpc": "2.0", "id": 1, "method": "tools/list", "params": {}})
         tools = response.json()["result"]["tools"]
@@ -39,6 +39,7 @@ def test_exact_seven_tools_and_no_key_argument():
 @pytest.mark.parametrize("name,args,method,suffix", [
     ("get_analysis_context", {}, "GET", "context"),
     ("get_analysis_status", {}, "GET", "status"),
+    ("get_research_reports", {}, "GET", "research-reports"),
     ("report_analysis_event", {"event_type": "BASE_ANALYSIS_STARTED", "payload": {"message": "summary"}}, "POST", "events"),
     ("update_analysis_state", {"status": "RUNNING", "stage": "INPUT_COLLECTION", "has_warnings": False}, "POST", "state"),
     ("register_perspective", {"perspective_type": "FINANCE", "selection_reason": "Impact", "question": "Check", "max_tool_calls": 5, "timeout_seconds": 120}, "POST", "perspectives"),

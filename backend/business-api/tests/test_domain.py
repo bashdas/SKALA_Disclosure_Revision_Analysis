@@ -165,7 +165,7 @@ def test_event_sequence_and_jsonb(db, graph):
     assert db.execute(text("SELECT jsonb_typeof(payload_json) FROM core.analysis_events WHERE id=:id"), {"id": event.id}).scalar_one() == "object"
 
 @pytest.mark.postgres
-@pytest.mark.parametrize("parent", ["org", "user", "memo", "task"])
+@pytest.mark.parametrize("parent", ["user", "memo", "task"])
 def test_loaded_parent_delete_preserves_history(db, graph, parent):
     # Load collections so the ORM must also obey the non-cascading policy.
     list(graph.memo.memo_versions)

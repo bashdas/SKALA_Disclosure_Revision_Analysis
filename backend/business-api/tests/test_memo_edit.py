@@ -17,7 +17,7 @@ from test_memo_upload import post, upload_client, upload_context  # noqa: F401
 
 
 @pytest.mark.postgres
-def test_edit_preserves_versions_and_rejects_stale_or_foreign_writes(request):
+def test_shared_edit_preserves_versions_and_rejects_stale_writes(request):
     client = request.getfixturevalue("upload_client")
     context = request.getfixturevalue("upload_context")
     memo_id = post(client, b"original").json()["id"]
@@ -36,7 +36,8 @@ def test_edit_preserves_versions_and_rejects_stale_or_foreign_writes(request):
     assert len(client.get(path).json()) == 2
     other = context.users[1]
     headers = {"Authorization": "Bearer " + create_access_token(other, settings=context.settings)}
-    assert client.post(path, headers=headers, json={"content": "foreign", "base_version": 2}).status_code == 404
+    assert client.post(path, headers=headers, json={"content": "colleague update", "base_version": 2}).json()["current_version"] == 3
+    assert client.get(path + "/3").json()["created_by"] == str(other.id)
     assert client.delete(f"/api/v1/memos/{memo_id}").status_code == 204
     assert client.post(path, json={"content": "deleted", "base_version": 2}).status_code == 404
 
