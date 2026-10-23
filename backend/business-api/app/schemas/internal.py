@@ -37,7 +37,6 @@ class ContextMemo(BaseModel):
 
 class AnalysisContextResponse(BaseModel):
     task_id: UUID
-    organization_id: UUID
     requested_by: UUID
     status: AnalysisStatus
     current_stage: AnalysisStage | None

@@ -17,7 +17,6 @@ import type {
 
 export interface CurrentUser {
   id: string
-  organization_id: string
   email: string
   name?: string
   role: string
@@ -593,13 +592,13 @@ export function createHttpServices(): Services {
   }
 }
 
-export function signup(email: string, password: string, organizationName: string, name: string) {
+export function signup(email: string, password: string, name: string, role: 'RA' | 'ANALYST' = 'ANALYST') {
   return request<CurrentUser>(
     '/auth/signup',
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password, organization_name: organizationName, name }),
+      body: JSON.stringify({ email, password, name, role }),
     },
     false,
   )

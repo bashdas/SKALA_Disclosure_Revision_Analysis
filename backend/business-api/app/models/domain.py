@@ -19,27 +19,14 @@ from app.models.enums import (
     UserRole, ValidationStatus, enum_column,
 )
 
-class Organization(IdentityCreatedMixin, Base):
-    __tablename__ = "organizations"
-    __table_args__ = {"schema": CORE_SCHEMA}
-
-    name: Mapped[str] = mapped_column(String(255))
-    users: Mapped[list[User]] = relationship(passive_deletes="all")
-    filings: Mapped[list[Filing]] = relationship(passive_deletes="all")
-    memos: Mapped[list[Memo]] = relationship(passive_deletes="all")
-    analysis_tasks: Mapped[list[AnalysisTask]] = relationship(passive_deletes="all")
-
-
 class User(IdentityCreatedMixin, Base):
     __tablename__ = "users"
     __table_args__ = (
         UniqueConstraint("email", name="uq_users_email"),
         CheckConstraint("token_version >= 0", name="ck_users_token_version_nonnegative"),
-        Index("ix_users_organization_id", "organization_id"),
         {"schema": CORE_SCHEMA},
     )
 
-    organization_id: Mapped[UUID] = mapped_column(ForeignKey("core.organizations.id", ondelete="RESTRICT"))
     email: Mapped[str] = mapped_column(String(320))
     name: Mapped[str] = mapped_column(String(100), default="", server_default="")
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, server_default=text("true"))
@@ -51,12 +38,11 @@ class User(IdentityCreatedMixin, Base):
 class Filing(IdentityCreatedMixin, Base):
     __tablename__ = "filings"
     __table_args__ = (
-        UniqueConstraint("organization_id", "receipt_no", name="uq_filings_organization_receipt"),
+        UniqueConstraint("receipt_no", name="uq_filings_receipt"),
         Index("ix_filings_receipt_no", "receipt_no"),
         {"schema": CORE_SCHEMA},
     )
 
-    organization_id: Mapped[UUID] = mapped_column(ForeignKey("core.organizations.id", ondelete="RESTRICT"))
     corp_code: Mapped[str | None] = mapped_column(String(8))
     title: Mapped[str | None] = mapped_column(String(500))
     is_correction: Mapped[bool] = mapped_column(Boolean, default=False, server_default=text("false"))
@@ -101,7 +87,6 @@ class Memo(IdentityCreatedMixin, UpdatedMixin, Base):
         {"schema": CORE_SCHEMA},
     )
 
-    organization_id: Mapped[UUID] = mapped_column(ForeignKey("core.organizations.id", ondelete="RESTRICT"), index=True)
     company_name: Mapped[str | None] = mapped_column(String(255))
     title: Mapped[str] = mapped_column(String(500))
     current_version: Mapped[int] = mapped_column(Integer, default=1, server_default=text("1"))
@@ -134,14 +119,12 @@ class AnalysisTask(IdentityCreatedMixin, UpdatedMixin, Base):
     __table_args__ = (
         CheckConstraint("base_memo_version >= 1", name="ck_analysis_tasks_base_version_positive"),
         UniqueConstraint("thread_id", name="uq_analysis_tasks_thread_id"),
-        Index("ix_analysis_tasks_organization_status", "organization_id", "status"),
         Index("ix_analysis_tasks_status", "status"),
         Index("ix_analysis_tasks_receipt_no", "disclosure_receipt_no"),
-        Index("ix_analysis_tasks_duplicate_lookup", "organization_id", "memo_id", "base_memo_version", "disclosure_receipt_no", "status"),
+        Index("ix_analysis_tasks_duplicate_lookup", "memo_id", "base_memo_version", "disclosure_receipt_no", "status"),
         {"schema": CORE_SCHEMA},
     )
 
-    organization_id: Mapped[UUID] = mapped_column(ForeignKey("core.organizations.id", ondelete="RESTRICT"))
     requested_by: Mapped[UUID] = mapped_column(ForeignKey("core.users.id", ondelete="RESTRICT"))
     filing_id: Mapped[UUID | None] = mapped_column(ForeignKey("core.filings.id", ondelete="RESTRICT"), index=True)
     memo_id: Mapped[UUID] = mapped_column(ForeignKey("core.memos.id", ondelete="RESTRICT"), index=True)
@@ -201,11 +184,10 @@ class AnalysisEvent(IdentityCreatedMixin, Base):
 class AuditLog(IdentityCreatedMixin, Base):
     __tablename__ = "audit_logs"
     __table_args__ = (
-        Index("ix_audit_logs_organization_created", "organization_id", "created_at"),
+        Index("ix_audit_logs_created", "created_at"),
         {"schema": CORE_SCHEMA},
     )
 
-    organization_id: Mapped[UUID] = mapped_column(ForeignKey("core.organizations.id", ondelete="RESTRICT"))
     user_id: Mapped[UUID] = mapped_column(ForeignKey("core.users.id", ondelete="RESTRICT"))
     action: Mapped[str] = mapped_column(String(100))
     resource_type: Mapped[str] = mapped_column(String(100))

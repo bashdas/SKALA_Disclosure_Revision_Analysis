@@ -51,7 +51,6 @@ def catalog(tmp_path, monkeypatch):
                     "url": None,
                     "source_file": "report.pdf",
                     "text": "[1쪽]\n실적은 증가할 전망입니다.\n[2쪽]\n계약 이행과 잔금 회수를 전제로 합니다.",
-                    "bindings": [{"memo_id": MEMO, "version": 1}],
                 }
             ],
             ensure_ascii=False,
@@ -61,7 +60,7 @@ def catalog(tmp_path, monkeypatch):
     return path
 
 
-def test_embedding_cache_and_exact_binding(ledger, catalog):
+def test_embedding_cache_and_company_date_filter(ledger, catalog):
     calls = []
 
     async def embed(texts):
@@ -72,21 +71,24 @@ def test_embedding_cache_and_exact_binding(ledger, catalog):
         index = ResearchIndex(ledger, embed)
         found = await index.search(request(), {}, "org:memo:1", "잔금 회수")
         assert found["sources"][0]["location"].startswith("page:2:")
-        assert found["research_reports"][0]["memo_id"] == MEMO
+        assert found["research_reports"][0]["corp_code"] == "00126478"
         assert found["documents"][0]["text"].startswith("[1쪽]")
         await ResearchIndex(ledger, embed).search(request(), {}, "org:memo:1", "잔금 회수")
         assert len(calls[0]) == 3 and calls[1] == ["잔금 회수"]
         await index.search(request(), {}, "other-org:memo:1", "잔금 회수")
         assert len(calls[-1]) == 3
         for changed in (
-            {"base_memo_version": 2},
-            {"memo_id": str(uuid4())},
             {"corp_code": "00000001"},
             {"disclosure_receipt_no": "20260101000001"},
         ):
             absent = await index.search({**request(), **changed}, {}, "org", "잔금")
             assert not absent["documents"]
         assert len(calls) == 3
+        for changed in ({"base_memo_version": 2}, {"memo_id": str(uuid4())}):
+            found = await index.search({**request(), **changed}, {}, "org:memo:1", "잔금")
+            assert found["documents"]
+        independent = {k: v for k, v in request().items() if k not in {"memo_id", "base_memo_version"}}
+        assert (await index.search(independent, {}, "org:memo:1", "잔금"))["documents"]
         # 같은 리포트 ID여도 내용이 바뀐 조각은 새로 임베딩합니다.
         data = json.loads(catalog.read_text())
         data[0]["text"] += "\n회수 시점을 확인합니다."
@@ -95,6 +97,16 @@ def test_embedding_cache_and_exact_binding(ledger, catalog):
         assert len(calls[-1]) == 2
 
     asyncio.run(check())
+
+
+def test_company_reports_follow_official_filing_date(ledger, catalog):
+    index = ResearchIndex(ledger)
+    assert index.eligible(request(), {"filed_at": "2026-02-02"})
+    assert not index.eligible(request(), {"filed_at": "2026-02-01"})
+    sec_request = {**request(), "disclosure_receipt_no": "SEC:1:0000000000-26-000001"}
+    assert not index.eligible(sec_request, {})
+    assert index.eligible(sec_request, {"filed_at": "2026-02-02"})
+    assert not index.eligible({**request(), "corp_code": "00000001"}, {"filed_at": "2026-02-02"})
 
 
 @pytest.mark.parametrize("value", [[], [0.0] * 1536, [float("nan")] * 1536, [1.0]])
@@ -109,13 +121,13 @@ def test_invalid_embedding_rejected(ledger, value):
 def test_packaged_report_and_page_locations(ledger, monkeypatch):
     monkeypatch.delenv("AI_RESEARCH_REPORTS_PATH", raising=False)
     index = ResearchIndex(ledger)
-    report = index.linked(request(), {})[0]
+    report = index.eligible(request(), {})[0]
     assert report.report_id == "im-010140-20260202"
     assert len(report.text) == 18163
     fragments = chunks(report)
     assert any(source["location"].startswith("page:2:") for source in fragments)
     assert all(source["quote"] in report.text for source in fragments)
-    assert not index.linked(
+    assert not index.eligible(
         {**request(), "disclosure_receipt_no": "SEC:1:0000000000-26-000001"}, {}
     )
 
@@ -207,7 +219,7 @@ def test_graph_renders_research_with_existing_save_contract(ledger, catalog, mon
         state = {**initial(), "request": {**request(), "disclosure_type": "CORRECTION"}}
         result = await graph.ainvoke(state, {"configurable": {"thread_id": "research"}})
         report = result["report"]
-        assert captured["research_reports"][0]["memo_id"] == MEMO
+        assert captured["research_reports"][0]["corp_code"] == "00126478"
         data = report["report_json"]
         assert data["report_revisions"][0]["memo_id"] == MEMO
         assert data["report_revisions"][0]["before_text"] in next(
@@ -262,7 +274,7 @@ def test_embedding_failure_keeps_existing_analysis(ledger, catalog, monkeypatch)
     asyncio.run(check())
 
 
-def test_shared_search_also_searches_linked_reports(ledger, catalog, monkeypatch):
+def test_shared_search_also_searches_company_reports(ledger, catalog, monkeypatch):
     async def vectors(self, texts):
         return [vector() for _ in texts]
 
@@ -346,5 +358,5 @@ def test_invalid_catalog_is_not_reused_after_validation_failure(ledger, catalog)
     index = ResearchIndex(ledger)
     for _ in range(2):
         with pytest.raises(ValueError, match="INVALID_RESEARCH_CATALOG"):
-            index.linked(request(), {})
+            index.eligible(request(), {})
     assert index.catalog is None

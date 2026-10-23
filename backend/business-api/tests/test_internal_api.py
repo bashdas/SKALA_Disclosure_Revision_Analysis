@@ -84,21 +84,21 @@ def test_internal_context_uses_task_version_not_current_version(internal_client,
     result = call(internal_client, task_id, "context", method="GET")
     assert result.status_code == 200
     data = result.json()
-    assert data["memo"]["version"] == 3 and data["memo"]["content"] == "private memo body"
+    assert data["memo"]["version"] == 3 and data["memo"]["content"] == "company memo body"
     assert data["memo"]["id"] == str(analysis_context.memos[0].id)
-    assert data["organization_id"] == str(analysis_context.users[0].organization_id)
+    assert "organization_id" not in data
     assert data["requested_by"] == str(analysis_context.users[0].id)
     assert data["disclosure_receipt_no"] == "20261020000123"
     assert data["corp_code"] is None and data["company_name"] is None
     assert all(value not in result.text for value in (KEY, "password_hash", "rabbitmq_url", "NEW VERSION NOT TASK INPUT"))
     assert call(internal_client, uuid4(), "context", method="GET").status_code == 404
     # Query scope fields do not change server-bound context.
-    spoof = internal_client.get(endpoint(task_id, "context") + f"?organization_id={analysis_context.users[1].organization_id}&memo_id={analysis_context.memos[1].id}", headers={"X-Internal-API-Key": KEY})
+    spoof = internal_client.get(endpoint(task_id, "context") + f"?memo_id={analysis_context.memos[1].id}", headers={"X-Internal-API-Key": KEY})
     assert spoof.json() == data
 
 
 @pytest.mark.postgres
-def test_context_incomplete_version_or_wrong_organization(internal_client, analysis_context):
+def test_context_incomplete_version_is_rejected(internal_client, analysis_context):
     task_id = task(analysis_context)
     with analysis_context.factory() as db:
         db.get(AnalysisTask, task_id).base_memo_version = 9
@@ -109,7 +109,7 @@ def test_context_incomplete_version_or_wrong_organization(internal_client, analy
         db.get(AnalysisTask, task_id).memo_id = analysis_context.memos[1].id
         db.commit()
     result = call(internal_client, task_id, "context", method="GET")
-    assert result.status_code == 404 and result.json()["error"]["code"] == "ANALYSIS_CONTEXT_NOT_FOUND"
+    assert result.status_code == 404 and result.json()["error"]["code"] == "MEMO_VERSION_NOT_FOUND"
 
 
 @pytest.mark.postgres
@@ -372,7 +372,7 @@ def test_state_refresh_rejects_stale_cancelled_entity(internal_client, analysis_
         assert stale.status == S.QUEUED
         with analysis_context.factory() as db:
             AnalysisService(AnalysisRepository(db), MemoRepository(db), analysis_context.producer).cancel_analysis(
-                task_id, analysis_context.users[0].organization_id, analysis_context.users[0].id)
+                task_id, analysis_context.users[0].id)
         with pytest.raises(InternalAPIError) as failure:
             workflow(analysis_context, stale_session).update_state(task_id, InternalStateRequest(status=S.RUNNING))
         assert failure.value.code == "ANALYSIS_NOT_ACTIVE"
@@ -391,7 +391,7 @@ def test_cancel_between_report_prepare_and_write_is_respected(internal_client, a
         def cancel_then_write(*args):
             with analysis_context.factory() as other:
                 AnalysisService(AnalysisRepository(other), MemoRepository(other), analysis_context.producer).cancel_analysis(
-                    task_id, analysis_context.users[0].organization_id, analysis_context.users[0].id)
+                    task_id, analysis_context.users[0].id)
             return write(*args)
 
         with patch.object(worker, "_write_report", side_effect=cancel_then_write):

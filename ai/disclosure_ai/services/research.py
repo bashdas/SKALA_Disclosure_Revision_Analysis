@@ -1,4 +1,4 @@
-"""메모에 연결된 증권사 리포트를 AI 저장소에서 임베딩하고 검색합니다."""
+"""분석 대상 기업의 증권사 리포트를 AI 저장소에서 임베딩하고 검색합니다."""
 
 import hashlib
 import json
@@ -8,18 +8,12 @@ import re
 from datetime import date
 from pathlib import Path
 from urllib.parse import urlsplit
-from uuid import UUID
 
 from openai import AsyncOpenAI
 from pydantic import Field, TypeAdapter, field_validator
 
 from disclosure_ai.schemas import Model
 from disclosure_ai.services.documents import validated_sources
-
-
-class Binding(Model):
-    memo_id: UUID
-    version: int = Field(ge=1)
 
 
 class ResearchReport(Model):
@@ -31,7 +25,6 @@ class ResearchReport(Model):
     url: str | None = None
     source_file: str = Field(min_length=1, max_length=255)
     text: str = Field(min_length=1, max_length=100000)
-    bindings: list[Binding] = Field(min_length=1, max_length=100)
 
     @field_validator("url")
     @classmethod
@@ -97,7 +90,7 @@ class ResearchIndex:
         )
         self.catalog = None
 
-    def linked(self, request, filing):
+    def eligible(self, request, filing):
         if self.catalog is None:
             if self.path.stat().st_size > 5 * 1024 * 1024:
                 raise ValueError("RESEARCH_CATALOG_TOO_LARGE")
@@ -119,11 +112,6 @@ class ResearchIndex:
             for report in self.catalog
             if report.published_at <= cutoff
             and report.corp_code == request.get("corp_code")
-            and any(
-                str(binding.memo_id) == request["memo_id"]
-                and binding.version == request["base_memo_version"]
-                for binding in report.bindings
-            )
         ]
 
     async def vectors(self, texts):
@@ -148,7 +136,7 @@ class ResearchIndex:
         return [[x / math.hypot(*vector) for x in vector] for vector in values]
 
     async def search(self, request, filing, scope, query):
-        reports = self.linked(request, filing)
+        reports = self.eligible(request, filing)
         if not reports:
             return {"documents": [], "sources": [], "research_reports": []}
         if not query.strip() or len(query) > 2000:
@@ -209,8 +197,7 @@ class ResearchIndex:
                     "title": report.title,
                     "source_file": report.source_file,
                     "published_at": report.published_at.isoformat(),
-                    "memo_id": request["memo_id"],
-                    "base_memo_version": request["base_memo_version"],
+                    "corp_code": report.corp_code,
                 }
                 for report in reports
             ],
@@ -218,10 +205,13 @@ class ResearchIndex:
 
 
 async def search_reports(run, state, query):
-    if not {"memo_id", "base_memo_version", "disclosure_receipt_no"} <= state["request"].keys():
+    if not {"corp_code", "disclosure_receipt_no"} <= state["request"].keys():
         return {"error": "INVALID_RESEARCH_INPUT"}
 
     async def invoke(_name, _args):
+        if hasattr(run.tools, "search_research_reports"):
+            # Production never falls back to the shared local fixture catalog.
+            return await run.tools.search_research_reports(run.h.task_id, query)
         try:
             return await run.research.search(
                 state["request"], state["filing"], state["scope"], query
@@ -233,8 +223,7 @@ async def search_reports(run, state, query):
         "search_research_reports",
         {
             "query": query,
-            "memo_id": state["request"]["memo_id"],
-            "version": state["request"]["base_memo_version"],
+            "corp_code": state["request"]["corp_code"],
             "receipt_no": state["request"]["disclosure_receipt_no"],
         },
         invoke,

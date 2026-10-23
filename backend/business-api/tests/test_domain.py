@@ -16,7 +16,7 @@ from app.core.config import get_settings
 from app.core.database import Base
 from app.models import (
     AnalysisEvent, AnalysisPerspectiveTask, AnalysisReport, AnalysisTask, AuditLog, Contract,
-    Filing, FilingVersion, Memo, MemoVersion, Organization,
+    Filing, FilingVersion, Memo, MemoVersion,
     RevisionProposal, User,
 )
 from app.models.enums import AnalysisStatus, ImpactType, UserRole, ValidationStatus
@@ -26,13 +26,13 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def test_model_metadata_and_delete_policy():
     configure_mappers()
-    assert len(Base.metadata.tables) == 14
+    assert len(Base.metadata.tables) == 16
     for table in Base.metadata.tables.values():
         assert table.schema == "core"
         for fk in table.foreign_keys:
             assert fk.ondelete == "RESTRICT"
         for column in table.columns:
-            if column.name.endswith("_at"):
+            if column.name.endswith("_at") and column.name != "published_at":
                 assert column.type.timezone
     for mapper in Base.registry.mappers:
         for relation in mapper.relationships:
@@ -68,22 +68,19 @@ def db(migrated_engine):
 
 @pytest.fixture
 def graph(db):
-    org = Organization(name="Example organization")
-    db.add(org)
-    db.flush()
-    user = User(organization_id=org.id, email="analyst@example.test", password_hash="test-hash", role=UserRole.ANALYST)
-    filing = Filing(organization_id=org.id, company_name="Example", receipt_no="202610200001", filing_type="contract", filed_at=datetime.now(timezone.utc))
-    memo = Memo(organization_id=org.id, company_name="Example", title="Memo")
+    user = User(email="analyst@example.test", password_hash="test-hash", role=UserRole.ANALYST)
+    filing = Filing(company_name="Example", receipt_no="202610200001", filing_type="contract", filed_at=datetime.now(timezone.utc))
+    memo = Memo(company_name="Example", title="Memo")
     db.add_all([user, filing, memo])
     db.flush()
     version = MemoVersion(memo_id=memo.id, version=1, content="original", created_by=user.id)
-    task = AnalysisTask(organization_id=org.id, requested_by=user.id, memo_id=memo.id, base_memo_version=1, thread_id=str(uuid4()), disclosure_receipt_no="202610200001", company_name_snapshot="Example")
+    task = AnalysisTask(requested_by=user.id, memo_id=memo.id, base_memo_version=1, thread_id=str(uuid4()), disclosure_receipt_no="202610200001", company_name_snapshot="Example")
     db.add_all([version, task])
     db.flush()
     proposal = RevisionProposal(analysis_task_id=task.id, claim_id="claim-1", impact_type=ImpactType.HOLD, before_text="before", after_text=None, reason="review", evidence_json={"sources": [{"page": 1}]})
     db.add(proposal)
     db.flush()
-    return SimpleNamespace(org=org, user=user, filing=filing, memo=memo, version=version, task=task, proposal=proposal)
+    return SimpleNamespace(user=user, filing=filing, memo=memo, version=version, task=task, proposal=proposal)
 
 
 def rejected(db, instance, constraint):
@@ -95,37 +92,27 @@ def rejected(db, instance, constraint):
 
 
 @pytest.mark.postgres
-def test_organization_and_relationships(db, graph):
+def test_company_data_and_relationships(db, graph):
     db.expire_all()
-    assert graph.org.name == "Example organization"
-    assert graph.user in graph.org.users
-    assert graph.filing in graph.org.filings
-    assert graph.memo in graph.org.memos
-    assert graph.task in graph.org.analysis_tasks
     assert graph.version in graph.memo.memo_versions
     assert graph.proposal in graph.task.revision_proposals
     assert graph.user.role is UserRole.ANALYST
     assert graph.task.status is AnalysisStatus.CREATED
     assert graph.proposal.validation_status is ValidationStatus.PENDING
     assert graph.memo.current_version == 1
-    assert graph.org.created_at.utcoffset() is not None
     assert graph.task.created_at.utcoffset() is not None
     assert graph.task.updated_at.utcoffset() is not None
 
 
 @pytest.mark.postgres
 def test_user_email_unique(db, graph):
-    rejected(db, User(organization_id=graph.org.id, email=graph.user.email, password_hash="hash", role=UserRole.RA), "uq_users_email")
+    rejected(db, User(email=graph.user.email, password_hash="hash", role=UserRole.RA), "uq_users_email")
 
 
 @pytest.mark.postgres
-def test_filing_receipt_unique_per_organization(db, graph):
-    rejected(db, Filing(organization_id=graph.org.id, company_name="Other", receipt_no=graph.filing.receipt_no, filing_type="contract", filed_at=datetime.now(timezone.utc)), "uq_filings_organization_receipt")
-    other = Organization(name="Other org")
-    db.add(other)
-    db.flush()
-    db.add(Filing(organization_id=other.id, company_name="Other", receipt_no=graph.filing.receipt_no, filing_type="contract", filed_at=datetime.now(timezone.utc)))
-    db.flush()
+def test_filing_receipt_is_unique_for_the_company(db, graph):
+    rejected(db, Filing(company_name="Other", receipt_no=graph.filing.receipt_no,
+        filing_type="contract", filed_at=datetime.now(timezone.utc)), "uq_filings_receipt")
 
 
 @pytest.mark.postgres
@@ -138,7 +125,7 @@ def test_filing_version_constraints(db, graph):
 
 @pytest.mark.postgres
 def test_memo_versions_and_current_version(db, graph):
-    rejected(db, Memo(organization_id=graph.org.id, company_name="Example", title="bad", current_version=0), "ck_memos_current_version_positive")
+    rejected(db, Memo(company_name="Example", title="bad", current_version=0), "ck_memos_current_version_positive")
     rejected(db, MemoVersion(memo_id=graph.memo.id, version=1, content="duplicate", created_by=graph.user.id), "uq_memo_versions_memo_version")
     rejected(db, MemoVersion(memo_id=graph.memo.id, version=0, content="bad", created_by=graph.user.id), "ck_memo_versions_version_positive")
 
@@ -157,14 +144,14 @@ def test_contract_decimal_and_dates(db, graph):
 
 @pytest.mark.postgres
 def test_task_version_and_thread_unique(db, graph):
-    values = dict(organization_id=graph.org.id, requested_by=graph.user.id, filing_id=graph.filing.id, memo_id=graph.memo.id, disclosure_receipt_no="202610200001", company_name_snapshot="Example")
+    values = dict(requested_by=graph.user.id, filing_id=graph.filing.id, memo_id=graph.memo.id, disclosure_receipt_no="202610200001", company_name_snapshot="Example")
     rejected(db, AnalysisTask(**values, base_memo_version=0, thread_id=str(uuid4())), "ck_analysis_tasks_base_version_positive")
     rejected(db, AnalysisTask(**values, base_memo_version=1, thread_id=graph.task.thread_id), "uq_analysis_tasks_thread_id")
 
 @pytest.mark.postgres
 def test_event_sequence_and_jsonb(db, graph):
     event = AnalysisEvent(analysis_task_id=graph.task.id, sequence=1, event_type="created", payload_json={"status": "CREATED", "values": [1, True, None]})
-    audit = AuditLog(organization_id=graph.org.id, user_id=graph.user.id, action="test", resource_type="task", resource_id=str(graph.task.id), metadata_json={"nested": {"value": 1}})
+    audit = AuditLog(user_id=graph.user.id, action="test", resource_type="task", resource_id=str(graph.task.id), metadata_json={"nested": {"value": 1}})
     db.add_all([event, audit])
     db.flush()
     rejected(db, AnalysisEvent(analysis_task_id=graph.task.id, sequence=1, event_type="duplicate"), "uq_analysis_events_task_sequence")
@@ -181,10 +168,6 @@ def test_event_sequence_and_jsonb(db, graph):
 @pytest.mark.parametrize("parent", ["org", "user", "memo", "task"])
 def test_loaded_parent_delete_preserves_history(db, graph, parent):
     # Load collections so the ORM must also obey the non-cascading policy.
-    list(graph.org.users)
-    list(graph.org.filings)
-    list(graph.org.memos)
-    list(graph.org.analysis_tasks)
     list(graph.memo.memo_versions)
     list(graph.task.revision_proposals)
     with pytest.raises(IntegrityError):
@@ -206,10 +189,10 @@ def test_enum_checks_reject_raw_sql(db, graph):
 @pytest.mark.postgres
 def test_audit_prevents_user_deletion(db, graph):
     # Independent user is referenced only by audit history.
-    user = User(organization_id=graph.org.id, email="audit-only@example.test", password_hash="hash", role=UserRole.RA)
+    user = User(email="audit-only@example.test", password_hash="hash", role=UserRole.RA)
     db.add(user)
     db.flush()
-    audit = AuditLog(organization_id=graph.org.id, user_id=user.id, action="test", resource_type="user", resource_id=str(user.id))
+    audit = AuditLog(user_id=user.id, action="test", resource_type="user", resource_id=str(user.id))
     db.add(audit)
     db.flush()
     with pytest.raises(IntegrityError):
@@ -223,7 +206,7 @@ def test_audit_prevents_user_deletion(db, graph):
 def test_foreign_key_and_required_fields(db, graph):
     with pytest.raises(IntegrityError) as error:
         with db.begin_nested():
-            db.add(User(organization_id=uuid4(), email="missing-org@example.test", password_hash="hash", role=UserRole.RA))
+            db.add(MemoVersion(memo_id=uuid4(), version=1, content="missing memo", created_by=graph.user.id))
             db.flush()
     assert error.value.orig.sqlstate == "23503"
     with pytest.raises(IntegrityError) as error:

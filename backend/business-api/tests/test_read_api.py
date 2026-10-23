@@ -11,7 +11,7 @@ from app.core.database import get_db
 from app.core.security import create_access_token
 from app.domain.resource_exceptions import FilingNotFound, MemoNotFound, MemoVersionNotFound
 from app.main import app
-from app.models import Filing, FilingVersion, Memo, MemoVersion, Organization, User
+from app.models import Filing, FilingVersion, Memo, MemoVersion, User
 from app.models.enums import UserRole
 from app.repositories import FilingRepository, MemoRepository
 from app.services.filing import FilingService
@@ -27,27 +27,23 @@ def records(db, graph):
     graph.filing.filed_at = early
     graph.memo.current_version = 2
     graph.memo.updated_at = early
-    org = Organization(name="Foreign organization")
-    db.add(org)
-    db.flush()
-    other_user = User(organization_id=org.id, email="foreign@example.test", password_hash="unused-hash", role=UserRole.RA)
-    same_receipt = Filing(organization_id=org.id, company_name="Example", receipt_no=graph.filing.receipt_no, filing_type="contract", filed_at=later)
-    only_foreign = Filing(organization_id=org.id, company_name="Example", receipt_no="foreign-only", filing_type="contract", filed_at=later)
-    foreign_memo = Memo(organization_id=org.id, company_name="Example", title="Foreign memo")
-    own_filings = [graph.filing, *[Filing(organization_id=graph.org.id, company_name=company, receipt_no=str(uuid4()), filing_type=kind, filed_at=later) for company, kind in [("Example", "correction"), ("Other company", "contract")]]]
-    own_memos = [graph.memo, *[Memo(organization_id=graph.org.id, company_name=company, title="Own memo", updated_at=later) for company in ("Example", "Other company")]]
+    other_user = User(email="colleague@example.test", password_hash="unused-hash", role=UserRole.RA)
+    same_receipt = Filing(company_name="Colleague company", receipt_no="colleague-receipt", filing_type="contract", filed_at=later)
+    only_foreign = Filing(company_name="Colleague company", receipt_no="colleague-only", filing_type="contract", filed_at=later)
+    foreign_memo = Memo(company_name="Colleague company", title="Colleague memo")
+    own_filings = [graph.filing, *[Filing(company_name=company, receipt_no=str(uuid4()), filing_type=kind, filed_at=later)
+        for company, kind in [("Example", "correction"), ("Other company", "contract")]]]
+    own_memos = [graph.memo, *[Memo(company_name=company, title="Company memo", updated_at=later) for company in ("Example", "Other company")]]
     db.add_all([other_user, same_receipt, only_foreign, foreign_memo, *own_filings[1:], *own_memos[1:]])
     db.flush()
     own_version2 = MemoVersion(memo_id=graph.memo.id, version=2, content="Version two", created_by=graph.user.id)
-    db.add_all([
-        FilingVersion(filing_id=graph.filing.id, version=1, raw_content="Own original filing", content_hash="hash-1"),
+    db.add_all([FilingVersion(filing_id=graph.filing.id, version=1, raw_content="Own original filing", content_hash="hash-1"),
         FilingVersion(filing_id=graph.filing.id, version=2, raw_content="Own correction raw content", content_hash="hash-2"),
-        FilingVersion(filing_id=same_receipt.id, version=1, raw_content="FOREIGN FILING SECRET", content_hash="foreign-hash"),
-        MemoVersion(memo_id=foreign_memo.id, version=1, content="FOREIGN MEMO SECRET", created_by=other_user.id),
-        own_version2,
-    ])
+        FilingVersion(filing_id=same_receipt.id, version=1, raw_content="Colleague filing", content_hash="colleague-hash"),
+        MemoVersion(memo_id=foreign_memo.id, version=1, content="Colleague memo", created_by=other_user.id), own_version2])
     db.flush()
-    return SimpleNamespace(org=org, same_receipt=same_receipt, only_foreign=only_foreign, memo=foreign_memo, own_filings=own_filings, own_memos=own_memos, own_version2=own_version2)
+    return SimpleNamespace(same_receipt=same_receipt, only_foreign=only_foreign, memo=foreign_memo,
+        own_filings=own_filings+[same_receipt, only_foreign], own_memos=own_memos+[foreign_memo], own_version2=own_version2)
 
 
 @pytest.fixture
@@ -103,12 +99,12 @@ def test_lists_are_scoped_paginated_stably_sorted(read_client, records, graph, r
     column = "filed_at" if resource == "filings" else "updated_at"
     expected = [str(item.id) for item in sorted(objects, key=lambda item: (getattr(item, column), item.id.int), reverse=True)]
     path = f"/api/v1/{resource}"
-    response = read_client.get(path, params={"organization_id": str(records.org.id)})
+    response = read_client.get(path, params={})
     assert response.status_code == 200
     assert [row["id"] for row in response.json()] == expected
     assert [row["id"] for row in read_client.get(path, params={"limit": 1, "offset": 1}).json()] == expected[1:2]
     assert read_client.get(path, params={"offset": 100}).json() == []
-    assert len(read_client.get(path, params={"limit": 100}).json()) == 3
+    assert len(read_client.get(path, params={"limit": 100}).json()) == len(objects)
     assert all("organization_id" not in row for row in response.json())
 
 
@@ -136,11 +132,12 @@ def test_filing_details_and_receipt_are_organization_scoped(read_client, graph, 
     expected_keys = {"id", "company_name", "receipt_no", "filing_type", "filed_at", "created_at", "corp_code", "title", "is_correction", "is_registered", "origin_receipt_no"}
     assert set(response.json()) == expected_keys
     # Same receipt exists in both tenants; only the authenticated tenant is selected.
-    response = read_client.get(f"/api/v1/filings/by-receipt/{graph.filing.receipt_no}", params={"organization_id": str(records.org.id)})
+    response = read_client.get(f"/api/v1/filings/by-receipt/{graph.filing.receipt_no}", params={})
     assert response.status_code == 200
     assert response.json()["id"] == str(graph.filing.id)
     assert "raw_content" not in response.json()
-    for receipt in (records.only_foreign.receipt_no, "nonexistent"):
+    assert read_client.get(f"/api/v1/filings/by-receipt/{records.only_foreign.receipt_no}").status_code == 200
+    for receipt in ("nonexistent",):
         response = read_client.get(f"/api/v1/filings/by-receipt/{receipt}")
         assert response.status_code == 404
         assert response.json()["error"]["code"] == "FILING_NOT_FOUND"
@@ -148,12 +145,10 @@ def test_filing_details_and_receipt_are_organization_scoped(read_client, graph, 
 
 @pytest.mark.postgres
 @pytest.mark.parametrize("resource", ["filings", "memos"])
-def test_foreign_and_missing_ids_have_identical_404(read_client, records, resource):
+def test_colleague_data_is_shared_and_missing_ids_return_404(read_client, records, resource):
     key = records.same_receipt.id if resource == "filings" else records.memo.id
-    foreign = read_client.get(f"/api/v1/{resource}/{key}")
-    missing = read_client.get(f"/api/v1/{resource}/{uuid4()}")
-    assert foreign.status_code == missing.status_code == 404
-    assert foreign.json() == missing.json()
+    assert read_client.get(f"/api/v1/{resource}/{key}").status_code == 200
+    assert read_client.get(f"/api/v1/{resource}/{uuid4()}").status_code == 404
 
 
 @pytest.mark.postgres
@@ -173,9 +168,7 @@ def test_filing_versions_scope_and_content_policy(read_client, graph, records):
     assert missing.json()["error"]["code"] == "FILING_VERSION_NOT_FOUND"
     for suffix in ("", "/1"):
         response = read_client.get(f"/api/v1/filings/{records.same_receipt.id}/versions{suffix}")
-        assert response.status_code == 404
-        assert response.json()["error"]["code"] == "FILING_NOT_FOUND"
-        assert "FOREIGN" not in response.text
+        assert response.status_code == 200
 
 
 @pytest.mark.postgres
@@ -201,9 +194,7 @@ def test_memo_details_and_version_content(read_client, graph, records):
     assert missing.json()["error"]["code"] == "MEMO_VERSION_NOT_FOUND"
     for suffix in ("", "/1"):
         response = read_client.get(f"/api/v1/memos/{records.memo.id}/versions{suffix}")
-        assert response.status_code == 404
-        assert response.json()["error"]["code"] == "MEMO_NOT_FOUND"
-        assert "FOREIGN" not in response.text
+        assert response.status_code == 200
 
 
 @pytest.mark.postgres
@@ -238,13 +229,12 @@ def test_read_services_do_not_commit_or_mutate(read_client, db, graph):
 @pytest.mark.postgres
 def test_current_version_service_only(db, graph, records):
     service = MemoService(MemoRepository(db))
-    assert service.get_current_version(graph.memo.id, graph.org.id) is records.own_version2
-    with pytest.raises(MemoNotFound):
-        service.get_current_version(records.memo.id, graph.org.id)
+    assert service.get_current_version(graph.memo.id) is records.own_version2
+    assert service.get_current_version(records.memo.id).content == "Colleague memo"
     graph.memo.current_version = 999
     db.flush()
     with pytest.raises(MemoVersionNotFound):
-        service.get_current_version(graph.memo.id, graph.org.id)
+        service.get_current_version(graph.memo.id)
     assert "/api/v1/memos/{memo_id}/current-version" not in app.openapi()["paths"]
 
 
@@ -252,22 +242,21 @@ def test_current_version_service_only(db, graph, records):
 @pytest.mark.parametrize("operation", ["list", "get"])
 def test_parent_scope_checked_before_child_lookup(service_type, error, operation):
     repo = MagicMock()
-    repo.get_by_id_and_organization.return_value = None
+    repo.get_by_id.return_value = None
     service = service_type(repo)
     with pytest.raises(error):
         if operation == "list":
-            service.list_versions(uuid4(), uuid4())
+            service.list_versions(uuid4())
         else:
-            service.get_version(uuid4(), 1, uuid4())
+            service.get_version(uuid4(), 1)
     repo.list_versions.assert_not_called()
     repo.get_version.assert_not_called()
 
 
 def test_receipt_service_never_uses_unscoped_lookup():
     repo = MagicMock()
-    repo.get_by_receipt_no_and_organization.return_value = None
-    org = uuid4()
+    repo.get_by_receipt_no.return_value = None
     with pytest.raises(FilingNotFound):
-        FilingService(repo).get_by_receipt_no_and_organization("missing", org)
-    repo.get_by_receipt_no_and_organization.assert_called_once_with("missing", org)
+        FilingService(repo).get_by_receipt_no("missing")
+    repo.get_by_receipt_no.assert_called_once_with("missing")
     repo.list_by_receipt_no.assert_not_called()

@@ -20,7 +20,7 @@ def test_company_sort_validation_and_pagination_are_forwarded_to_mcp():
     app = FastAPI()
     app.include_router(router)
     app.dependency_overrides[get_current_user] = lambda: CurrentUser(
-        id=uuid4(), organization_id=uuid4(), email='test@example.com', role=UserRole.ANALYST,
+        id=uuid4(), email='test@example.com', role=UserRole.ANALYST,
     )
     app.dependency_overrides[get_disclosure_source] = Source
     with TestClient(app) as client:

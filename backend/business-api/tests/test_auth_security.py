@@ -28,12 +28,12 @@ def stored_password_hash():
 
 @pytest.fixture
 def token_user():
-    return User(id=uuid4(), organization_id=uuid4(), email="auth@example.test", password_hash="not-read-by-token-logic", role=UserRole.RA)
+    return User(id=uuid4(), email="auth@example.test", password_hash="not-read-by-token-logic", role=UserRole.RA)
 
 
 def claims(user):
     now = int(datetime.now(timezone.utc).timestamp())
-    return {"sub": str(user.id), "organization_id": str(user.organization_id), "role": user.role.value, "iat": now, "exp": now + 1800}
+    return {"sub": str(user.id), "role": user.role.value, "iat": now, "exp": now + 1800}
 
 
 def test_argon2_password_hash_and_verify(stored_password_hash):
@@ -49,7 +49,7 @@ def test_create_and_decode_access_token(auth_settings, token_user):
     token = create_access_token(token_user, settings=auth_settings)
     payload = decode_access_token(token, settings=auth_settings)
     assert payload.sub == token_user.id
-    assert payload.organization_id == token_user.organization_id
+    assert "organization_id" not in payload.model_dump()
     assert payload.role is UserRole.RA
     assert payload.exp - payload.iat == 1800
     assert isinstance(payload.iat, int)
@@ -87,7 +87,7 @@ def test_invalid_tokens(auth_settings, token_user, case):
         decode_access_token(token, settings=auth_settings)
 
 
-@pytest.mark.parametrize("missing", ["sub", "organization_id", "role", "iat", "exp"])
+@pytest.mark.parametrize("missing", ["sub", "role", "iat", "exp"])
 def test_required_claims(auth_settings, token_user, missing):
     data = claims(token_user)
     del data[missing]
@@ -96,7 +96,7 @@ def test_required_claims(auth_settings, token_user, missing):
 
 
 @pytest.mark.parametrize("field,value", [
-    ("sub", "not-a-uuid"), ("organization_id", "not-a-uuid"), ("role", "ADMIN"),
+    ("sub", "not-a-uuid"), ("role", "ADMIN"),
     ("iat", "1700000000"), ("exp", "9999999999"), ("exp", 9999999999.5),
     ("iat", []), ("exp", {}), ("iat", True), ("exp", None),
 ])

@@ -151,7 +151,7 @@ def test_new_children_prevent_loaded_task_deletion(db, graph):
     db.add_all([item, report])
     db.flush()
     # Use a separate task referenced only by the new children, avoiding old FK masking.
-    task = AnalysisTask(organization_id=graph.org.id, requested_by=graph.user.id, memo_id=graph.memo.id, base_memo_version=1, disclosure_receipt_no="another-receipt", company_name_snapshot="Example", thread_id="new-children-only")
+    task = AnalysisTask(requested_by=graph.user.id, memo_id=graph.memo.id, base_memo_version=1, disclosure_receipt_no="another-receipt", company_name_snapshot="Example", thread_id="new-children-only")
     db.add(task)
     db.flush()
     item.analysis_task_id = task.id

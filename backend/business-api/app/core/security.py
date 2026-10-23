@@ -41,7 +41,7 @@ def create_access_token(user: User, *, settings: Settings | None = None, now: da
     issued = utc_timestamp(now)
     expires = issued + timedelta(minutes=settings.jwt_access_token_expire_minutes)
     payload = TokenPayload(
-        sub=user.id, organization_id=user.organization_id, role=user.role,
+        sub=user.id, role=user.role,
         token_version=user.token_version or 0,
         iat=int(issued.timestamp()), exp=int(expires.timestamp()),
     )
@@ -54,7 +54,7 @@ def decode_access_token(token: str, *, settings: Settings | None = None) -> Toke
     try:
         claims = jwt.decode(
             token, key, algorithms=["HS256"],
-            options={"require": ["sub", "organization_id", "role", "exp", "iat"]},
+            options={"require": ["sub", "role", "exp", "iat"]},
         )
         return TokenPayload.model_validate(claims)
     except jwt.ExpiredSignatureError:

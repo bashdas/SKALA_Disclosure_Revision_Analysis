@@ -46,7 +46,7 @@ async def process_task(task_id: str, state: Path, call_model=None) -> dict:
     if context["status"] in {"COMPLETED", "COMPLETED_WITH_WARNINGS", "CANCELLED", "FAILED"}:
         return {"status": context["status"]}
     request = AnalysisRequest.model_validate(fixed_request(context)).model_dump(mode="json")
-    scope = f"{context['organization_id']}:{request['memo_id']}:{request['base_memo_version']}"
+    scope = f"{request['memo_id']}:{request['base_memo_version']}"
     state.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
     with state.with_suffix(state.suffix + ".lock").open("a") as lock:
         os.chmod(lock.name, 0o600)

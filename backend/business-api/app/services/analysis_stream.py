@@ -50,17 +50,17 @@ class AnalysisEventStream:
         self.heartbeat_seconds = heartbeat_seconds
         self.clock, self.sleep = clock, sleeper
 
-    def snapshot(self, task_id: UUID, organization_id: UUID, after_sequence: int) -> EventSnapshot:
+    def snapshot(self, task_id: UUID, after_sequence: int) -> EventSnapshot:
         # All ORM work and DTO materialization finish before returning, including auth's
         # separate session. No connection/transaction is retained while sending/sleeping.
         with self.session_factory() as session:
-            task = AnalysisRepository(session).get_by_id_and_organization(task_id, organization_id)
+            task = AnalysisRepository(session).get_by_id(task_id)
             if task is None:
                 raise AnalysisNotFound()
             rows = AnalysisEventRepository(session).list_after_sequence(task_id, after_sequence, limit=BATCH_SIZE)
             return EventSnapshot([AnalysisEventResponse.model_validate(row) for row in rows], task.status in TERMINAL_ANALYSIS_STATUSES)
 
-    async def stream(self, request: Request, task_id: UUID, organization_id: UUID, after_sequence: int, initial: EventSnapshot):
+    async def stream(self, request: Request, task_id: UUID, after_sequence: int, initial: EventSnapshot):
         cursor, snapshot = after_sequence, initial
         last_output = self.clock()
         while not await request.is_disconnected():
@@ -81,7 +81,7 @@ class AnalysisEventStream:
                 if await request.is_disconnected():
                     return
             try:
-                snapshot = await run_in_threadpool(self.snapshot, task_id, organization_id, cursor)
+                snapshot = await run_in_threadpool(self.snapshot, task_id, cursor)
             except (SQLAlchemyError, DatabaseConfigurationError, AnalysisNotFound):
                 # Headers are already sent: close safely, let client reconnect at its last ID.
                 yield ": stream unavailable; reconnect\n\n"

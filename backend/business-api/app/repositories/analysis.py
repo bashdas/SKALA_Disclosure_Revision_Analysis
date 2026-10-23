@@ -22,26 +22,20 @@ class AnalysisRepository:
             query = query.with_for_update().execution_options(populate_existing=True)
         return self.session.scalar(query)
 
-    def get_by_id_and_organization(self, task_id: UUID, organization_id: UUID, *, for_update: bool = False) -> AnalysisTask | None:
-        query = select(AnalysisTask).where(AnalysisTask.id == task_id, AnalysisTask.organization_id == organization_id)
-        if for_update:
-            query = query.with_for_update().execution_options(populate_existing=True)
-        return self.session.scalar(query)
 
     def get_by_thread_id(self, thread_id: str) -> AnalysisTask | None:
         return self.session.scalar(select(AnalysisTask).where(AnalysisTask.thread_id == thread_id))
 
-    def list_by_organization(self, organization_id: UUID, *, limit: int | None = None, offset: int = 0) -> list[AnalysisTask]:
-        # 조직 조건과 페이지 범위를 같은 조회에 적용합니다.
-        query = select(AnalysisTask).where(AnalysisTask.organization_id == organization_id).order_by(AnalysisTask.created_at, AnalysisTask.id)
+    def list_all(self, *, limit: int | None = None, offset: int = 0) -> list[AnalysisTask]:
+        # 회사 공통 목록에 페이지 범위를 적용합니다.
+        query = select(AnalysisTask).order_by(AnalysisTask.created_at, AnalysisTask.id)
         if limit is not None:
             query = query.limit(limit).offset(offset)
         return list(self.session.scalars(query))
 
-    def find_active_duplicate(self, organization_id: UUID, memo_id: UUID, base_memo_version: int, disclosure_receipt_no: str) -> AnalysisTask | None:
+    def find_active_duplicate(self, memo_id: UUID, base_memo_version: int, disclosure_receipt_no: str) -> AnalysisTask | None:
         """Read only: finding no row does not lock a missing key or prevent racing inserts."""
         query = select(AnalysisTask).where(
-            AnalysisTask.organization_id == organization_id,
             AnalysisTask.memo_id == memo_id,
             AnalysisTask.base_memo_version == base_memo_version,
             AnalysisTask.disclosure_receipt_no == disclosure_receipt_no,

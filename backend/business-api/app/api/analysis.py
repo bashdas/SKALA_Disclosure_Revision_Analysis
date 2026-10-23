@@ -30,7 +30,7 @@ def create_analysis(
 ) -> AnalysisAcceptedResponse:
     return service.create(
         memo_id=request.memo_id, disclosure_receipt_no=request.disclosure_receipt_no,
-        organization_id=user.organization_id, requested_by=user.id, memo_version=request.memo_version,
+        requested_by=user.id, memo_version=request.memo_version,
     )
 
 
@@ -43,14 +43,14 @@ Cursor = Annotated[int, Query(ge=0, le=MAX_SEQUENCE)]
 def list_analyses(user: Reader, service: Service,
                   limit: Annotated[int, Query(ge=1, le=100)] = 100,
                   offset: Annotated[int, Query(ge=0)] = 0) -> list[AnalysisDetailResponse]:
-    rows = service.analyses.list_by_organization(user.organization_id, limit=limit, offset=offset)
+    rows = service.analyses.list_all(limit=limit, offset=offset)
     return [AnalysisDetailResponse.model_validate(row) for row in rows]
 
 
 @router.get("/{task_id}/report", response_model=ReportResponse | None)
 def get_report(task_id: UUID, user: Reader, service: Service) -> ReportResponse | None:
-    # 보고서에는 조직 열이 없어 소유 작업의 접근 권한을 먼저 확인합니다.
-    service.get_analysis(task_id, user.organization_id)
+    # 보고서 조회 전에 부모 분석 작업의 존재를 확인합니다. 인증과 역할은 Reader가 검사합니다.
+    service.get_analysis(task_id)
     report = AnalysisReportRepository(service.session).get_by_analysis_task(task_id)
     return ReportResponse.model_validate(report) if report else None
 
@@ -76,20 +76,20 @@ def download_pdf(task_id: UUID, user: Reader, service: Service) -> Response:
 
 @router.get("/{task_id}/perspectives", response_model=list[PerspectiveResponse])
 def get_perspectives(task_id: UUID, user: Reader, service: Service) -> list[PerspectiveResponse]:
-    service.get_analysis(task_id, user.organization_id)
+    service.get_analysis(task_id)
     return [PerspectiveResponse.model_validate(row) for row in
             PerspectiveTaskRepository(service.session).list_by_analysis_task(task_id)]
 
 
 @router.get("/{task_id}", response_model=AnalysisDetailResponse)
 def get_analysis(task_id: UUID, user: Reader, service: Service) -> AnalysisDetailResponse:
-    return service.get_analysis(task_id, user.organization_id)
+    return service.get_analysis(task_id)
 
 
 @router.get("/{task_id}/events", response_model=list[AnalysisEventResponse])
 def list_events(task_id: UUID, user: Reader, service: Service, after_sequence: Cursor = 0,
                 limit: Annotated[int, Query(ge=1, le=500)] = 200) -> list[AnalysisEventResponse]:
-    return service.list_events(task_id, user.organization_id, after_sequence=after_sequence, limit=limit)
+    return service.list_events(task_id, after_sequence=after_sequence, limit=limit)
 
 
 @router.get("/{task_id}/events/stream", response_class=StreamingResponse)
@@ -104,11 +104,11 @@ def stream_events(
         raise InvalidStreamQuery()
     cursor = resolve_after_sequence(after_sequence, last_event_id)
     # Resolve scope before sending 200 headers. This Session is already closed on return.
-    initial = stream.snapshot(task_id, user.organization_id, cursor)
-    return StreamingResponse(stream.stream(request, task_id, user.organization_id, cursor, initial),
+    initial = stream.snapshot(task_id, cursor)
+    return StreamingResponse(stream.stream(request, task_id, cursor, initial),
         media_type="text/event-stream", headers={"Cache-Control": "no-cache, no-store", "X-Accel-Buffering": "no"})
 
 
 @router.post("/{task_id}/cancel", response_model=AnalysisCancelResponse)
 def cancel_analysis(task_id: UUID, user: Reader, service: Service) -> AnalysisCancelResponse:
-    return service.cancel_analysis(task_id, user.organization_id, user.id)
+    return service.cancel_analysis(task_id, user.id)

@@ -91,7 +91,7 @@ def test_alembic_uses_application_metadata(monkeypatch):
     monkeypatch.setattr(context, "run_migrations", MagicMock())
     runpy.run_path(str(ROOT / "alembic/env.py"))
     assert configure.call_args.kwargs["target_metadata"] is Base.metadata
-    assert "core.organizations" in Base.metadata.tables
+    assert "core.organizations" not in Base.metadata.tables
 
 
 @pytest.fixture

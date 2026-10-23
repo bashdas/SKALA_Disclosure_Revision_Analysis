@@ -1,11 +1,10 @@
 from app.core.security import hash_password, verify_password
 from app.domain.auth_exceptions import EmailAlreadyRegistered, InvalidCurrentPassword, InvalidToken, PasswordUnchanged
 from sqlalchemy.exc import IntegrityError
-from app.models import Organization, User, CompanyFavorite
+from app.models import User, CompanyFavorite
 from sqlalchemy import delete
 from secrets import token_urlsafe
 from app.models.enums import UserRole
-from app.repositories.organization import OrganizationRepository
 from app.repositories import UserRepository
 from app.schemas.auth import CurrentUser, TokenPayload
 from app.schemas.user import SignupResponse, UserResponse
@@ -16,7 +15,7 @@ class UserService:
         self.users = users
 
     def get_me(self, principal: CurrentUser) -> UserResponse:
-        user = self.users.get_by_id_and_organization(principal.id, principal.organization_id)
+        user = self.users.get_by_id(principal.id)
         if user is None:
             raise InvalidToken()
         return UserResponse.model_validate(user)
@@ -37,15 +36,14 @@ class UserService:
             session.rollback()
             raise
 
-    def signup(self, email: str, password: str, organization_name: str, name: str = "") -> SignupResponse:
+    def signup(self, email: str, password: str, name: str = "", role: UserRole = UserRole.ANALYST) -> SignupResponse:
         session = self.users.session
         try:
             if self.users.get_by_email(email) is not None:
                 raise EmailAlreadyRegistered()
-            organization = OrganizationRepository(session).add(Organization(name=organization_name))
-            user = self.users.add(User(organization_id=organization.id, email=email,
-                name=name, password_hash=hash_password(password), role=UserRole.ANALYST, token_version=0))
-            result = SignupResponse(**UserResponse.model_validate(user).model_dump(), organization_name=organization.name)
+            user = self.users.add(User(email=email,
+                name=name, password_hash=hash_password(password), role=role, token_version=0))
+            result = SignupResponse(**UserResponse.model_validate(user).model_dump())
             session.commit()
             return result
         except IntegrityError as error:
@@ -73,7 +71,7 @@ class UserService:
 
     def _active_user(self, principal: CurrentUser, payload: TokenPayload) -> User:
         user = self.users.get_by_id_for_update(principal.id)
-        if (user is None or not user.is_active or user.organization_id != principal.organization_id
+        if (user is None or not user.is_active
                 or user.role != payload.role or user.token_version != payload.token_version):
             raise InvalidToken()
         return user

@@ -16,7 +16,7 @@ class AnalysisEventService:
         self.analyses, self.events = analyses, events
         self.session = analyses.session
 
-    def append_in_transaction(self, task_id: UUID, organization_id: UUID, event_type: AnalysisEventType, payload: dict) -> AnalysisEventResponse:
+    def append_in_transaction(self, task_id: UUID, event_type: AnalysisEventType, payload: dict) -> AnalysisEventResponse:
         """Compose with caller's transaction. Caller flushes pending Task edits first.
 
         The parent row lock is held until caller commits/rolls back. Every writer must
@@ -27,17 +27,17 @@ class AnalysisEventService:
             summary = AnalysisEventPayload.model_validate(payload).model_dump(mode="json", exclude_none=True)
         except (ValueError, ValidationError):
             raise InvalidEventPayload() from None
-        if self.analyses.get_by_id_and_organization(task_id, organization_id, for_update=True) is None:
+        if self.analyses.get_by_id(task_id, for_update=True) is None:
             raise AnalysisNotFound()
         sequence = self.events.get_latest_sequence(task_id) + 1
         row = self.events.add(AnalysisEvent(analysis_task_id=task_id, sequence=sequence,
             event_type=event_type.value, payload_json=summary))
         return AnalysisEventResponse.model_validate(row)
 
-    def append_event(self, task_id: UUID, organization_id: UUID, event_type: AnalysisEventType, payload: dict) -> AnalysisEventResponse:
+    def append_event(self, task_id: UUID, event_type: AnalysisEventType, payload: dict) -> AnalysisEventResponse:
         """Standalone append owns commit/rollback; never call during another workflow."""
         try:
-            result = self.append_in_transaction(task_id, organization_id, event_type, payload)
+            result = self.append_in_transaction(task_id, event_type, payload)
             self.session.commit()
             return result
         except Exception:

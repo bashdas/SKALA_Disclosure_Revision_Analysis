@@ -15,7 +15,7 @@ def test_health(client):
     assert response.json() == {"status": "ok", "service": "business-mcp"}
 
 
-def test_mcp_initialize_and_seven_tools(client):
+def test_mcp_initialize_and_eight_tools(client):
     headers = {"Accept": "application/json, text/event-stream", "Host": "localhost:8081"}
     response = client.post("/mcp", headers=headers, json={
         "jsonrpc": "2.0", "id": 1, "method": "initialize",
@@ -28,4 +28,4 @@ def test_mcp_initialize_and_seven_tools(client):
         "jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {},
     })
     assert response.status_code == 200
-    assert len(response.json()["result"]["tools"]) == 7
+    assert len(response.json()["result"]["tools"]) == 8

@@ -26,10 +26,10 @@ class RunCancelled(BusinessError):
 
 
 @asynccontextmanager
-async def connect(url: str, headers: dict | None = None):
+async def connect(url: str, headers: dict | None = None, read_timeout: float = 10):
     async with httpx.AsyncClient(
         headers=headers or {},
-        timeout=httpx.Timeout(8, read=10),
+        timeout=httpx.Timeout(8, read=read_timeout),
         follow_redirects=False,
         trust_env=False,
     ) as http:
@@ -44,9 +44,10 @@ async def mcp_call(service: str, name: str, args: dict) -> dict:
     ports = {"BUSINESS": 8081, "EXTERNAL": 8083, "RAG": 8082}
     url = os.environ.get(service + "_MCP_URL", f"http://127.0.0.1:{ports[service]}/mcp")
     try:
-        async with asyncio.timeout(10):
+        timeout = 60 if name == "search_research_reports" else 10
+        async with asyncio.timeout(timeout):
             # 현재 백엔드 MCP는 내부 네트워크 방식이며 외부 서비스 키를 Agent가 전달하지 않습니다.
-            async with connect(url) as session:
+            async with connect(url, read_timeout=timeout) as session:
                 listed = await session.list_tools()
                 if not any(tool.name == name for tool in listed.tools):
                     return {"error": "TOOL_NOT_AVAILABLE", "tool": name}

@@ -21,7 +21,6 @@ from test_auth_security import TEST_PASSWORD, auth_settings, stored_password_has
 from test_domain import graph, migrated_engine
 from sqlalchemy.orm import Session
 from sqlalchemy import func, select
-from app.models import Organization
 
 NEW_PASSWORD = "new-test-only-password-456!"
 
@@ -64,8 +63,7 @@ def test_get_own_profile(user_client, graph, db, auth_settings, role):
     response = user_client.get("/api/v1/users/me", headers=headers(graph, auth_settings), params={"user_id": str(uuid4()), "organization_id": str(uuid4())})
     assert response.status_code == 200
     assert response.json()["id"] == str(graph.user.id)
-    assert response.json()["organization_id"] == str(graph.org.id)
-    assert set(response.json()) == {"id", "organization_id", "email", "name", "role", "created_at"}
+    assert set(response.json()) == {"id", "email", "name", "role", "created_at"}
 
 
 @pytest.mark.postgres
@@ -126,7 +124,7 @@ def test_change_password_rollback(user_client, graph, db, auth_settings):
 def test_concurrent_revoked_request_cannot_change_password(user_client, graph, db, auth_settings):
     from app.core.security import decode_access_token
     payload = decode_access_token(create_access_token(graph.user, settings=auth_settings), settings=auth_settings)
-    principal = CurrentUser(id=graph.user.id, organization_id=graph.user.organization_id, email=graph.user.email, role=graph.user.role)
+    principal = CurrentUser(id=graph.user.id, email=graph.user.email, role=graph.user.role)
     graph.user.token_version = 1
     db.flush()
     with pytest.raises(InvalidToken):
@@ -134,15 +132,15 @@ def test_concurrent_revoked_request_cannot_change_password(user_client, graph, d
 
 
 @pytest.mark.postgres
-def test_signup_login_and_profile(user_client, db):
-    response = user_client.post("/api/v1/auth/signup", json={"email":"signup@example.com", "password":NEW_PASSWORD, "name":"건민", "organization_name":"  New organization  "})
+@pytest.mark.parametrize("role", ["ANALYST", "RA"])
+def test_signup_login_and_profile(user_client, db, role):
+    response = user_client.post("/api/v1/auth/signup", json={"email":"signup@example.com", "password":NEW_PASSWORD, "name":"건민", "role":role})
     assert response.status_code == 201
     body = response.json()
-    assert body["organization_name"] == "New organization"
-    assert body["role"] == "ANALYST"
+    assert "organization_id" not in body and "organization_name" not in body
+    assert body["role"] == role
     assert "password" not in body and "password_hash" not in body and "token_version" not in body
     registered = UserRepository(db).get_by_email("signup@example.com")
-    assert registered.organization_id != db.scalar(select(Organization.id).where(Organization.name == "Example organization"))
     assert verify_password(NEW_PASSWORD, registered.password_hash)
     login = user_client.post("/api/v1/auth/login", json={"email":"signup@example.com", "password":NEW_PASSWORD})
     assert login.status_code == 200
@@ -151,34 +149,34 @@ def test_signup_login_and_profile(user_client, db):
 
 
 @pytest.mark.postgres
-def test_duplicate_signup_does_not_create_orphan_organization(user_client, db, graph):
-    count = db.scalar(select(func.count()).select_from(Organization))
-    response = user_client.post("/api/v1/auth/signup", json={"email":graph.user.email, "password":NEW_PASSWORD, "name":"건민", "organization_name":"Never created"})
+def test_duplicate_signup_does_not_create_user(user_client, db, graph):
+    count = db.scalar(select(func.count()).select_from(User))
+    response = user_client.post("/api/v1/auth/signup", json={"email":graph.user.email, "password":NEW_PASSWORD, "name":"건민"})
     assert response.status_code == 409
     assert response.json()["error"]["code"] == "EMAIL_ALREADY_REGISTERED"
-    assert db.scalar(select(func.count()).select_from(Organization)) == count
+    assert db.scalar(select(func.count()).select_from(User)) == count
 
 
 @pytest.mark.postgres
 @pytest.mark.parametrize("changes", [
-    {"role":"RA"}, {"organization_id":str(uuid4())}, {"user_id":str(uuid4())},
+    {"role":"ADMIN"}, {"organization_id":str(uuid4())}, {"user_id":str(uuid4())},
     {"email":"invalid-email"}, {"password":"short"}, {"password":" " * 12},
     {"name":"건민", "organization_name":" "}, {"name":"건민", "organization_name":"x" * 256},
     {"name":"건민", "organization_name":"bad\x00name"}, {"password":"abc\x00defghijklmnop"},
 ])
 def test_signup_rejects_invalid_or_privileged_inputs(user_client, changes):
-    response = user_client.post("/api/v1/auth/signup", json={"email":"valid@example.com", "password":NEW_PASSWORD, "name":"건민", "organization_name":"New", **changes})
+    response = user_client.post("/api/v1/auth/signup", json={"email":"valid@example.com", "password":NEW_PASSWORD, "name":"건민", **changes})
     assert response.status_code == 422
     assert NEW_PASSWORD not in response.text
 
 
 @pytest.mark.postgres
 def test_signup_atomic_rollback(user_client, db):
-    before = db.scalar(select(func.count()).select_from(Organization))
+    before = db.scalar(select(func.count()).select_from(User))
     with patch.object(UserRepository, "add", side_effect=RuntimeError("insert-failed")):
         with pytest.raises(RuntimeError, match="insert-failed"):
-            user_client.post("/api/v1/auth/signup", json={"email":"rollback@example.com", "password":NEW_PASSWORD, "name":"건민", "organization_name":"Rollback"})
-    assert db.scalar(select(func.count()).select_from(Organization)) == before
+            user_client.post("/api/v1/auth/signup", json={"email":"rollback@example.com", "password":NEW_PASSWORD, "name":"건민"})
+    assert db.scalar(select(func.count()).select_from(User)) == before
     assert UserRepository(db).get_by_email("rollback@example.com") is None
 
 
@@ -201,7 +199,7 @@ def test_concurrent_signup_unique_email(migrated_engine):
     def signup_once():
         with Session(migrated_engine) as session:
             try:
-                return UserService(ConcurrentUsers(session)).signup(email, NEW_PASSWORD, name).id
+                return UserService(ConcurrentUsers(session)).signup(email, NEW_PASSWORD, name=name).id
             except EmailAlreadyRegistered:
                 return None
 
@@ -211,15 +209,12 @@ def test_concurrent_signup_unique_email(migrated_engine):
         assert sum(result is not None for result in results) == 1
         with Session(migrated_engine) as session:
             assert session.scalar(select(func.count()).select_from(User).where(User.email == email)) == 1
-            assert session.scalar(select(func.count()).select_from(Organization).where(Organization.name == name)) == 1
     finally:
         with Session(migrated_engine) as session:
             user = session.scalar(select(User).where(User.email == email))
             if user is not None:
-                organization_id = user.organization_id
                 session.delete(user)
                 session.flush()
-                session.delete(session.get(Organization, organization_id))
                 session.commit()
 
 

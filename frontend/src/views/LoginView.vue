@@ -5,8 +5,8 @@ import { useRouter } from 'vue-router'
 import SkeletonState from '../components/SkeletonState.vue'
 import { login, signup } from '../services/http'
 const router = useRouter()
+const role = ref<'RA' | 'ANALYST'>('ANALYST')
 const registering = ref(false),
-  organizationName = ref(''),
   name = ref(''),
   notice = ref('')
 const email = ref(''),
@@ -25,7 +25,7 @@ async function signIn() {
   error.value = ''
   try {
     if (registering.value) {
-      await signup(email.value, password.value, organizationName.value, name.value.trim())
+      await signup(email.value, password.value, name.value.trim(), role.value)
       registering.value = false
       password.value = ''
       notice.value = '회원가입을 완료했습니다. 비밀번호를 입력해 로그인하세요.'
@@ -48,19 +48,17 @@ async function signIn() {
   <section class="surface demo-login">
     <h1>{{ registering ? '공시체크 회원가입' : '공시체크 로그인' }}</h1>
     <p v-if="notice" role="status">{{ notice }}</p>
-    <p v-if="registering" class="small muted">가입하면 새 조직이 생성됩니다.</p>
     <SkeletonState v-if="busy" variant="login-form" :rows="registering ? 4 : 2" />
     <form v-show="!busy" @submit.prevent="signIn">
       <label v-if="registering"
         >이름<input v-model="name" required maxlength="100" autocomplete="name" pattern=".*\S.*"
       /></label>
       <label v-if="registering"
-        >조직 이름<input
-          v-model="organizationName"
-          required
-          maxlength="255"
-          autocomplete="organization"
-      /></label>
+        >역할<select v-model="role">
+          <option value="ANALYST">ANALYST · 내부 리포트 관리</option>
+          <option value="RA">RA · 내부 리포트 조회</option>
+        </select></label
+      >
       <label
         >이메일<input v-model="email" type="email" autocomplete="username" required maxlength="320"
       /></label>

@@ -38,6 +38,9 @@ class McpSources:
     async def get_context(self, task_id):
         return await self._call(self.business_url, "get_analysis_context", {"task_id": str(task_id)})
 
+    async def get_research_reports(self, task_id):
+        return await self._call(self.business_url, "get_research_reports", {"task_id": str(task_id)})
+
     async def get_disclosure(self, receipt_no):
         return await self._call(self.external_url, "get_disclosure", {"receipt_no": receipt_no})
 
