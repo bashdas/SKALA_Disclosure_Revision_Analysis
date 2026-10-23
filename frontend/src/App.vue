@@ -17,6 +17,7 @@ const router = useRouter(),
 const canManageReports = computed(() => currentUser.value?.role === 'ANALYST')
 const pageSkeleton = computed(() => {
   if (route.path === '/login') return 'login'
+  if (route.path === '/internal-reports') return 'internal-reports'
   if (route.path === '/home' || route.path === '/') return 'home'
   if (route.params.companyId) return 'company'
   if (route.params.taskId) return 'analysis'

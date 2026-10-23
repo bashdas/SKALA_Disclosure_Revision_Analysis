@@ -7,6 +7,8 @@ withDefaults(
     variant?:
       | 'filings'
       | 'directory'
+      | 'internal-reports'
+      | 'internal-report-list'
       | 'company'
       | 'home'
       | 'market'
@@ -61,6 +63,35 @@ withDefaults(
             <Skeleton class="skeleton sk-star" />
           </div>
         </div>
+      </div>
+    </div>
+
+    <div v-else-if="variant === 'internal-reports'" class="sk-internal-reports" aria-hidden="true">
+      <div class="sk-internal-heading">
+        <div class="sk-copy">
+          <Skeleton class="skeleton sk-page-title" />
+          <Skeleton class="skeleton sk-line" />
+        </div>
+        <Skeleton class="skeleton sk-internal-button" />
+      </div>
+      <div class="sk-internal-columns">
+        <div class="surface sk-internal-panel">
+          <SkeletonState variant="internal-report-list" :rows="rows" />
+          <div class="sk-internal-pagination">
+            <Skeleton class="skeleton sk-internal-button" />
+            <Skeleton class="skeleton sk-caption" />
+            <Skeleton class="skeleton sk-internal-button" />
+          </div>
+        </div>
+        <div class="surface sk-internal-panel">
+          <Skeleton class="skeleton sk-line" />
+        </div>
+      </div>
+    </div>
+    <div v-else-if="variant === 'internal-report-list'" aria-hidden="true">
+      <div v-for="i in rows" :key="i" class="sk-internal-row">
+        <Skeleton class="skeleton sk-line" />
+        <Skeleton class="skeleton sk-caption" />
       </div>
     </div>
 
@@ -766,5 +797,75 @@ withDefaults(
   .sk-company-panel > :nth-child(even) { padding-right: 0; }
   .sk-company-panel :deep(.sk-chart-area) { height: 72px; }
   .sk-company-panel :deep(.sk-stats) { gap: 8px; }
+}
+
+.sk-internal-reports {
+  padding: 28px;
+  max-width: 1400px;
+  margin: auto;
+}
+.sk-internal-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+.sk-internal-heading .sk-copy {
+  gap: 16px;
+}
+.sk-internal-heading .sk-page-title {
+  width: 140px;
+  height: 26px;
+}
+.sk-internal-heading .sk-line {
+  width: min(600px, 100%);
+  height: 14px;
+}
+.sk-internal-button {
+  width: 100px;
+  height: 40px;
+  flex-shrink: 0;
+}
+.sk-internal-columns {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) minmax(0, 2fr);
+  gap: 20px;
+}
+.sk-internal-panel {
+  padding: 24px;
+  align-self: start;
+  border: 0;
+  box-shadow: none;
+}
+.sk-internal-row {
+  display: grid;
+  gap: 8px;
+  padding: 18px 8px;
+}
+.sk-internal-pagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin: 16px 0;
+}
+.sk-internal-pagination .sk-caption {
+  width: 45px;
+}
+@media (max-width: 760px) {
+  .sk-internal-reports {
+    padding: 16px;
+  }
+  .sk-internal-columns {
+    grid-template-columns: 1fr;
+  }
+  .sk-internal-heading {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .sk-internal-heading .sk-copy {
+    width: 100%;
+  }
 }
 </style>

@@ -198,7 +198,8 @@ select {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-left: auto;
+  margin-left: 0;
+  justify-content: center;
 }
 .topnav a {
   padding: 6px 12px;
@@ -224,9 +225,9 @@ select {
 .topbar {
   height: 60px;
   gap: 24px;
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
-  justify-content: space-between;
   padding: 0 43px;
   background: var(--topbar-background);
   border-bottom: 1px solid var(--line);
@@ -3182,3 +3183,24 @@ main.company-main { max-width: none; padding-inline: 0; }
   transform: none;
 }
 [data-sonner-toast][data-styled='true'] { padding-right: 40px; }
+
+.topbar > .account-name {
+  justify-self: end;
+  max-width: 100%;
+}
+@media (max-width: 650px) {
+  .topbar {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    padding-block: 10px;
+  }
+  .topbar > .account-name {
+    grid-column: 2;
+    grid-row: 1;
+  }
+  .topnav {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    margin-left: 0;
+    justify-self: center;
+  }
+}

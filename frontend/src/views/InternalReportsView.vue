@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
+import SkeletonState from '../components/SkeletonState.vue'
 import { currentUser, request } from '../services/http'
 import { notifyError, toast } from '../lib/notifications'
 import {
@@ -183,19 +184,23 @@ onMounted(() => perform(load))
     <p v-if="error" class="field-error" role="alert">{{ error }}</p>
     <div class="reports-columns">
       <section class="surface reports-list" aria-label="내부 리포트 목록" :aria-busy="loading">
-        <p v-if="loading" role="status">불러오는 중…</p>
+        <SkeletonState v-if="loading" variant="internal-report-list" :rows="5" />
         <p v-else-if="!rows.length" class="muted">등록된 내부 리포트가 없습니다.</p>
-        <button
-          v-for="row in rows"
-          :key="row.id"
-          class="report-row"
-          :class="{ chosen: selected?.id === row.id }"
-          :disabled="busy"
-          @click="open(row)"
-        >
-          <strong>{{ row.title }}</strong
-          ><span>{{ row.company_name }} · {{ row.published_at }} · v{{ row.current_version }}</span>
-        </button>
+        <template v-if="!loading">
+          <button
+            v-for="row in rows"
+            :key="row.id"
+            class="report-row"
+            :class="{ chosen: selected?.id === row.id }"
+            :disabled="busy"
+            @click="open(row)"
+          >
+            <strong>{{ row.title }}</strong
+            ><span
+              >{{ row.company_name }} · {{ row.published_at }} · v{{ row.current_version }}</span
+            >
+          </button>
+        </template>
         <div class="reports-actions">
           <button class="button secondary" :disabled="busy || offset === 0" @click="page(-20)">
             이전</button
