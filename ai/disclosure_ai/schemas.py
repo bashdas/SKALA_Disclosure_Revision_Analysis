@@ -138,6 +138,10 @@ class Lookup(Model):
         description="본문 또는 확인된 후보의 실제 번호입니다. 공시일만 있으면 null을 사용합니다.")
     evidence: list[Source] = Field(default_factory=list, max_length=3)
     article_ids: list[str] = Field(default_factory=list, max_length=3)
+    news_as_of: str | None = Field(default=None, max_length=40)
+    news_days: int = Field(default=7, ge=1, le=30)
+    news_scopes: list[Literal["COMPANY", "INDUSTRY", "MACRO"]] = Field(default_factory=list, max_length=3)
+    news_topics: list[str] = Field(default_factory=list, max_length=8)
     bsns_year: int | None = Field(default=None, ge=2015, le=2100)
     reprt_code: Literal["11011", "11012", "11013", "11014"] | None = None
     fs_div: Literal["CFS", "OFS"] | None = None

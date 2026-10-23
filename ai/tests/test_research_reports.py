@@ -181,7 +181,7 @@ def test_graph_renders_research_with_existing_save_contract(ledger, catalog, mon
             ]
         return answer
 
-    news_source = {"document_id": "news:1", "location": "article:body", "quote": "원자재 가격이 상승했습니다.",
+    news_source = {"document_id": "news:1", "location": "news:title", "quote": "원자재 가격이 상승했습니다.",
                    "url": "https://n.news.naver.com/mnews/article/001/0000000001"}
 
     class IntegratedTools(FakeTools):
@@ -194,7 +194,7 @@ def test_graph_renders_research_with_existing_save_contract(ledger, catalog, mon
                 return {"corp_code": "00126478", "metadata_status": "FOUND", "report_name": "공급계약", "filed_at": "2026-02-01",
                         "documents": [{"document_id": "history:1", "text": "기존 계약금액은 100입니다."}]}
             if name == "search_market_news":
-                return {"articles": [{"id": "news-id", "title": "원자재 가격 상승", "url": news_source["url"]}]}
+                return {"articles": [{"id": "news-id", "title": "원자재 가격 상승", "url": news_source["url"]}], "documents": [{"document_id": "news:1", "text": news_source["quote"], "url": news_source["url"]}], "sources": [news_source], "title_only": True}
             if name == "read_market_news":
                 assert args["article_ids"] == ["news-id"]
                 return {"documents": [{"document_id": "news:1", "text": news_source["quote"], "url": news_source["url"]}],

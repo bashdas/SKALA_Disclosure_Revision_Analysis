@@ -23,10 +23,22 @@ async def requests(run, state):
         for lookup in job["requests"]:
             name, query = lookup["tool"], lookup["query"]
             if name == "disclosure_history":
-                args = {"reason": query, "receipt_no": lookup.get("receipt_no"),
-                        "evidence": lookup.get("evidence", [])}
+                args = {
+                    "reason": query,
+                    "receipt_no": lookup.get("receipt_no"),
+                    "evidence": lookup.get("evidence", []),
+                }
             elif name == "search_market_news":
-                args = {"task_id": run.h.task_id, "query": query, "top_k": 6}
+                args = {
+                    "task_id": run.h.task_id,
+                    "query": query,
+                    "top_k": 6,
+                    "days": lookup.get("news_days", 7),
+                    "scopes": lookup.get("news_scopes") or None,
+                    "topics": lookup.get("news_topics") or None,
+                }
+                if lookup.get("news_as_of"):
+                    args["as_of"] = lookup["news_as_of"]
             elif name == "read_market_news":
                 args = {"task_id": run.h.task_id, "article_ids": lookup.get("article_ids", [])}
             elif name == "local_search":
@@ -59,14 +71,20 @@ async def lookup(run, state):
             response = await acquire(run, state, item["args"])
         else:
             response = await run.h.tool(
-                item["tool"], item["args"],
+                item["tool"],
+                item["args"],
                 local if item["tool"] == "local_search" else run.tools.call,
                 scope=state["scope"],
             )
         if item["tool"] in {"local_search", "search_evidence"}:
             historical = [d for d in state["documents"] if d.get("history_role")]
-            response = {**response, "sources": [*response.get("sources", []),
-                        *search_documents(historical, item["args"]["query"])]}
+            response = {
+                **response,
+                "sources": [
+                    *response.get("sources", []),
+                    *search_documents(historical, item["args"]["query"]),
+                ],
+            }
         if item["tool"] in {"local_search", "search_evidence"} and state.get("research_reports"):
             research = await search_reports(run, state, item["args"]["query"])
             response = {
@@ -97,13 +115,21 @@ async def publish(run, state):
         history = merge_history(history, response.get("history", {}))
         job["observations"] = [
             *job.get("observations", []),
-            {"tool": item["tool"], "result": {k: v for k, v in response.items() if k != "documents"}},
+            {
+                "tool": item["tool"],
+                "result": {k: v for k, v in response.items() if k != "documents"},
+            },
         ]
         job["limitations"] = list(
             dict.fromkeys(job.get("limitations", []) + response.get("limitations", []))
         )
         if response.get("error"):
-            job["limitations"].append(item["tool"] + " 조회 미완료: " + response["error"])
+            job["limitations"].append(
+                ("NEWS_SEARCH_FAILED: " if item["tool"] == "search_market_news" else "")
+                + item["tool"]
+                + " 조회 미완료: "
+                + response["error"]
+            )
         for doc in response.get("documents", []):
             if isinstance(doc, dict) and all(
                 isinstance(doc.get(k), str) for k in ("document_id", "text")

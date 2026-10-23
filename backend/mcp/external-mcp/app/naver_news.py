@@ -1,116 +1,140 @@
 import asyncio
+import html
 import re
-from datetime import datetime, timezone
-from urllib.parse import urljoin, urlsplit
+import time
+from datetime import timezone
+from email.utils import parsedate_to_datetime
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 import httpx
-from lxml import etree
 
 
-def article_url(value):
+def clean_title(value):
+    return " ".join(re.sub(r"<[^>]*>", "", html.unescape(value)).split())[:500]
+
+
+def normalize_url(value):
     parts = urlsplit(value)
+    if (
+        parts.scheme not in {"http", "https"}
+        or not parts.hostname
+        or parts.username
+        or parts.password
+        or parts.port not in {None, 80, 443}
+    ):
+        raise ValueError("NEWS_URL_INVALID")
+    query = [
+        (k, v)
+        for k, v in parse_qsl(parts.query, keep_blank_values=True)
+        if not k.lower().startswith("utm_") and k.lower() not in {"fbclid", "gclid"}
+    ]
+    host = parts.hostname.lower()
     match = re.fullmatch(r"/(?:mnews/)?article/([0-9]{3})/([0-9]{8,12})", parts.path)
-    if (parts.scheme != "https" or parts.hostname not in {"news.naver.com", "n.news.naver.com"}
-            or parts.username or parts.password or parts.port not in {None, 443} or not match):
-        raise ValueError("INVALID_NAVER_NEWS_URL")
-    return f"https://n.news.naver.com/mnews/article/{match[1]}/{match[2]}"
-
-
-def parse_headlines(raw):
-    root = etree.fromstring(raw, etree.HTMLParser(no_network=True, encoding="utf-8"))
-    result = {}
-    for link in root.xpath('//a[@href]'):
-        try:
-            url = article_url(link.get("href"))
-        except ValueError:
-            continue
-        title = " ".join(" ".join(link.itertext()).split()).removesuffix("새 창 열림").strip()
-        if not title or title in {"네이버뉴스", "새 창 열림"}:
-            title = ""
-            for parent in link.iterancestors():
-                titles = parent.xpath('.//a[@data-heatmap-target=".tit"]')
-                if titles:
-                    title = " ".join(" ".join(titles[0].itertext()).split()).removesuffix("새 창 열림").strip()
-                    break
-                if parent.tag in {"body", "html"}:
-                    break
-        if title and len(title) >= 5:
-            result[url] = {"title": title[:500], "url": url}
-    return list(result.values())
-
-
-def parse_article(raw, url):
-    root = etree.fromstring(raw, etree.HTMLParser(no_network=True, encoding="utf-8"))
-    bodies = root.xpath('//*[@id="dic_area"]')
-    if not bodies:
-        raise ValueError("NAVER_ARTICLE_BODY_UNAVAILABLE")
-    for node in bodies[0].xpath('.//script | .//style | .//iframe'):
-        node.getparent().remove(node)
-    text = " ".join("".join(bodies[0].itertext()).split())
-    if not text:
-        raise ValueError("NAVER_ARTICLE_BODY_UNAVAILABLE")
-    titles = root.xpath('//*[@id="title_area"]//text()')
-    published = root.xpath('//*[@data-date-time]/@data-date-time')
-    modified = root.xpath('//*[contains(@class,"_ARTICLE_MODIFY_DATE_TIME")]/@data-modify-date-time')
-    def timestamp(values):
-        if not values:
-            return None
-        value = datetime.fromisoformat(values[0])
-        if value.tzinfo is None:
-            from zoneinfo import ZoneInfo
-            value = value.replace(tzinfo=ZoneInfo("Asia/Seoul"))
-        return value.astimezone(timezone.utc).isoformat()
-    return {"url": article_url(url), "title": " ".join(titles).strip(), "text": text[:12000],
-            "published_at": timestamp(published), "modified_at": timestamp(modified),
-            "truncated": len(text) > 12000}
+    if host in {"news.naver.com", "n.news.naver.com"} and match:
+        return f"https://n.news.naver.com/mnews/article/{match[1]}/{match[2]}"
+    return urlunsplit(
+        (parts.scheme, host, parts.path or "/", urlencode(sorted(query)), "")
+    )
 
 
 class NaverNews:
-    def __init__(self, transport=None):
-        self.transport = transport
-        self.slots = asyncio.Semaphore(3)
+    def __init__(self, settings, transport=None):
+        self.settings, self.transport = settings, transport
+        self.slots = asyncio.Semaphore(2)
+        self.pace = asyncio.Lock()
+        self.last_request = 0.0
 
-    async def fetch(self, url, *, params=None, article=False):
-        async with self.slots, httpx.AsyncClient(timeout=8, follow_redirects=False,
-                trust_env=False, transport=self.transport, headers={"User-Agent": "DisclosureResearch/1.0"}) as client:
-            for _ in range(3):
-                if article:
-                    url = article_url(url)
-                async with client.stream("GET", url, params=params) as response:
-                    if article and response.is_redirect:
-                        url = article_url(urljoin(url, response.headers["location"]))
-                        params = None
-                        continue
-                    response.raise_for_status()
-                    chunks, size = [], 0
-                    async for chunk in response.aiter_bytes():
-                        size += len(chunk)
-                        if size > 2 * 1024 * 1024:
-                            raise ValueError("NAVER_NEWS_SIZE_LIMIT")
-                        chunks.append(chunk)
-                    return b"".join(chunks)
-            raise ValueError("NAVER_NEWS_REDIRECT_LIMIT")
-
-    async def headlines(self, company_name=""):
-        if company_name:
-            pages = [("https://search.naver.com/search.naver",
-                      {"where": "news", "query": company_name, "sort": "1"})]
-        else:
-            pages = [(f"https://news.naver.com/section/{section}", None) for section in (101, 104)]
-        rows = {}
-        errors = []
-        for url, params in pages:
+    async def search(self, query, start=1, display=100):
+        # 공개 API 조건은 저장과 AI 입력을 제한하므로 별도 허용 근거가 필요합니다.
+        if not self.settings.news_usage_authorization.strip():
+            return {"items": [], "error": "NEWS_USAGE_NOT_AUTHORIZED", "calls": 0}
+        key = self.settings.naver_client_id.get_secret_value()
+        secret = self.settings.naver_client_secret.get_secret_value()
+        if not key or not secret:
+            return {"items": [], "error": "NAVER_API_NOT_CONFIGURED", "calls": 0}
+        if (
+            not query.strip()
+            or len(query) > 255
+            or not 1 <= start <= 1000
+            or not 1 <= display <= 100
+        ):
+            raise ValueError("INVALID_NEWS_QUERY")
+        hub = self.settings.naver_api_provider == "hub"
+        url = (
+            "https://naverapihub.apigw.ntruss.com/search/v1/news"
+            if hub
+            else "https://openapi.naver.com/v1/search/news.json"
+        )
+        headers = (
+            {"X-NCP-APIGW-API-KEY-ID": key, "X-NCP-APIGW-API-KEY": secret}
+            if hub
+            else {"X-Naver-Client-Id": key, "X-Naver-Client-Secret": secret}
+        )
+        async with (
+            self.slots,
+            httpx.AsyncClient(
+                timeout=8,
+                follow_redirects=False,
+                trust_env=False,
+                transport=self.transport,
+            ) as client,
+        ):
             try:
-                raw = await self.fetch(url, params=params)
-                found = parse_headlines(raw)
-                if not found:
-                    errors.append("NAVER_HEADLINES_EMPTY")
-                for item in found:
-                    rows[item["url"]] = item
-            except (httpx.HTTPError, ValueError, etree.LxmlError) as error:
-                errors.append(type(error).__name__)
-        return {"items": list(rows.values()), "limitations": errors}
-
-    async def article(self, url):
-        url = article_url(url)
-        return parse_article(await self.fetch(url, article=True), url)
+                async with self.pace:
+                    await asyncio.sleep(
+                        max(0, 0.05 - (time.monotonic() - self.last_request))
+                    )
+                    self.last_request = time.monotonic()
+                response = await client.get(
+                    url,
+                    headers=headers,
+                    params={
+                        "query": query,
+                        "sort": "date",
+                        "start": start,
+                        "display": display,
+                    },
+                )
+                if response.status_code != 200:
+                    return {
+                        "items": [],
+                        "calls": 1,
+                        "error": "NAVER_RATE_LIMIT"
+                        if response.status_code == 429
+                        else "NAVER_API_HTTP_" + str(response.status_code),
+                    }
+                payload = response.json()
+                rows, invalid = [], 0
+                for item in payload.get("items", []):
+                    try:
+                        title = clean_title(item["title"])
+                        when = parsedate_to_datetime(item["pubDate"])
+                        if not title or when.tzinfo is None:
+                            raise ValueError("INVALID_NEWS_ROW")
+                        rows.append(
+                            {
+                                "original_title": item["title"][:2000],
+                                "title": title,
+                                "url": normalize_url(item["link"]),
+                                "original_url": normalize_url(item["originallink"])
+                                if item.get("originallink")
+                                else None,
+                                "published_at": when.astimezone(
+                                    timezone.utc
+                                ).isoformat(),
+                            }
+                        )
+                    except (KeyError, ValueError, TypeError):
+                        invalid += 1
+                return {
+                    "items": rows,
+                    "total": int(payload.get("total", 0)),
+                    "start": start,
+                    "raw_count": len(payload.get("items", [])),
+                    "invalid": invalid,
+                    "calls": 1,
+                    "provider": "NAVER_SEARCH",
+                    "title_only": True,
+                }
+            except (httpx.HTTPError, ValueError, TypeError):
+                return {"items": [], "error": "NAVER_API_FAILED", "calls": 1}

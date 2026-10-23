@@ -73,7 +73,7 @@ class Harness:
             and context.get("selection", {}).get("perspective_type") == "MARKET_NEWS"
         ):
             system += (prompts / "market_news.md").read_text()
-        input_limit, output_limit = (6000, 1500) if role == "perspective" else (10000, 2000)
+        input_limit, output_limit = (8000, 1500) if role == "perspective" else (10000, 2000)
         if context.get("history_context"):
             input_limit = 8000 if role == "perspective" else 14000
         if (

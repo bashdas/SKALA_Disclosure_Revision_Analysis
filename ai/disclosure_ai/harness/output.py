@@ -36,6 +36,9 @@ async def review_output(
         "request",
         "analysis_type",
         "market_as_of",
+        "news_retrieval",
+        "news_queries",
+        "news_snapshots",
         "disclosure_type",
         "document_id",
         "report_document_id",
@@ -150,7 +153,7 @@ async def review_output(
         except Exception as error:
             harness.ledger.event(harness.task_id, "OUTPUT_CHECK_FAILED", error=type(error).__name__)
             warnings.append(
-                "출력 검사 가이드를 완료하지 못했습니다. 분석 내용의 추가 확인이 필요합니다."
+                "OUTPUT_CHECK_FAILED: 출력 검사 가이드를 완료하지 못했습니다. 분석 내용의 추가 확인이 필요합니다."
                 if advisory
                 else "출력 검사를 완료하지 못해 자유 서술을 제외하고 원문 근거와 처리 상태를 보존했습니다."
             )

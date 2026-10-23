@@ -1,0 +1,14 @@
+{
+  "checked_at_kst": "2026.10.23 13:24 KST",
+  "container": "disclosure-web-external-mcp-1",
+  "provider": "NAVER_API_HUB",
+  "http_status": 200,
+  "items_received": 1,
+  "required_fields_valid": true,
+  "article_data_saved": false,
+  "article_data_sent_to_ai": false,
+  "container_health": "healthy",
+  "collection_enabled": false,
+  "usage_authorization_present": false,
+  "main_changed": false
+}

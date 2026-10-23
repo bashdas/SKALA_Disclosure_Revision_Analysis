@@ -41,8 +41,6 @@ class McpSources:
     async def get_disclosure(self, receipt_no):
         return await self._call(self.external_url, "get_disclosure", {"receipt_no": receipt_no})
 
-    async def news_headlines(self, company_name):
-        return await self._call(self.external_url, "naver_news_headlines", {"company_name": company_name})
-
-    async def news_article(self, url):
-        return await self._call(self.external_url, "read_naver_news_article", {"url": url})
+    async def news_search(self, query, start=1, display=100):
+        return await self._call(self.external_url, "naver_news_search", {
+            "query": query, "start": start, "display": display})

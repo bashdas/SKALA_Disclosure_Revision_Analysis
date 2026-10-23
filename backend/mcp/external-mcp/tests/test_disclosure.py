@@ -1,18 +1,16 @@
 import asyncio
-from io import BytesIO
-import json
 import logging
 import zipfile
+from io import BytesIO
 
 import httpx
 import pytest
-from fastapi.testclient import TestClient
-
 from app.client import OpenDartClient
 from app.config import Settings
 from app.errors import OpenDartError
 from app.main import create_app
 from app.parser import OpenDartDocumentParser
+from fastapi.testclient import TestClient
 
 KEY = "test-only-" + "a" * 30
 assert len(KEY) == 40
@@ -63,7 +61,7 @@ def test_server_initialize_health_and_single_tool():
         assert initialized.status_code == 200 and "serverInfo" in initialized.json()["result"]
         listing = client.post("/mcp", headers=HEADERS, json={"jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {}})
         tools = listing.json()["result"]["tools"]
-        assert {tool["name"] for tool in tools} == {"get_disclosure", "search_academic_papers", "get_financial_statements", "opendart_search_companies", "opendart_search_disclosures", "opendart_get_disclosure_family", "naver_news_headlines", "read_naver_news_article"}
+        assert {tool["name"] for tool in tools} == {"get_disclosure", "search_academic_papers", "get_financial_statements", "opendart_search_companies", "opendart_search_disclosures", "opendart_get_disclosure_family", "naver_news_search", "naver_news_headlines", "read_naver_news_article"}
         tools = [tool for tool in tools if tool["name"] == "get_disclosure"]
         assert set(tools[0]["inputSchema"]["properties"]) == {"receipt_no"}
 
