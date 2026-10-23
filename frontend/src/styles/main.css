@@ -2873,6 +2873,46 @@ main.company-main {
 .company-directory-table td > .status-pill {
   margin-top: 3px;
 }
+.watchlist-table.company-directory-table thead th {
+  text-align: center;
+}
+.company-directory-table .company-updates-cell,
+.company-directory-table .company-sector-cell {
+  text-align: center;
+}
+.company-directory-table .directory-update-links {
+  justify-content: center;
+}
+@media (min-width: 1000px) {
+  .company-directory-table {
+    min-width: 0;
+    font-size: 13px;
+  }
+  .company-directory-table .watchlist-name-col {
+    width: 22%;
+  }
+  .company-directory-table .directory-updates-col {
+    width: 22%;
+  }
+  .company-directory-table .watchlist-sector-col {
+    width: 10%;
+  }
+  .company-directory-table .watchlist-favorite-col {
+    width: 48px;
+  }
+  .company-directory-table thead th,
+  .company-directory-table tbody td,
+  .company-directory-table tbody th {
+    padding-inline: 8px;
+  }
+  .company-directory-table tr > :last-child {
+    padding-inline: 8px 12px;
+  }
+  .company-directory-table .directory-update-links {
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+}
 @media (max-width: 650px) {
   .company-directory-table {
     min-width: 1040px;

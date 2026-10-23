@@ -235,7 +235,7 @@ function change(value?: number | null) {
             ></span
             ><template v-else>{{ amount(quotes[company.id]?.marketCap) }}</template>
           </td>
-          <td>
+          <td class="company-updates-cell">
             <div class="directory-update-links">
               <RouterLink
                 v-for="category in categories"
@@ -259,7 +259,7 @@ function change(value?: number | null) {
               :status="companyDetails[company.id]!.task!.status"
             />
           </td>
-          <td>
+          <td class="company-sector-cell">
             <span
               v-if="!updates[company.id]"
               class="skeleton skeleton-value"

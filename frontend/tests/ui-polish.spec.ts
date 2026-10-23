@@ -151,7 +151,21 @@ test('관심종목도 기업 목록과 같은 업데이트 열을 사용합니�
   await expect(row.locator('th .watchlist-updates')).toHaveCount(0)
   await expect(row.locator('.directory-last-update')).toContainText('최근 업데이트')
   const headers = await page.locator('.watchlist-table thead th').allTextContents()
+  for (const header of await page.locator('.watchlist-table thead th').all())
+    await expect(header).toHaveCSS('text-align', 'center')
+  await expect(row.locator('.company-updates-cell')).toHaveCSS('text-align', 'center')
+  await expect(row.locator('.company-sector-cell')).toHaveCSS('text-align', 'center')
   const tableScroll = page.getByRole('region', { name: '관심종목 시세 목록' })
+  if (testInfo.project.name === 'desktop') {
+    for (const width of [1000, 1059, 1210, 1440]) {
+      await page.setViewportSize({ width, height: 849 })
+      expect(await tableScroll.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true)
+      await expect(row.locator('td:last-child .favorite-button')).toBeInViewport()
+      for (const link of await row.locator('.directory-update').all())
+        await expect(link).toBeInViewport()
+    }
+    await page.setViewportSize({ width: 1210, height: 849 })
+  }
   await tableScroll.evaluate((el) => {
     el.scrollLeft = el.scrollWidth
   })
@@ -164,6 +178,12 @@ test('관심종목도 기업 목록과 같은 업데이트 열을 사용합니�
   await page.goto('/companies')
   await expect(page.locator('.company-row')).toHaveCount(1)
   expect(await page.locator('.watchlist-table thead th').allTextContents()).toEqual(headers)
+  if (testInfo.project.name === 'desktop')
+    expect(
+      await page
+        .getByRole('region', { name: '기업 시세 목록' })
+        .evaluate((el) => el.scrollWidth <= el.clientWidth),
+    ).toBe(true)
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
 })
 
