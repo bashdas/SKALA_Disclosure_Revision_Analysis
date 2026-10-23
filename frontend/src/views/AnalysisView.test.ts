@@ -82,29 +82,27 @@ async function view(
   return { store, wrapper: mount(AnalysisView, { global: { plugins: [pinia, router] } }) }
 }
 
-it('하나의 보고서에 요약·관점 결과·메모수정 제안을 중복 없이 표시합니다', async () => {
+it('요약과 관점 분석을 유지하고 기존 메모 수정 제안은 표시하지 않습니다', async () => {
   const { store, wrapper } = await view()
   expect(wrapper.find('.unified-report .analysis-perspectives').exists()).toBe(true)
   expect(wrapper.text()).toContain('재무 영향 확인')
-  for (const text of ['추가 재무 검토 완료', '기존 문장', '매출 영향 검토가 필요합니다.']) {
-    expect(wrapper.text().split(text)).toHaveLength(2)
-  }
+  expect(wrapper.text().split('추가 재무 검토 완료')).toHaveLength(2)
+  for (const text of ['기존 문장', '매출 영향 검토가 필요합니다.', '메모 영향 판단 보류'])
+    expect(wrapper.text()).not.toContain(text)
   expect(
     wrapper.find('.source-list, .findings-section, .report-summary, .report-body').exists(),
   ).toBe(false)
-  expect(wrapper.get('.memo-proposals > h2').text()).toBe('메모수정 제안 1')
-  expect(wrapper.get('.unified-report .memo-proposals').isVisible()).toBe(true)
+  expect(wrapper.find('.memo-proposals').exists()).toBe(false)
   const openMemo = vi.spyOn(store, 'openMemo').mockResolvedValue()
-  await wrapper.get('.memo-proposals .text-button').trigger('click')
-  expect(openMemo).toHaveBeenCalledWith('memo', 2, null)
+  await wrapper.get('.report-context button').trigger('click')
+  expect(openMemo).toHaveBeenCalledWith('memo', 2)
   await wrapper.get('.evidence-reference').trigger('click')
   expect(store.drawer?.content).toBe('근거 인용문')
   expect(store.drawer?.url).toBe('https://example.com/filing')
-  expect(wrapper.findAll('[data-slot=collapsible-trigger]')).toHaveLength(0)
+  expect(wrapper.findAll('[data-slot=collapsible-trigger]')).toHaveLength(4)
   expect(wrapper.get('.unified-report .report-fold-heading h2').text()).toBe(
     '공시 영향 분석 보고서',
   )
-  expect(wrapper.get('.memo-proposals').isVisible()).toBe(true)
   wrapper.unmount()
 })
 
@@ -113,7 +111,7 @@ it.each(['COMPLETED', 'COMPLETED_WITH_WARNINGS'] as const)(
   async (status) => {
     const { wrapper } = await view({ ...baseTask, status })
     expect(wrapper.find('.progress-section').exists()).toBe(false)
-    expect(wrapper.find('.report-perspectives').exists()).toBe(true)
+    expect(wrapper.find('.report-analysis .analysis-perspectives').exists()).toBe(true)
     wrapper.unmount()
   },
 )
@@ -126,13 +124,15 @@ it('긴 근거 식별자는 번호로 표시하고 같은 자료의 상세를 �
   const { store, wrapper } = await view(baseTask, {
     ...baseReport,
     evidence,
-    findings: [{ ...baseReport.findings[0]!, evidenceIds: ['source-1', 'source-0'] }],
+    reviewPoints: [{ perspectiveType: 'FINANCE', title: '성장 가정 확인', memoView: '기존 성장 가정',
+      disclosureFact: '계약 물량 변경', reason: '반영 여부 미확인', question: '반영됐습니까?',
+      checkItems: ['이행 조건'], evidenceIds: ['source-1', 'source-0'] }],
   })
   const chips = wrapper.findAll('.evidence-chips button')
   expect(chips.map((chip) => chip.text())).toEqual(['근거 2', '근거 1'])
-  expect(chips[1]!.attributes('title')).toBe(evidence[0]!.title)
+  expect(chips[1]!.attributes('title')).toBe('DART 공시 원문')
   await chips[0]!.trigger('click')
-  expect(store.drawer?.title).toBe(evidence[1]!.title)
+  expect(store.drawer?.title).toBe('메모 원문')
   expect(store.drawer?.content).toBe(evidence[1]!.quote)
   wrapper.unmount()
 })
@@ -207,17 +207,15 @@ it('관점 및 수정 제안이 없으면 판단 기록과 기본 검토 이유�
   wrapper.unmount()
 })
 
-it('빈 제안의 유지 또는 보류 판단과 이유를 표시합니다', async () => {
+it('빈 제안의 유지 또는 보류 판단은 화면에 추가하지 않고 저장 데이터를 보존합니다', async () => {
   const { store, wrapper } = await view(baseTask, { ...baseReport, findings: [] })
-  expect(wrapper.get('[data-testid=memo-review-decision]').text()).toContain('메모 영향 판단 보류')
+  expect(wrapper.find('[data-testid=memo-review-decision]').exists()).toBe(false)
   for (const status of ['KEEP', 'HOLD'] as const) {
     store.reports[0]!.memoReview = { status, reason: '공시와 메모를 대조한 판단 이유입니다.', evidenceIds: ['source-0'] }
     await flushPromises()
-    const decision = wrapper.get('[data-testid=memo-review-decision]')
-    expect(decision.text()).toContain(status === 'KEEP' ? '기존 메모 유지' : '메모 영향 판단 보류')
-    expect(decision.text()).toContain('공시와 메모를 대조한 판단 이유입니다.')
-    await decision.get('button').trigger('click')
-    expect(store.drawer?.content).toBe('근거 인용문')
+    expect(wrapper.find('[data-testid=memo-review-decision]').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('공시와 메모를 대조한 판단 이유입니다.')
+    expect(store.reports[0]!.memoReview?.status).toBe(status)
   }
   wrapper.unmount()
 })
@@ -241,5 +239,113 @@ it('수정 문장이 없어도 재검토 관점을 중심에 표시하고 원문
   await wrapper.get('.review-points .evidence-chips button').trigger('click')
   expect(store.drawer?.content).toBe('근거 인용문')
   expect(store.drawer?.url).toBe('https://example.com/filing')
+  wrapper.unmount()
+})
+
+it('관점 선택 카드와 상세 분석은 같은 구역에서 항상 표시됩니다', async () => {
+  const { wrapper } = await view(baseTask, { ...baseReport,
+    content: baseReport.content + '\n\n## 확인 범위와 남은 질문\n\n남은 질문\n\n## 출처와 원문 인용\n\n원문 출처',
+  })
+  const analysis = wrapper.get('.report-analysis')
+  expect(wrapper.findAll('.report-analysis')).toHaveLength(1)
+  expect(wrapper.find('.report-perspectives').exists()).toBe(false)
+  expect(analysis.find('.report-fold-trigger').exists()).toBe(false)
+  expect(analysis.get('h2').text()).toBe('관점별 분석')
+  expect(analysis.findAll('h2')).toHaveLength(1)
+  expect(analysis.findAll('.perspective-card')).toHaveLength(4)
+  expect(analysis.text()).toContain('재무 영향 확인')
+  expect(analysis.text()).toContain('추가 재무 검토 완료')
+  expect(analysis.text().indexOf('재무 영향 확인')).toBeLessThan(analysis.text().indexOf('추가 재무 검토 완료'))
+  expect(wrapper.text()).not.toContain('관점 선택과 이유')
+  expect(wrapper.get('.report-sources .report-fold-trigger').attributes('aria-expanded')).toBe('false')
+  wrapper.unmount()
+})
+
+it('구조화된 분석은 항상 표시하고 공시 내용과 확인 범위는 하단에 접습니다', async () => {
+  const { wrapper } = await view(baseTask, { ...baseReport,
+    content: '## 핵심 요약\n\n요약\n\n## 확인된 공시 내용\n\n계약 축소 사실\n\n## 확인 범위와 남은 질문\n\n조건 미확인',
+  })
+  const analysis = wrapper.get('.report-analysis')
+  expect(analysis.text()).toContain('추가 재무 검토 완료')
+  expect(analysis.find('.report-fold-trigger').exists()).toBe(false)
+  const text = wrapper.get('.unified-report-content').text()
+  expect(text.indexOf('관점별 분석')).toBeLessThan(text.indexOf('확인된 공시 내용'))
+  expect(text.indexOf('확인된 공시 내용')).toBeLessThan(text.indexOf('확인 범위와 남은 질문'))
+  for (const [kind, content] of [['facts', '계약 축소 사실'], ['limits', '조건 미확인']]) {
+    const section = wrapper.get(`.report-${kind}`)
+    const toggle = section.get('.report-fold-trigger')
+    expect(toggle.attributes('aria-expanded')).toBe('false')
+    expect(section.text()).not.toContain(content)
+    await toggle.trigger('click')
+    expect(section.text()).toContain(content)
+    expect(section.findAll('h2')).toHaveLength(1)
+  }
+  wrapper.unmount()
+})
+
+it('정정 비교표·근거·원문을 보존하고 하단 네 구역의 순서를 고정합니다', async () => {
+  const content = '## 출처와 원문 인용\n\n출처 본문\n\n## 조회한 과거 공시와 비교 범위\n\n과거 공시\n\n## 확인 범위와 남은 질문\n\n조건 미확인\n\n## 확인된 공시 내용\n\n| 항목 | 정정 전 | 정정 후 | 근거 |\n| --- | --- | --- | --- |\n| 계약 물량 | 3척 | 2척 | [근거 1] |\n\n## 관점별 분석\n\n상세 분석'
+  const { store, wrapper } = await view(baseTask, { ...baseReport, content })
+  const details = wrapper.findAll('.report-detail')
+  expect(details.map((section) => section.get('h2').text())).toEqual([
+    '확인된 공시 내용', '확인 범위와 남은 질문', '출처와 원문 인용', '조회한 과거 공시와 비교 범위',
+  ])
+  expect(details.every((section) => section.get('button').attributes('aria-expanded') === 'false')).toBe(true)
+  const facts = wrapper.get('.report-facts')
+  expect(facts.find('table').exists()).toBe(false)
+  await facts.get('.report-fold-trigger').trigger('click')
+  expect(facts.findAll('tbody td').map((cell) => cell.text())).toEqual(['계약 물량', '3척', '2척', '[근거 1]'])
+  await facts.get('.evidence-reference').trigger('click')
+  expect(store.drawer?.url).toBe('https://example.com/filing')
+  await facts.get('.report-fold-trigger').trigger('click')
+  expect(facts.find('table').exists()).toBe(false)
+  expect(store.reports[0]!.content).toBe(content)
+  wrapper.unmount()
+})
+
+it('Markdown 공시 내용이 없으면 구조화된 변경 내용도 닫힌 토글 안에 보완합니다', async () => {
+  const { wrapper } = await view(baseTask, { ...baseReport,
+    changes: [{ label: '계약 물량', before: '3척', after: '2척' }],
+  })
+  const facts = wrapper.get('.report-facts')
+  expect(facts.find('.change-grid').exists()).toBe(false)
+  await wrapper.get('.report-limits .report-fold-trigger').trigger('click')
+  expect(wrapper.get('.report-limits').text()).toContain('저장된 확인 범위와 질문이 없습니다.')
+  await facts.get('.report-fold-trigger').trigger('click')
+  expect(facts.get('.change-grid').text()).toContain('계약 물량3척2척')
+  expect(facts.findAll('h2')).toHaveLength(1)
+  wrapper.unmount()
+})
+
+it('상세 결과가 없는 이전 보고서는 선택 이유와 기록 누락만 표시합니다', async () => {
+  const { wrapper } = await view({ ...baseTask, perspectives: [] }, {
+    ...baseReport, content: '## 핵심 요약\n\n요약', findings: [],
+    perspectiveDecisions: [{ type: 'FINANCE', selected: false, reason: '추가 분석이 필요하지 않습니다.' }],
+  })
+  const analysis = wrapper.get('.report-analysis')
+  expect(analysis.text()).toContain('추가 분석이 필요하지 않습니다.')
+  expect(analysis.text()).toContain('판단 기록 없음')
+  expect(analysis.find('.perspective-analysis-body').exists()).toBe(false)
+  expect(wrapper.get('.unified-report-content').text().indexOf('요약')).toBeLessThan(wrapper.get('.unified-report-content').text().indexOf('관점별 분석'))
+  wrapper.unmount()
+})
+
+it('과거 공시 비교 범위를 맨 아래의 닫힌 토글로 옮기고 원문과 근거를 보존합니다', async () => {
+  const content = baseReport.content + '\n\n## 조회한 과거 공시와 비교 범위\n\n### 최초 공시 20201012800214\n\n[DART 연결 목록](https://dart.fss.or.kr/dsaf001/main.do?rcpNo=20220518800001) [근거 1]\n\n원문 확보와 비교 완료를 구분합니다.\n\n## 확인 범위와 남은 질문\n\n계약별 이행 여부는 미확인입니다.'
+  const { store, wrapper } = await view(baseTask, { ...baseReport, content })
+  const history = wrapper.get('.report-history')
+  const toggle = history.get('.report-fold-trigger')
+  expect(toggle.attributes('aria-expanded')).toBe('false')
+  expect(history.find('.markdown-body').exists()).toBe(false)
+  expect(wrapper.text()).not.toContain('최초 공시 20201012800214')
+  expect(wrapper.get('.unified-report-content').element.lastElementChild).toBe(history.element)
+  await toggle.trigger('click')
+  await flushPromises()
+  expect(history.text()).toContain('최초 공시 20201012800214')
+  expect(history.get('a').attributes('href')).toContain('rcpNo=20220518800001')
+  expect(history.findAll('h2')).toHaveLength(1)
+  await history.get('.evidence-reference').trigger('click')
+  expect(store.drawer?.content).toBe('근거 인용문')
+  expect(store.reports[0]!.content).toBe(content)
   wrapper.unmount()
 })

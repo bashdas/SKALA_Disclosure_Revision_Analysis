@@ -341,3 +341,28 @@ def test_lookup_budget_and_wait_limit_end_selected_job(ledger):
         h.inflight[key].set_result({"sources": []})
 
     asyncio.run(check())
+
+
+def test_finance_accepts_news_metadata_within_shared_budget(ledger):
+    from pathlib import Path
+
+    from disclosure_ai.schemas import PerspectiveAnswer
+
+    async def check():
+        calls = []
+        async def model(role, context, schema):
+            calls.append(role)
+            return {"status": "INSUFFICIENT_EVIDENCE", "findings": "", "sources": [],
+                    "requests": [], "limitations": []}
+        h = Harness("task", ledger, model)
+        prompts = Path(__file__).parents[1] / "disclosure_ai/prompts"
+        system = (prompts / "common.md").read_text() + (prompts / "perspective.md").read_text()
+        overhead = len(h.encoding.encode(system)) + len(h.encoding.encode(
+            json.dumps(PerspectiveAnswer.model_json_schema(), ensure_ascii=False))) + 100
+        context = {"selection": {"perspective_type": "FINANCE"}, "news_metadata": {}}
+        while overhead + len(h.encoding.encode(json.dumps(context, ensure_ascii=False))) < 6800:
+            context["news_metadata"][str(len(context["news_metadata"]))] = "뉴스 제목과 발행 시각을 확인합니다." * 5
+        await h.model("perspective", context, PerspectiveAnswer)
+        assert calls == ["perspective"]
+        assert ledger.row("task")["tokens"] <= 9500
+    asyncio.run(check())

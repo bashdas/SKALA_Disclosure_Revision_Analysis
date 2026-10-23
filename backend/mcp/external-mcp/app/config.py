@@ -1,10 +1,15 @@
+from typing import Literal
 from urllib.parse import urlsplit
 
-from pydantic import Field, SecretStr, field_validator
 from disclosure_shared.config import ServiceSettings
+from pydantic import Field, SecretStr, field_validator
 
 
 class Settings(ServiceSettings):
+    naver_client_id: SecretStr = SecretStr("")
+    naver_client_secret: SecretStr = SecretStr("")
+    naver_api_provider: Literal["hub", "legacy"] = "hub"
+    news_usage_authorization: str = ""
     sec_user_agent: str = "DisclosureResearch/1.0"
     opendart_api_key: SecretStr = Field(default="", repr=False)
     serpapi_api_key: SecretStr = Field(default="", repr=False)

@@ -4,6 +4,7 @@ import { computed, ref, watch } from 'vue'
 import { services } from '../services'
 import { readKey } from '../services/contracts'
 import { currentUser } from '../services/http'
+import { evidenceTitle } from '../lib/evidence-title'
 import type {
   AnalysisTask,
   Company,
@@ -249,7 +250,7 @@ export const useWorkspace = defineStore('workspace', () => {
       return
     }
     drawer.value = {
-      title: evidence.title,
+      title: evidenceTitle(evidence.title),
       subtitle: '분석 근거 인용',
       content: evidence.context,
       publishedAt: evidence.publishedAt,

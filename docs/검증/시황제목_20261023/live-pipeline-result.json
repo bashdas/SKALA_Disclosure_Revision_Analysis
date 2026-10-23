@@ -1,0 +1,762 @@
+{
+  "synthetic_titles_only": true,
+  "real_model": true,
+  "real_postgresql": true,
+  "naver_api_called": false,
+  "collection": {
+    "status": "COMPLETED",
+    "collected": 16,
+    "calls": 4,
+    "queries": [
+      {
+        "query": "합성 금리",
+        "scope": "MACRO",
+        "from": "2026-10-22T02:52:19.657020+00:00",
+        "to": "2026-10-23T02:52:19.657020+00:00",
+        "limitations": [],
+        "complete": true
+      },
+      {
+        "query": "가상조선기업",
+        "scope": "COMPANY",
+        "from": "2026-10-22T02:52:19.657020+00:00",
+        "to": "2026-10-23T02:52:19.657020+00:00",
+        "limitations": [],
+        "complete": true
+      },
+      {
+        "query": "가상지주기업",
+        "scope": "COMPANY",
+        "from": "2026-10-22T02:52:19.657020+00:00",
+        "to": "2026-10-23T02:52:19.657020+00:00",
+        "limitations": [],
+        "complete": true
+      },
+      {
+        "query": "가상",
+        "scope": "COMPANY",
+        "from": "2026-10-22T02:52:19.657020+00:00",
+        "to": "2026-10-23T02:52:19.657020+00:00",
+        "limitations": [],
+        "complete": true
+      }
+    ],
+    "errors": [],
+    "targets": 2,
+    "classified": 4,
+    "pending_checked": 4,
+    "classification_reserved_tokens": 13300,
+    "cleanup": {
+      "dry_run": false,
+      "delete_count": 0,
+      "remaining_count": 4,
+      "remaining_logical_bytes": 2596,
+      "sample_ids": []
+    }
+  },
+  "models": [
+    {
+      "rows": [
+        {
+          "id": "1985d93e-f157-4568-815e-3fdd12cc8f98",
+          "title": "가상, 신규 투자 검토",
+          "original_title": "가상, 신규 투자 검토",
+          "url": "https://example.com/synthetic/1",
+          "original_url": null,
+          "company_codes": [],
+          "company_names": [],
+          "market_wide": false,
+          "scope": "UNRESOLVED",
+          "industry_tags": [],
+          "topic_tags": [],
+          "classification_status": "PENDING",
+          "classification_reason": "분류 대기",
+          "classification_method": "legacy",
+          "policy_version": "legacy",
+          "uncertainty": "",
+          "confidence": null,
+          "importance": "NORMAL",
+          "index_status": "PENDING",
+          "first_seen_at": "2026-10-23T02:52:19.731561+00:00",
+          "last_seen_at": "2026-10-23T02:52:19.771408+00:00",
+          "published_at": "2026-10-23T01:52:19.606192+00:00",
+          "expires_at": "2026-10-25T02:52:19.731561+00:00",
+          "search_queries": [
+            "합성 금리",
+            "가상조선기업",
+            "가상지주기업",
+            "가상"
+          ],
+          "title_only": true,
+          "provider": "NAVER_SEARCH",
+          "attempts": 0
+        },
+        {
+          "id": "2ef79b7b-a4cf-4d50-bff5-b63d48812407",
+          "title": "기준금리 동결 보도, 추가 조정 가능성은 미정",
+          "original_title": "기준금리 동결 보도, 추가 조정 가능성은 미정",
+          "url": "https://example.com/synthetic/2",
+          "original_url": null,
+          "company_codes": [],
+          "company_names": [],
+          "market_wide": false,
+          "scope": "UNRESOLVED",
+          "industry_tags": [],
+          "topic_tags": [],
+          "classification_status": "PENDING",
+          "classification_reason": "분류 대기",
+          "classification_method": "legacy",
+          "policy_version": "legacy",
+          "uncertainty": "",
+          "confidence": null,
+          "importance": "NORMAL",
+          "index_status": "PENDING",
+          "first_seen_at": "2026-10-23T02:52:19.731561+00:00",
+          "last_seen_at": "2026-10-23T02:52:19.771408+00:00",
+          "published_at": "2026-10-23T01:52:19.606192+00:00",
+          "expires_at": "2026-10-25T02:52:19.731561+00:00",
+          "search_queries": [
+            "합성 금리",
+            "가상조선기업",
+            "가상지주기업",
+            "가상"
+          ],
+          "title_only": true,
+          "provider": "NAVER_SEARCH",
+          "attempts": 0
+        },
+        {
+          "id": "ad477790-6a83-4955-95e9-ab1a1c9e41aa",
+          "title": "가상조선기업과 가상지주기업, 합성 협력 계획 발표",
+          "original_title": "가상조선기업과 가상지주기업, 합성 협력 계획 발표",
+          "url": "https://example.com/synthetic/0",
+          "original_url": null,
+          "company_codes": [],
+          "company_names": [],
+          "market_wide": false,
+          "scope": "UNRESOLVED",
+          "industry_tags": [],
+          "topic_tags": [],
+          "classification_status": "PENDING",
+          "classification_reason": "분류 대기",
+          "classification_method": "legacy",
+          "policy_version": "legacy",
+          "uncertainty": "",
+          "confidence": null,
+          "importance": "NORMAL",
+          "index_status": "PENDING",
+          "first_seen_at": "2026-10-23T02:52:19.731561+00:00",
+          "last_seen_at": "2026-10-23T02:52:19.771408+00:00",
+          "published_at": "2026-10-23T01:52:19.606192+00:00",
+          "expires_at": "2026-10-25T02:52:19.731561+00:00",
+          "search_queries": [
+            "합성 금리",
+            "가상조선기업",
+            "가상지주기업",
+            "가상"
+          ],
+          "title_only": true,
+          "provider": "NAVER_SEARCH",
+          "attempts": 0
+        },
+        {
+          "id": "e20f7fd6-8fe8-456a-9d23-b06a1e202af9",
+          "title": "조선업 공급망 점검 회의 개최",
+          "original_title": "조선업 공급망 점검 회의 개최",
+          "url": "https://example.com/synthetic/3",
+          "original_url": null,
+          "company_codes": [],
+          "company_names": [],
+          "market_wide": false,
+          "scope": "UNRESOLVED",
+          "industry_tags": [],
+          "topic_tags": [],
+          "classification_status": "PENDING",
+          "classification_reason": "분류 대기",
+          "classification_method": "legacy",
+          "policy_version": "legacy",
+          "uncertainty": "",
+          "confidence": null,
+          "importance": "NORMAL",
+          "index_status": "PENDING",
+          "first_seen_at": "2026-10-23T02:52:19.731561+00:00",
+          "last_seen_at": "2026-10-23T02:52:19.771408+00:00",
+          "published_at": "2026-10-23T01:52:19.606192+00:00",
+          "expires_at": "2026-10-25T02:52:19.731561+00:00",
+          "search_queries": [
+            "합성 금리",
+            "가상조선기업",
+            "가상지주기업",
+            "가상"
+          ],
+          "title_only": true,
+          "provider": "NAVER_SEARCH",
+          "attempts": 0
+        }
+      ],
+      "candidates": [
+        {
+          "corp_code": "00111111",
+          "company_name": "가상조선기업",
+          "aliases": [],
+          "industries": [
+            "조선"
+          ]
+        },
+        {
+          "corp_code": "00222222",
+          "company_name": "가상지주기업",
+          "aliases": [
+            "가상"
+          ],
+          "industries": []
+        }
+      ],
+      "response": [
+        {
+          "index": 0,
+          "company_codes": [
+            "00222222"
+          ],
+          "scope": "COMPANY",
+          "industry_tags": [],
+          "topic_tags": [],
+          "confidence": 0.95,
+          "uncertainty": "제목의 '가상'이 후보 기업 별칭과 직접 일치하지만, 동명이의 가능성은 약간 남아 있음.",
+          "importance": "NORMAL",
+          "reason": "후보 기업 가상지주기업의 별칭 '가상'이 제목에 직접 언급됨."
+        },
+        {
+          "index": 1,
+          "company_codes": [],
+          "scope": "MACRO",
+          "industry_tags": [],
+          "topic_tags": [
+            "INTEREST_RATE",
+            "POLICY"
+          ],
+          "confidence": 0.94,
+          "uncertainty": "특정 기업명이 없어 거시/정책 이슈로 분류.",
+          "importance": "NORMAL",
+          "reason": "기준금리 동결과 추가 조정 가능성은 개별 기업보다 통화정책 이슈에 해당함."
+        },
+        {
+          "index": 2,
+          "company_codes": [
+            "00111111",
+            "00222222"
+          ],
+          "scope": "COMPANY",
+          "industry_tags": [],
+          "topic_tags": [],
+          "confidence": 0.99,
+          "uncertainty": "직접 언급된 두 기업만 연결했으며 추가 기업은 없음.",
+          "importance": "NORMAL",
+          "reason": "제목에 가상조선기업과 가상지주기업이 모두 직접 언급됨."
+        },
+        {
+          "index": 3,
+          "company_codes": [],
+          "scope": "INDUSTRY",
+          "industry_tags": [
+            "조선"
+          ],
+          "topic_tags": [
+            "SUPPLY_CHAIN"
+          ],
+          "confidence": 0.86,
+          "uncertainty": "특정 기업명은 없고 조선업 전반 이슈로 해석.",
+          "importance": "NORMAL",
+          "reason": "조선업 공급망 점검은 특정 기업보다 조선 산업 전반에 대한 공급망 이슈임."
+        }
+      ]
+    }
+  ],
+  "stored": [
+    {
+      "id": "ad477790-6a83-4955-95e9-ab1a1c9e41aa",
+      "title": "가상조선기업과 가상지주기업, 합성 협력 계획 발표",
+      "original_title": "가상조선기업과 가상지주기업, 합성 협력 계획 발표",
+      "url": "https://example.com/synthetic/0",
+      "original_url": null,
+      "company_codes": [
+        "00111111",
+        "00222222"
+      ],
+      "company_names": [
+        "가상조선기업",
+        "가상지주기업"
+      ],
+      "market_wide": false,
+      "scope": "COMPANY",
+      "industry_tags": [],
+      "topic_tags": [],
+      "classification_status": "CLASSIFIED",
+      "classification_reason": "제목에 가상조선기업과 가상지주기업이 모두 직접 언급됨.",
+      "classification_method": "AI",
+      "policy_version": "1a94232fc0d1fd42f41aaed1e25758bd0aeba346be07d88ebc1d7236485bbed4",
+      "uncertainty": "직접 언급된 두 기업만 연결했으며 추가 기업은 없음.",
+      "confidence": 0.99,
+      "importance": "NORMAL",
+      "index_status": "METADATA_READY",
+      "first_seen_at": "2026-10-23T02:52:19.731561+00:00",
+      "last_seen_at": "2026-10-23T02:52:19.771408+00:00",
+      "published_at": "2026-10-23T01:52:19.606192+00:00",
+      "expires_at": "2026-10-30T01:52:19.606192+00:00",
+      "search_queries": [
+        "합성 금리",
+        "가상조선기업",
+        "가상지주기업",
+        "가상"
+      ],
+      "title_only": true,
+      "provider": "NAVER_SEARCH"
+    },
+    {
+      "id": "e20f7fd6-8fe8-456a-9d23-b06a1e202af9",
+      "title": "조선업 공급망 점검 회의 개최",
+      "original_title": "조선업 공급망 점검 회의 개최",
+      "url": "https://example.com/synthetic/3",
+      "original_url": null,
+      "company_codes": [],
+      "company_names": [],
+      "market_wide": false,
+      "scope": "INDUSTRY",
+      "industry_tags": [
+        "조선"
+      ],
+      "topic_tags": [
+        "SUPPLY_CHAIN"
+      ],
+      "classification_status": "CLASSIFIED",
+      "classification_reason": "조선업 공급망 점검은 특정 기업보다 조선 산업 전반에 대한 공급망 이슈임.",
+      "classification_method": "AI",
+      "policy_version": "1a94232fc0d1fd42f41aaed1e25758bd0aeba346be07d88ebc1d7236485bbed4",
+      "uncertainty": "특정 기업명은 없고 조선업 전반 이슈로 해석.",
+      "confidence": 0.86,
+      "importance": "NORMAL",
+      "index_status": "METADATA_READY",
+      "first_seen_at": "2026-10-23T02:52:19.731561+00:00",
+      "last_seen_at": "2026-10-23T02:52:19.771408+00:00",
+      "published_at": "2026-10-23T01:52:19.606192+00:00",
+      "expires_at": "2026-10-30T01:52:19.606192+00:00",
+      "search_queries": [
+        "합성 금리",
+        "가상조선기업",
+        "가상지주기업",
+        "가상"
+      ],
+      "title_only": true,
+      "provider": "NAVER_SEARCH"
+    },
+    {
+      "id": "1985d93e-f157-4568-815e-3fdd12cc8f98",
+      "title": "가상, 신규 투자 검토",
+      "original_title": "가상, 신규 투자 검토",
+      "url": "https://example.com/synthetic/1",
+      "original_url": null,
+      "company_codes": [],
+      "company_names": [],
+      "market_wide": false,
+      "scope": "UNRESOLVED",
+      "industry_tags": [],
+      "topic_tags": [],
+      "classification_status": "UNRESOLVED",
+      "classification_reason": "기업의 정식 명칭 또는 추가 식별 근거가 필요합니다.",
+      "classification_method": "AI",
+      "policy_version": "1a94232fc0d1fd42f41aaed1e25758bd0aeba346be07d88ebc1d7236485bbed4",
+      "uncertainty": "짧은 별칭만 확인돼 기업을 확정하지 못했습니다.",
+      "confidence": null,
+      "importance": "NORMAL",
+      "index_status": "METADATA_READY",
+      "first_seen_at": "2026-10-23T02:52:19.731561+00:00",
+      "last_seen_at": "2026-10-23T02:52:19.771408+00:00",
+      "published_at": "2026-10-23T01:52:19.606192+00:00",
+      "expires_at": "2026-10-25T01:52:19.606192+00:00",
+      "search_queries": [
+        "합성 금리",
+        "가상조선기업",
+        "가상지주기업",
+        "가상"
+      ],
+      "title_only": true,
+      "provider": "NAVER_SEARCH"
+    },
+    {
+      "id": "2ef79b7b-a4cf-4d50-bff5-b63d48812407",
+      "title": "기준금리 동결 보도, 추가 조정 가능성은 미정",
+      "original_title": "기준금리 동결 보도, 추가 조정 가능성은 미정",
+      "url": "https://example.com/synthetic/2",
+      "original_url": null,
+      "company_codes": [],
+      "company_names": [],
+      "market_wide": true,
+      "scope": "MACRO",
+      "industry_tags": [],
+      "topic_tags": [
+        "INTEREST_RATE",
+        "POLICY"
+      ],
+      "classification_status": "CLASSIFIED",
+      "classification_reason": "기준금리 동결과 추가 조정 가능성은 개별 기업보다 통화정책 이슈에 해당함.",
+      "classification_method": "AI",
+      "policy_version": "1a94232fc0d1fd42f41aaed1e25758bd0aeba346be07d88ebc1d7236485bbed4",
+      "uncertainty": "특정 기업명이 없어 거시/정책 이슈로 분류.",
+      "confidence": 0.94,
+      "importance": "NORMAL",
+      "index_status": "METADATA_READY",
+      "first_seen_at": "2026-10-23T02:52:19.731561+00:00",
+      "last_seen_at": "2026-10-23T02:52:19.771408+00:00",
+      "published_at": "2026-10-23T01:52:19.606192+00:00",
+      "expires_at": "2026-10-30T01:52:19.606192+00:00",
+      "search_queries": [
+        "합성 금리",
+        "가상조선기업",
+        "가상지주기업",
+        "가상"
+      ],
+      "title_only": true,
+      "provider": "NAVER_SEARCH"
+    }
+  ],
+  "rag_response": {
+    "as_of": "2026-10-23T02:52:23.506526+00:00",
+    "days": 7,
+    "mode": "CURRENT",
+    "range_start": "2026-10-16T02:52:23.506526+00:00",
+    "title_only": true,
+    "scopes": [
+      "COMPANY",
+      "INDUSTRY",
+      "MACRO"
+    ],
+    "topic_tags": [],
+    "provider": "네이버 검색결과",
+    "articles": [
+      {
+        "id": "e20f7fd6-8fe8-456a-9d23-b06a1e202af9",
+        "title": "조선업 공급망 점검 회의 개최",
+        "original_title": "조선업 공급망 점검 회의 개최",
+        "url": "https://example.com/synthetic/3",
+        "original_url": null,
+        "company_codes": [],
+        "company_names": [],
+        "market_wide": false,
+        "scope": "INDUSTRY",
+        "industry_tags": [
+          "조선"
+        ],
+        "topic_tags": [
+          "SUPPLY_CHAIN"
+        ],
+        "classification_status": "CLASSIFIED",
+        "classification_reason": "조선업 공급망 점검은 특정 기업보다 조선 산업 전반에 대한 공급망 이슈임.",
+        "classification_method": "AI",
+        "policy_version": "1a94232fc0d1fd42f41aaed1e25758bd0aeba346be07d88ebc1d7236485bbed4",
+        "uncertainty": "특정 기업명은 없고 조선업 전반 이슈로 해석.",
+        "confidence": 0.86,
+        "importance": "NORMAL",
+        "index_status": "METADATA_READY",
+        "first_seen_at": "2026-10-23T02:52:19.731561+00:00",
+        "last_seen_at": "2026-10-23T02:52:19.771408+00:00",
+        "published_at": "2026-10-23T01:52:19.606192+00:00",
+        "expires_at": "2026-10-30T01:52:19.606192+00:00",
+        "search_queries": [
+          "합성 금리",
+          "가상조선기업",
+          "가상지주기업",
+          "가상"
+        ],
+        "title_only": true,
+        "provider": "NAVER_SEARCH"
+      },
+      {
+        "id": "2ef79b7b-a4cf-4d50-bff5-b63d48812407",
+        "title": "기준금리 동결 보도, 추가 조정 가능성은 미정",
+        "original_title": "기준금리 동결 보도, 추가 조정 가능성은 미정",
+        "url": "https://example.com/synthetic/2",
+        "original_url": null,
+        "company_codes": [],
+        "company_names": [],
+        "market_wide": true,
+        "scope": "MACRO",
+        "industry_tags": [],
+        "topic_tags": [
+          "INTEREST_RATE",
+          "POLICY"
+        ],
+        "classification_status": "CLASSIFIED",
+        "classification_reason": "기준금리 동결과 추가 조정 가능성은 개별 기업보다 통화정책 이슈에 해당함.",
+        "classification_method": "AI",
+        "policy_version": "1a94232fc0d1fd42f41aaed1e25758bd0aeba346be07d88ebc1d7236485bbed4",
+        "uncertainty": "특정 기업명이 없어 거시/정책 이슈로 분류.",
+        "confidence": 0.94,
+        "importance": "NORMAL",
+        "index_status": "METADATA_READY",
+        "first_seen_at": "2026-10-23T02:52:19.731561+00:00",
+        "last_seen_at": "2026-10-23T02:52:19.771408+00:00",
+        "published_at": "2026-10-23T01:52:19.606192+00:00",
+        "expires_at": "2026-10-30T01:52:19.606192+00:00",
+        "search_queries": [
+          "합성 금리",
+          "가상조선기업",
+          "가상지주기업",
+          "가상"
+        ],
+        "title_only": true,
+        "provider": "NAVER_SEARCH"
+      },
+      {
+        "id": "ad477790-6a83-4955-95e9-ab1a1c9e41aa",
+        "title": "가상조선기업과 가상지주기업, 합성 협력 계획 발표",
+        "original_title": "가상조선기업과 가상지주기업, 합성 협력 계획 발표",
+        "url": "https://example.com/synthetic/0",
+        "original_url": null,
+        "company_codes": [
+          "00111111",
+          "00222222"
+        ],
+        "company_names": [
+          "가상조선기업",
+          "가상지주기업"
+        ],
+        "market_wide": false,
+        "scope": "COMPANY",
+        "industry_tags": [],
+        "topic_tags": [],
+        "classification_status": "CLASSIFIED",
+        "classification_reason": "제목에 가상조선기업과 가상지주기업이 모두 직접 언급됨.",
+        "classification_method": "AI",
+        "policy_version": "1a94232fc0d1fd42f41aaed1e25758bd0aeba346be07d88ebc1d7236485bbed4",
+        "uncertainty": "직접 언급된 두 기업만 연결했으며 추가 기업은 없음.",
+        "confidence": 0.99,
+        "importance": "NORMAL",
+        "index_status": "METADATA_READY",
+        "first_seen_at": "2026-10-23T02:52:19.731561+00:00",
+        "last_seen_at": "2026-10-23T02:52:19.771408+00:00",
+        "published_at": "2026-10-23T01:52:19.606192+00:00",
+        "expires_at": "2026-10-30T01:52:19.606192+00:00",
+        "search_queries": [
+          "합성 금리",
+          "가상조선기업",
+          "가상지주기업",
+          "가상"
+        ],
+        "title_only": true,
+        "provider": "NAVER_SEARCH"
+      }
+    ],
+    "documents": [
+      {
+        "document_id": "news:e20f7fd6-8fe8-456a-9d23-b06a1e202af9:fe53211f1ae9bd4b",
+        "text": "조선업 공급망 점검 회의 개최",
+        "url": "https://example.com/synthetic/3",
+        "published_at": "2026-10-23T01:52:19.606192+00:00",
+        "evidence_scope": "news_title",
+        "title_only": true,
+        "article_snapshot": {
+          "id": "e20f7fd6-8fe8-456a-9d23-b06a1e202af9",
+          "title": "조선업 공급망 점검 회의 개최",
+          "original_title": "조선업 공급망 점검 회의 개최",
+          "url": "https://example.com/synthetic/3",
+          "original_url": null,
+          "company_codes": [],
+          "company_names": [],
+          "market_wide": false,
+          "scope": "INDUSTRY",
+          "industry_tags": [
+            "조선"
+          ],
+          "topic_tags": [
+            "SUPPLY_CHAIN"
+          ],
+          "classification_status": "CLASSIFIED",
+          "classification_reason": "조선업 공급망 점검은 특정 기업보다 조선 산업 전반에 대한 공급망 이슈임.",
+          "classification_method": "AI",
+          "policy_version": "1a94232fc0d1fd42f41aaed1e25758bd0aeba346be07d88ebc1d7236485bbed4",
+          "uncertainty": "특정 기업명은 없고 조선업 전반 이슈로 해석.",
+          "confidence": 0.86,
+          "importance": "NORMAL",
+          "index_status": "METADATA_READY",
+          "first_seen_at": "2026-10-23T02:52:19.731561+00:00",
+          "last_seen_at": "2026-10-23T02:52:19.771408+00:00",
+          "published_at": "2026-10-23T01:52:19.606192+00:00",
+          "expires_at": "2026-10-30T01:52:19.606192+00:00",
+          "search_queries": [
+            "합성 금리",
+            "가상조선기업",
+            "가상지주기업",
+            "가상"
+          ],
+          "title_only": true,
+          "provider": "NAVER_SEARCH"
+        },
+        "news_retrieval": {
+          "as_of": "2026-10-23T02:52:23.506526+00:00",
+          "days": 7,
+          "mode": "CURRENT",
+          "range_start": "2026-10-16T02:52:23.506526+00:00",
+          "title_only": true,
+          "scopes": [
+            "COMPANY",
+            "INDUSTRY",
+            "MACRO"
+          ],
+          "topic_tags": [],
+          "provider": "네이버 검색결과"
+        }
+      },
+      {
+        "document_id": "news:2ef79b7b-a4cf-4d50-bff5-b63d48812407:452890ddd0b4b886",
+        "text": "기준금리 동결 보도, 추가 조정 가능성은 미정",
+        "url": "https://example.com/synthetic/2",
+        "published_at": "2026-10-23T01:52:19.606192+00:00",
+        "evidence_scope": "news_title",
+        "title_only": true,
+        "article_snapshot": {
+          "id": "2ef79b7b-a4cf-4d50-bff5-b63d48812407",
+          "title": "기준금리 동결 보도, 추가 조정 가능성은 미정",
+          "original_title": "기준금리 동결 보도, 추가 조정 가능성은 미정",
+          "url": "https://example.com/synthetic/2",
+          "original_url": null,
+          "company_codes": [],
+          "company_names": [],
+          "market_wide": true,
+          "scope": "MACRO",
+          "industry_tags": [],
+          "topic_tags": [
+            "INTEREST_RATE",
+            "POLICY"
+          ],
+          "classification_status": "CLASSIFIED",
+          "classification_reason": "기준금리 동결과 추가 조정 가능성은 개별 기업보다 통화정책 이슈에 해당함.",
+          "classification_method": "AI",
+          "policy_version": "1a94232fc0d1fd42f41aaed1e25758bd0aeba346be07d88ebc1d7236485bbed4",
+          "uncertainty": "특정 기업명이 없어 거시/정책 이슈로 분류.",
+          "confidence": 0.94,
+          "importance": "NORMAL",
+          "index_status": "METADATA_READY",
+          "first_seen_at": "2026-10-23T02:52:19.731561+00:00",
+          "last_seen_at": "2026-10-23T02:52:19.771408+00:00",
+          "published_at": "2026-10-23T01:52:19.606192+00:00",
+          "expires_at": "2026-10-30T01:52:19.606192+00:00",
+          "search_queries": [
+            "합성 금리",
+            "가상조선기업",
+            "가상지주기업",
+            "가상"
+          ],
+          "title_only": true,
+          "provider": "NAVER_SEARCH"
+        },
+        "news_retrieval": {
+          "as_of": "2026-10-23T02:52:23.506526+00:00",
+          "days": 7,
+          "mode": "CURRENT",
+          "range_start": "2026-10-16T02:52:23.506526+00:00",
+          "title_only": true,
+          "scopes": [
+            "COMPANY",
+            "INDUSTRY",
+            "MACRO"
+          ],
+          "topic_tags": [],
+          "provider": "네이버 검색결과"
+        }
+      },
+      {
+        "document_id": "news:ad477790-6a83-4955-95e9-ab1a1c9e41aa:074fb087feccbeef",
+        "text": "가상조선기업과 가상지주기업, 합성 협력 계획 발표",
+        "url": "https://example.com/synthetic/0",
+        "published_at": "2026-10-23T01:52:19.606192+00:00",
+        "evidence_scope": "news_title",
+        "title_only": true,
+        "article_snapshot": {
+          "id": "ad477790-6a83-4955-95e9-ab1a1c9e41aa",
+          "title": "가상조선기업과 가상지주기업, 합성 협력 계획 발표",
+          "original_title": "가상조선기업과 가상지주기업, 합성 협력 계획 발표",
+          "url": "https://example.com/synthetic/0",
+          "original_url": null,
+          "company_codes": [
+            "00111111",
+            "00222222"
+          ],
+          "company_names": [
+            "가상조선기업",
+            "가상지주기업"
+          ],
+          "market_wide": false,
+          "scope": "COMPANY",
+          "industry_tags": [],
+          "topic_tags": [],
+          "classification_status": "CLASSIFIED",
+          "classification_reason": "제목에 가상조선기업과 가상지주기업이 모두 직접 언급됨.",
+          "classification_method": "AI",
+          "policy_version": "1a94232fc0d1fd42f41aaed1e25758bd0aeba346be07d88ebc1d7236485bbed4",
+          "uncertainty": "직접 언급된 두 기업만 연결했으며 추가 기업은 없음.",
+          "confidence": 0.99,
+          "importance": "NORMAL",
+          "index_status": "METADATA_READY",
+          "first_seen_at": "2026-10-23T02:52:19.731561+00:00",
+          "last_seen_at": "2026-10-23T02:52:19.771408+00:00",
+          "published_at": "2026-10-23T01:52:19.606192+00:00",
+          "expires_at": "2026-10-30T01:52:19.606192+00:00",
+          "search_queries": [
+            "합성 금리",
+            "가상조선기업",
+            "가상지주기업",
+            "가상"
+          ],
+          "title_only": true,
+          "provider": "NAVER_SEARCH"
+        },
+        "news_retrieval": {
+          "as_of": "2026-10-23T02:52:23.506526+00:00",
+          "days": 7,
+          "mode": "CURRENT",
+          "range_start": "2026-10-16T02:52:23.506526+00:00",
+          "title_only": true,
+          "scopes": [
+            "COMPANY",
+            "INDUSTRY",
+            "MACRO"
+          ],
+          "topic_tags": [],
+          "provider": "네이버 검색결과"
+        }
+      }
+    ],
+    "sources": [
+      {
+        "document_id": "news:e20f7fd6-8fe8-456a-9d23-b06a1e202af9:fe53211f1ae9bd4b",
+        "location": "news:title",
+        "quote": "조선업 공급망 점검 회의 개최",
+        "url": "https://example.com/synthetic/3",
+        "published_at": "2026-10-23T01:52:19.606192+00:00"
+      },
+      {
+        "document_id": "news:2ef79b7b-a4cf-4d50-bff5-b63d48812407:452890ddd0b4b886",
+        "location": "news:title",
+        "quote": "기준금리 동결 보도, 추가 조정 가능성은 미정",
+        "url": "https://example.com/synthetic/2",
+        "published_at": "2026-10-23T01:52:19.606192+00:00"
+      },
+      {
+        "document_id": "news:ad477790-6a83-4955-95e9-ab1a1c9e41aa:074fb087feccbeef",
+        "location": "news:title",
+        "quote": "가상조선기업과 가상지주기업, 합성 협력 계획 발표",
+        "url": "https://example.com/synthetic/0",
+        "published_at": "2026-10-23T01:52:19.606192+00:00"
+      }
+    ],
+    "collection": {
+      "status": "COMPLETED",
+      "started_at": "2026-10-23T02:52:19.657020+00:00",
+      "finished_at": "2026-10-23T02:52:23.482039+00:00"
+    },
+    "reason_codes": [],
+    "limitations": [
+      "뉴스 제목만 수집했습니다. 태그와 주관적 신뢰도는 분류 결과이며 본문 사실의 검증이나 확률이 아닙니다."
+    ]
+  }
+}

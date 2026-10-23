@@ -2,40 +2,45 @@ import asyncio
 
 import httpx
 import pytest
-from app.naver_news import NaverNews, article_url, parse_article, parse_headlines
+from app.config import Settings
+from app.naver_news import NaverNews, clean_title, normalize_url
 
 
-def test_headline_title_and_naver_links_only():
-    raw = """<html><a href="https://n.news.naver.com/mnews/article/001/0000000001?sid=101">한국은행 금리 결정</a>
-    <a href="https://evil.example/article/1">외부 링크</a>
-    <div><a href="https://n.news.naver.com/mnews/article/002/0000000002"><span>네이버뉴스</span><span>새 창 열림</span></a>
-    <a data-heatmap-target=".tit" href="https://press.example/a">삼성중공업 계약 전망</a></div></html>""".encode()
-    rows = parse_headlines(raw)
-    assert len(rows) == 2
-    assert rows[1]["title"] == "삼성중공업 계약 전망"
-    assert all(set(row) == {"title", "url"} for row in rows)
-    assert rows[0]["url"].endswith("/001/0000000001")
-
-
-@pytest.mark.parametrize("url", ["http://n.news.naver.com/article/001/0000000001",
-    "https://n.news.naver.com.evil.test/article/001/0000000001", "https://127.0.0.1/article/001/0000000001",
-    "https://user@n.news.naver.com/article/001/0000000001", "https://n.news.naver.com:444/article/001/0000000001",
-    "https://n.news.naver.com/mnews/article/comment/001/0000000001"])
-def test_article_url_boundary(url):
-    with pytest.raises(ValueError):
-        article_url(url)
-
-
-def test_body_and_timestamps_and_redirect_boundary():
-    raw = '<h2 id="title_area">실적 뉴스</h2><span data-date-time="2026-10-23 09:00:00"></span><div id="dic_area">기사 본문<script>bad()</script></div>'.encode()
-    article = parse_article(raw, "https://n.news.naver.com/article/001/0000000001")
-    assert article["text"] == "기사 본문" and article["published_at"] == "2026-10-23T00:00:00+00:00"
-    seen = []
-    def handler(request):
-        seen.append(str(request.url))
-        return httpx.Response(302, headers={"Location": "http://127.0.0.1/private"})
-    async def check():
+def test_title_and_distinct_url_normalization():
+    assert clean_title("<b>테스트</b> &amp; 산업 뉴스") == "테스트 & 산업 뉴스"
+    assert normalize_url("https://n.news.naver.com/mnews/article/001/0000000001?utm_source=x") == "https://n.news.naver.com/mnews/article/001/0000000001"
+    assert normalize_url("https://publisher.example/news?id=1") != normalize_url("https://publisher.example/news?id=2")
+    for value in ["javascript:alert(1)", "https://user:pass@example.com/x", "file:///tmp/x"]:
         with pytest.raises(ValueError):
-            await NaverNews(httpx.MockTransport(handler)).article(article["url"])
-    asyncio.run(check())
-    assert len(seen) == 1
+            normalize_url(value)
+
+
+@pytest.mark.parametrize("provider", ["hub", "legacy"])
+def test_official_api_only_titles_no_body_requests(provider):
+    calls = []
+    def handle(request):
+        calls.append(request)
+        assert request.url.host in {"naverapihub.apigw.ntruss.com", "openapi.naver.com"}
+        assert request.url.params["sort"] == "date"
+        assert ("X-NCP-APIGW-API-KEY" if provider == "hub" else "X-Naver-Client-Secret") in request.headers
+        return httpx.Response(200, json={"total": 1, "items": [{"title": "<b>가상기업</b> 뉴스",
+            "link": "https://publisher.example/news/1", "originallink": "https://publisher.example/news/1",
+            "pubDate": "Fri, 23 Oct 2026 09:00:00 +0900", "description": "이 본문은 저장하지 않습니다."}]})
+    settings = Settings(naver_api_provider=provider, naver_client_id="synthetic-id", naver_client_secret="synthetic-secret",
+                        news_usage_authorization="SYNTHETIC_TEST_ONLY")
+    result = asyncio.run(NaverNews(settings, httpx.MockTransport(handle)).search("가상기업"))
+    assert len(calls) == 1 and result["items"][0]["title"] == "가상기업 뉴스"
+    assert result["items"][0]["published_at"] == "2026-10-23T00:00:00+00:00"
+    assert all(k not in result["items"][0] for k in ["text", "description", "body"])
+
+
+def test_missing_permission_key_and_rate_limit():
+    def no_network(request):
+        pytest.fail("요청하면 안 됩니다.")
+    result = asyncio.run(NaverNews(Settings(), httpx.MockTransport(no_network)).search("가상기업"))
+    assert result["error"] == "NEWS_USAGE_NOT_AUTHORIZED"
+    result = asyncio.run(NaverNews(Settings(news_usage_authorization="SYNTHETIC_TEST_ONLY"), httpx.MockTransport(no_network)).search("가상기업"))
+    assert result["error"] == "NAVER_API_NOT_CONFIGURED"
+    settings = Settings(news_usage_authorization="SYNTHETIC_TEST_ONLY", naver_client_id="synthetic", naver_client_secret="synthetic")
+    result = asyncio.run(NaverNews(settings, httpx.MockTransport(lambda _: httpx.Response(429))).search("가상기업"))
+    assert result["error"] == "NAVER_RATE_LIMIT" and result["calls"] == 1

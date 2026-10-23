@@ -1,24 +1,24 @@
-from contextlib import asynccontextmanager
-from datetime import date, datetime, timezone
 import json
 import re
+from contextlib import asynccontextmanager
+from datetime import date, datetime, timezone
 from typing import Annotated, Any, Literal
-from pydantic import Field
 
-from fastapi import FastAPI
 import httpx
+from disclosure_shared.health import HealthResponse
+from fastapi import FastAPI
 from mcp.server.fastmcp import FastMCP
 from mcp.server.fastmcp.exceptions import ToolError
 from mcp.server.transport_security import TransportSecuritySettings
+from pydantic import Field
 from starlette.concurrency import run_in_threadpool
-from disclosure_shared.health import HealthResponse
 
-from app.naver_news import NaverNews
 from app import sec
-from app.client import OpenDartClient
 from app.catalog import DisclosureCatalog
+from app.client import OpenDartClient
 from app.config import Settings
 from app.errors import OpenDartError
+from app.naver_news import NaverNews
 from app.parser import OpenDartDocumentParser
 from app.scholar import GoogleScholarClient, ScholarError
 
@@ -44,7 +44,7 @@ def create_app(settings: Settings | None = None, *, transport: httpx.AsyncBaseTr
     scholar = GoogleScholarClient(settings, transport=transport)
     parser = OpenDartDocumentParser()
     catalog = DisclosureCatalog(client)
-    news = NaverNews(transport)
+    news = NaverNews(settings, transport)
     mcp = FastMCP("external-mcp", stateless_http=True, json_response=True,
         host=settings.external_mcp_host, port=settings.external_mcp_port, streamable_http_path="/mcp",
         transport_security=TransportSecuritySettings(enable_dns_rebinding_protection=True,
@@ -165,17 +165,21 @@ def create_app(settings: Settings | None = None, *, transport: httpx.AsyncBaseTr
             raise ToolError(json.dumps(error.as_dict(), ensure_ascii=False)) from None
 
     @mcp.tool()
+    async def naver_news_search(query: Annotated[str, Field(min_length=1, max_length=255)],
+        start: Annotated[int, Field(ge=1, le=1000)] = 1,
+        display: Annotated[int, Field(ge=1, le=100)] = 100) -> dict:
+        """공식 네이버 뉴스 검색 API의 제목, 링크와 발행 시각을 반환합니다. 본문은 수집하지 않습니다."""
+        return await news.search(query, start, display)
+
+    @mcp.tool()
     async def naver_news_headlines(company_name: Annotated[str, Field(max_length=255)] = "") -> dict:
-        """네이버 뉴스의 제목과 기사 링크를 조회합니다. 빈 기업명은 경제 및 세계 뉴스입니다."""
-        return await news.headlines(company_name)
+        """이전 호출과의 호환용 제목 검색입니다. 본문과 HTML을 조회하지 않습니다."""
+        return await news.search(company_name or "기준금리")
 
     @mcp.tool()
     async def read_naver_news_article(url: Annotated[str, Field(max_length=500)]) -> dict:
-        """네이버 기사 링크에서 분석 시점에 본문과 기사 시각을 확인합니다."""
-        try:
-            return await news.article(url)
-        except (ValueError, httpx.HTTPError, KeyError) as error:
-            raise ToolError(json.dumps({"code": "NAVER_ARTICLE_UNAVAILABLE", "message": type(error).__name__})) from None
+        """이전 본문 도구는 비활성화됐습니다. 저장된 제목만 분석에 사용합니다."""
+        return {"error": "NEWS_BODY_DISABLED", "documents": [], "sources": []}
 
     mcp_app = mcp.streamable_http_app()
 

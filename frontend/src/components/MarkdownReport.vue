@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, ref, shallowRef, useId, watch } from 'vue'
 import { PopoverRoot, PopoverAnchor, PopoverPortal, PopoverContent } from 'reka-ui'
 import { renderMarkdown, type MarkdownRange } from '../lib/markdown'
+import { evidenceTitle } from '../lib/evidence-title'
 import { date } from '../lib/format'
 import type { Evidence } from '../types/domain'
 const props = withDefaults(
@@ -10,6 +11,7 @@ const props = withDefaults(
     evidence?: Evidence[]
     range?: MarkdownRange
     hideReportTitle?: boolean
+    restoreSourceLines?: boolean
   }>(),
   {
     evidence: () => [],
@@ -22,6 +24,7 @@ const html = computed(() =>
     props.evidence.map((e) => e.id),
     props.range,
     props.hideReportTitle,
+    props.restoreSourceLines ? props.evidence : undefined,
   ),
 )
 const article = ref<HTMLElement | null>(null)
@@ -105,7 +108,7 @@ onBeforeUnmount(closePreview)
         @pointerleave="scheduleClose"
       >
         <div :id="previewId" class="evidence-preview" role="tooltip">
-          <strong>{{ anchor?.textContent }} · {{ preview.title }}</strong>
+          <strong>{{ anchor?.textContent }} · {{ evidenceTitle(preview.title) }}</strong>
           <p v-if="preview.location || preview.publishedAt" class="evidence-meta">
             {{ preview.location
             }}<template v-if="preview.publishedAt"> · {{ date(preview.publishedAt) }}</template>
@@ -182,6 +185,10 @@ onBeforeUnmount(closePreview)
   line-height: 1.85;
   overflow-wrap: anywhere;
   min-width: 0;
+}
+.markdown-body :deep(.source-excerpt) {
+  white-space: pre-wrap;
+  tab-size: 4;
 }
 .markdown-body :deep(h1) {
   font-size: 26px;

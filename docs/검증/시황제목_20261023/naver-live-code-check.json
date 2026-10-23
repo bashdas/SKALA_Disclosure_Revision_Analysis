@@ -1,0 +1,18 @@
+[
+  {
+    "file": "news_collector.py",
+    "matches": true
+  },
+  {
+    "file": "news_store.py",
+    "matches": true
+  },
+  {
+    "file": "service.py",
+    "matches": true
+  },
+  {
+    "file": "harness/runtime.py",
+    "matches": true
+  }
+]

@@ -33,6 +33,9 @@ const decisions = computed(() => props.decisions ?? props.perspectives.map((p) =
 </template>
 
 <style scoped>
+.perspective-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
 .perspectives-title {
   margin: 0 0 16px;
   font-size: 16px;
@@ -40,5 +43,15 @@ const decisions = computed(() => props.decisions ?? props.perspectives.map((p) =
 .perspective-header h4 {
   font-size: 13px;
   color: var(--secondary);
+}
+@media (max-width: 900px) {
+  .perspective-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 650px) {
+  .perspective-grid {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

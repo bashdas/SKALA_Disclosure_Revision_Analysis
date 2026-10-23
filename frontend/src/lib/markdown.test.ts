@@ -1,5 +1,44 @@
 import { expect, it } from 'vitest'
 import { renderMarkdown, splitMarkdownSections } from './markdown'
+it('일반 Markdown 문단과 표 안의 기존 줄바꿈을 화면에서 보존합니다', () => {
+  const html = renderMarkdown('첫 줄\n둘째 줄\n\n다른 문단\n\n| 항목 | 값 |\n| --- | --- |\n| 금액 | 9,730,316 |')
+  expect(html).toContain('첫 줄<br>\n둘째 줄')
+  expect(html).toContain('<td>9,730,316</td>')
+  expect(html.match(/<p>/g)).toHaveLength(2)
+})
+
+it('공시 출처에 일치하는 인용문만 원래 줄바꿈으로 복원하고 인용 범위·근거를 유지합니다', () => {
+  const quote = '투자판단 관련 주요경영사항\n\n1. 제목\t계약금액 변경\n2. 주요내용\t3,834,738,508,160원 → 9,730,316원\n3. 확인일\t2025-12-29\n후속 내용'
+  const excerpt = quote.replace(/\s+/g, ' ').slice(0, 86)
+  const content = `## 확인된 공시 내용\n\n${excerpt} [근거1]\n\n확인한 사실을 요약합니다. [근거 1]`
+  const html = renderMarkdown(content, ['source-0'], undefined, false, [{ id: 'source-0', quote }])
+  expect(html).toContain('<p class="source-excerpt">투자판단 관련 주요경영사항\n\n1. 제목\t')
+  expect(html).toContain('3,834,738,508,160원 → 9,730,316원')
+  expect(html).not.toContain('후속 내용')
+  expect(html).toContain('<p>확인한 사실을 요약합니다.')
+  expect(html.match(/data-evidence-id="source-0"/g)).toHaveLength(2)
+  expect(renderMarkdown(content, ['source-0'])).not.toContain('source-excerpt')
+  expect(content).toContain(excerpt)
+})
+
+it('출처 복원은 표·코드·기존 링크·일치하지 않는 숫자를 바꾸지 않습니다', () => {
+  const quote = '계약금액\t9,730,316원\n확인일\t2025-12-29'
+  const html = renderMarkdown('계약금액 8,000원 [근거 1]\n\n`계약금액 9,730,316원` [근거 1]\n\n[계약금액 9,730,316원](https://example.com) [근거 1]\n\n| 금액 | 근거 |\n| --- | --- |\n| 9,730,316원 | [근거 1] |', ['source-0'], undefined, false, [{ id: 'source-0', quote }])
+  expect(html).not.toContain('source-excerpt')
+  expect(html).toContain('계약금액 8,000원')
+  expect(html).toContain('<code>계약금액 9,730,316원</code>')
+  expect(html).toContain('href="https://example.com"')
+  expect(html).toContain('<td>9,730,316원</td>')
+})
+
+it('번호로 시작하는 공시 인용문도 목록 번호를 중복하지 않고 줄을 복원합니다', () => {
+  const quote = '1. 계약내역\t금액 변경\n2. 계약금액\t9,730,316원\n3. 확인일\t2025-12-29'
+  const html = renderMarkdown(quote.replace(/\s+/g, ' ') + ' [근거 1]', ['source-0'], undefined, false, [{ id: 'source-0', quote }])
+  expect(html).toContain('<ol>')
+  expect(html).toContain('<li class="source-excerpt">계약내역\t금액 변경\n2. 계약금액')
+  expect(html).not.toContain('source-excerpt">1. ')
+  expect(html).toContain('data-evidence-id="source-0"')
+})
 it('제목과 표를 표시하고 HTML과 위험한 URL을 실행하지 않습니다', () => {
   const html = renderMarkdown(
     '# 보고서\n\n| 항목 | 값 |\n| --- | --- |\n| 기간 | 3개월 |\n\n<script>alert(1)</script>\n\n[위험](javascript:alert(1))\n\n![원격](https://example.com/tracker.png)',

@@ -1,0 +1,23 @@
+{
+  "checked_at": "2026.10.23 13:49 KST",
+  "token_budget": 500000,
+  "batch_size": 20,
+  "max_batches": 100,
+  "concurrency": 2,
+  "pending": 0,
+  "classified": 1332,
+  "unresolved": 283,
+  "legacy": 136,
+  "failed_legacy_missing_publication": 2,
+  "processable_failed": 0,
+  "last_run": {
+    "status": "COMPLETED",
+    "pending_checked": 419,
+    "classified": 419,
+    "errors": [],
+    "reserved_tokens": 205374,
+    "api_calls": 0
+  },
+  "rag_tests_passed": 12,
+  "runtime_source_matches": true
+}

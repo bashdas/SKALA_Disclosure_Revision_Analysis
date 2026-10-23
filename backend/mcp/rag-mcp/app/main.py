@@ -34,7 +34,7 @@ def create_app(settings=None, *, sources=None, embedding=None, store=None):
             provider = embedding or OpenAIEmbeddingService(client, settings.openai_api_key.get_secret_value(), settings.rag_embedding_model)
             app.state.service = RagService(upstream, provider, storage, settings)
             collector_task = None
-            if storage is not None and settings.news_collection_enabled:
+            if storage is not None:
                 app.state.news_collector = NewsCollector(app.state.service, client, settings)
                 collector_task = asyncio.create_task(app.state.news_collector.run())
             try:
@@ -76,14 +76,18 @@ def create_app(settings=None, *, sources=None, embedding=None, store=None):
     @mcp.tool()
     async def search_market_news(task_id: UUID,
         query: Annotated[str, Field(min_length=1, max_length=2000)],
-        top_k: Annotated[int, Field(ge=1, le=12)] = 6) -> dict:
-        """분석 요청 시각 이전의 기업 및 공통 시황 제목을 의미 검색합니다. 본문 확인은 별도입니다."""
-        return await invoke("search_market_news", task_id, query, top_k)
+        top_k: Annotated[int, Field(ge=1, le=12)] = 6,
+        as_of: Annotated[str | None, Field(max_length=40)] = None,
+        days: Annotated[int, Field(ge=1, le=30)] = 7,
+        scopes: list[Literal["COMPANY", "INDUSTRY", "MACRO"]] | None = None,
+        topics: Annotated[list[str] | None, Field(max_length=8)] = None) -> dict:
+        """작업의 기업을 서버에서 확인해 저장된 제목만 검색합니다. 실시간 수집과 기사 본문 조회는 실행하지 않습니다."""
+        return await invoke("search_market_news", task_id, query, top_k, as_of, days, scopes, topics)
 
     @mcp.tool()
     async def read_market_news(task_id: UUID,
         article_ids: Annotated[list[UUID], Field(min_length=1, max_length=3)]) -> dict:
-        """저장된 관련 기사 식별자만 받아 네이버 링크의 본문과 시각을 검증합니다."""
+        """호환용 도구로 접근 범위 내 저장된 제목과 메타데이터만 반환합니다. 외부 링크에 접속하지 않습니다."""
         return await invoke("read_market_news", task_id, article_ids)
 
     @app.get("/health", response_model=HealthResponse)

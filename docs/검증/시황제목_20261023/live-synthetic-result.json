@@ -1,0 +1,292 @@
+{
+  "real_model": true,
+  "model": "gpt-5.4-mini",
+  "synthetic_titles_only": true,
+  "naver_api_called": false,
+  "classifications": [
+    {
+      "index": 0,
+      "company_codes": [
+        "00111111",
+        "00222222"
+      ],
+      "scope": "COMPANY",
+      "industry_tags": [
+        "조선",
+        "지주"
+      ],
+      "topic_tags": [
+        "STRATEGY",
+        "PARTNERSHIP"
+      ],
+      "confidence": 0.98,
+      "uncertainty": "제목에 두 기업명이 직접 언급됨. 협력 계획의 구체적 범위는 불명확.",
+      "importance": "NORMAL",
+      "reason": "두 회사의 협력 계획 발표로, 직접 언급된 개별 기업 이슈."
+    },
+    {
+      "index": 1,
+      "company_codes": [
+        "00222222"
+      ],
+      "scope": "COMPANY",
+      "industry_tags": [
+        "지주"
+      ],
+      "topic_tags": [
+        "INVESTMENT"
+      ],
+      "confidence": 0.92,
+      "uncertainty": "‘가상’은 후보 기업명/별칭과 일치하나, 단독 표기가 모호할 수 있음.",
+      "importance": "NORMAL",
+      "reason": "후보 기업 가상지주기업의 별칭이 제목에 직접 사용됨."
+    },
+    {
+      "index": 2,
+      "company_codes": [],
+      "scope": "MACRO",
+      "industry_tags": [],
+      "topic_tags": [
+        "INTEREST_RATE",
+        "POLICY"
+      ],
+      "confidence": 0.97,
+      "uncertainty": "특정 기업명이 없어 개별 기업 연결은 하지 않음.",
+      "importance": "HIGH",
+      "reason": "기준금리 동결은 통화정책에 관한 주요 거시 이슈로 시장 전반에 영향 가능성이 큼."
+    },
+    {
+      "index": 3,
+      "company_codes": [],
+      "scope": "INDUSTRY",
+      "industry_tags": [
+        "조선"
+      ],
+      "topic_tags": [
+        "SUPPLY_CHAIN"
+      ],
+      "confidence": 0.95,
+      "uncertainty": "특정 기업명은 없고 조선업 전반의 공급망 점검 이슈로 해석됨.",
+      "importance": "HIGH",
+      "reason": "조선업 공급망 점검은 산업 구조와 운영에 직접 관련된 산업 이슈."
+    }
+  ],
+  "cases": [
+    {
+      "input": {
+        "selection": {
+          "perspective_type": "MARKET_NEWS",
+          "selection_reason": "합성 금리 가정 점검",
+          "question": "보도 제목이 기존 가정의 어떤 점검 질문과 연결됩니까?"
+        },
+        "request": {
+          "company_name_snapshot": "합성기업",
+          "disclosure_receipt_no": "20261023000000"
+        },
+        "base": {
+          "selected": []
+        },
+        "context": [
+          {
+            "document_id": "news:synthetic:0",
+            "location": "news:title",
+            "quote": "기준금리 동결 보도, 추가 조정 가능성은 미정",
+            "url": "https://example.com/synthetic/0",
+            "published_at": "2026-10-23T00:00:00+00:00"
+          }
+        ],
+        "memo": {
+          "document_id": "memo:synthetic:v1",
+          "text": "기존 가정은 금융비용이 현재 수준으로 유지된다는 것입니다. 금리 조정 가능성이 확인되면 금융비용 가정을 점검합니다."
+        },
+        "filing": {
+          "documents": [
+            {
+              "document_id": "filing:synthetic",
+              "text": "합성 공시는 신규 자금조달 계획을 안내합니다."
+            }
+          ],
+          "changes": [],
+          "analysis_type": "NEW"
+        },
+        "documents": [
+          {
+            "document_id": "memo:synthetic:v1",
+            "text": "기존 가정은 금융비용이 현재 수준으로 유지된다는 것입니다. 금리 조정 가능성이 확인되면 금융비용 가정을 점검합니다."
+          },
+          {
+            "document_id": "filing:synthetic",
+            "text": "합성 공시는 신규 자금조달 계획을 안내합니다."
+          },
+          {
+            "document_id": "news:synthetic:0",
+            "text": "기준금리 동결 보도, 추가 조정 가능성은 미정",
+            "url": "https://example.com/synthetic/0"
+          }
+        ],
+        "jobs": {},
+        "market_news": {
+          "articles": [
+            {
+              "title": "기준금리 동결 보도, 추가 조정 가능성은 미정"
+            }
+          ],
+          "title_only": true,
+          "as_of": "2026-10-23T03:00:00Z"
+        }
+      },
+      "result": {
+        "results": {
+          "MARKET_NEWS": {
+            "perspective_type": "MARKET_NEWS",
+            "selection_reason": "합성 금리 가정 점검",
+            "question": "보도 제목이 기존 가정의 어떤 점검 질문과 연결됩니까?",
+            "status": "COMPLETED",
+            "findings": "기존 관점은 금융비용이 현재 수준으로 유지된다는 가정이며, 이번 뉴스 제목은 기준금리 동결과 추가 조정 가능성의 불확실성을 함께 제시하므로 금리 변동 가능성에 따라 금융비용 가정을 재점검할 필요가 있습니다. 제목만으로는 실제 금리 인상, 인하, 시행 시점은 확인되지 않으므로 금융비용이 곧바로 변동한다고 확정할 수는 없습니다. 다만 보도 제목이 금리 정책 방향의 불확실성을 드러내므로, 기존 메모의 핵심 질문은 '금리 조정 가능성이 회사의 조달금리나 이자비용에 영향을 주는지'로 재확인하는 것입니다. 추가로 확인할 자료는 해당 회사의 차입 구조, 변동금리 비중, 만기 구조, 헤지 여부입니다. 현재 자료만으로는 금리 조정이 실제 금융비용에 미치는 정량 영향은 확인되지 않습니다.",
+            "sources": [
+              {
+                "document_id": "news:synthetic:0",
+                "quote": "기준금리 동결 보도, 추가 조정 가능성은 미정",
+                "location": "news:title",
+                "url": "https://example.com/synthetic/0",
+                "published_at": null
+              }
+            ],
+            "requests": [],
+            "limitations": [
+              "제목만 제공되어 기사 본문과 세부 금리 정책 내용은 확인되지 않습니다.",
+              "회사별 차입 조건과 이자비용 민감도 자료가 없어 금융비용 영향은 정량화할 수 없습니다."
+            ]
+          }
+        },
+        "jobs": {
+          "MARKET_NEWS": {
+            "status": "COMPLETED",
+            "selection": {
+              "perspective_type": "MARKET_NEWS",
+              "selection_reason": "합성 금리 가정 점검",
+              "question": "보도 제목이 기존 가정의 어떤 점검 질문과 연결됩니까?"
+            }
+          }
+        },
+        "warnings": []
+      },
+      "events": [
+        {
+          "id": 1,
+          "kind": "MODEL_END",
+          "payload": "{\"role\": \"perspective\", \"tokens\": 4552, \"elapsed\": 3.0936837500194088}",
+          "at": 1792723510.6858199
+        }
+      ]
+    },
+    {
+      "input": {
+        "selection": {
+          "perspective_type": "MARKET_NEWS",
+          "selection_reason": "합성 금리 가정 점검",
+          "question": "보도 제목이 기존 가정의 어떤 점검 질문과 연결됩니까?"
+        },
+        "request": {
+          "company_name_snapshot": "합성기업",
+          "disclosure_receipt_no": "20261023000000"
+        },
+        "base": {
+          "selected": []
+        },
+        "context": [
+          {
+            "document_id": "news:synthetic:1",
+            "location": "news:title",
+            "quote": "합성기업, 실적 발표 일정 안내",
+            "url": "https://example.com/synthetic/1",
+            "published_at": "2026-10-23T00:00:00+00:00"
+          }
+        ],
+        "memo": {
+          "document_id": "memo:synthetic:v1",
+          "text": "기존 가정은 금융비용이 현재 수준으로 유지된다는 것입니다. 금리 조정 가능성이 확인되면 금융비용 가정을 점검합니다."
+        },
+        "filing": {
+          "documents": [
+            {
+              "document_id": "filing:synthetic",
+              "text": "합성 공시는 신규 자금조달 계획을 안내합니다."
+            }
+          ],
+          "changes": [],
+          "analysis_type": "NEW"
+        },
+        "documents": [
+          {
+            "document_id": "memo:synthetic:v1",
+            "text": "기존 가정은 금융비용이 현재 수준으로 유지된다는 것입니다. 금리 조정 가능성이 확인되면 금융비용 가정을 점검합니다."
+          },
+          {
+            "document_id": "filing:synthetic",
+            "text": "합성 공시는 신규 자금조달 계획을 안내합니다."
+          },
+          {
+            "document_id": "news:synthetic:1",
+            "text": "합성기업, 실적 발표 일정 안내",
+            "url": "https://example.com/synthetic/1"
+          }
+        ],
+        "jobs": {},
+        "market_news": {
+          "articles": [
+            {
+              "title": "합성기업, 실적 발표 일정 안내"
+            }
+          ],
+          "title_only": true,
+          "as_of": "2026-10-23T03:00:00Z"
+        }
+      },
+      "result": {
+        "results": {
+          "MARKET_NEWS": {
+            "perspective_type": "MARKET_NEWS",
+            "selection_reason": "합성 금리 가정 점검",
+            "question": "보도 제목이 기존 가정의 어떤 점검 질문과 연결됩니까?",
+            "status": "COMPLETED",
+            "findings": "기존 관점은 금융비용이 현재 수준으로 유지된다는 가정이며, 이번 입력에서 확인되는 뉴스 제목은 \"합성기업, 실적 발표 일정 안내\"입니다. 제목만으로는 금리 조정, 차입조건 변경, 금융비용 증가나 감소를 확인할 수 없으므로, 기존 가정의 점검 질문은 현재 제목과 직접 연결되기 어렵습니다. 다만 실적 발표 일정 안내는 향후 공시나 설명자료에서 자금조달 조건, 이자비용, 차입금 만기와 같은 금융비용 관련 정보가 확인될 수 있다는 점검 계기로는 해석할 수 있습니다. 따라서 현재로서는 금리 조정 가능성 자체를 확인하는 것이 아니라, 실적 발표 자료에 금융비용 변동 요인이 포함되는지 확인하는 질문으로 재정의하는 것이 필요합니다. 제목만으로는 실적 내용, 금리 수준, 재무조건 변경 여부를 확정할 수 없습니다.",
+            "sources": [
+              {
+                "document_id": "news:synthetic:1",
+                "quote": "합성기업, 실적 발표 일정 안내",
+                "location": "news:title",
+                "url": "https://example.com/synthetic/1",
+                "published_at": null
+              }
+            ],
+            "requests": [],
+            "limitations": [
+              "제공된 자료는 뉴스 제목 1건과 메모 1건뿐이어서 금리 조정 여부나 금융비용 변동 사실을 확인할 수 없습니다.",
+              "기사 본문과 추가 공시가 없으므로 실적 발표 일정 안내가 금융비용 가정 변경으로 이어지는지 판단할 수 없습니다."
+            ]
+          }
+        },
+        "jobs": {
+          "MARKET_NEWS": {
+            "status": "COMPLETED",
+            "selection": {
+              "perspective_type": "MARKET_NEWS",
+              "selection_reason": "합성 금리 가정 점검",
+              "question": "보도 제목이 기존 가정의 어떤 점검 질문과 연결됩니까?"
+            }
+          }
+        },
+        "warnings": []
+      },
+      "events": [
+        {
+          "id": 1,
+          "kind": "MODEL_END",
+          "payload": "{\"role\": \"perspective\", \"tokens\": 4548, \"elapsed\": 3.092902750009671}",
+          "at": 1792723513.791714
+        }
+      ]
+    }
+  ]
+}

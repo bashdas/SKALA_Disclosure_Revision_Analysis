@@ -1,0 +1,51 @@
+{
+  "checked_at": "2026.10.23 13:36 KST",
+  "collection_enabled": true,
+  "interval_seconds": 3600,
+  "first_api_calls": 25,
+  "rows_processed_with_duplicates": 1861,
+  "new_unique_rows": 1571,
+  "classified_searchable": 63,
+  "unresolved": 15,
+  "pending": 1537,
+  "legacy": 136,
+  "failed_older_rows": 2,
+  "real_model_runs": [
+    {
+      "task_id": "9b82fca1-c754-47ac-88ba-77776cfd0b8f",
+      "status": "COMPLETED_WITH_WARNINGS",
+      "perspectives": {
+        "MARKET_NEWS": "COMPLETED",
+        "FINANCE": "LIMIT_REACHED"
+      },
+      "news_snapshots": 3
+    },
+    {
+      "task_id": "43616beb-d6be-4ae8-a245-a26e34ba23d2",
+      "status": "COMPLETED_WITH_WARNINGS",
+      "perspectives": {
+        "FINANCE": "LIMIT_REACHED",
+        "INDUSTRY_CONTRACT": "LIMIT_REACHED",
+        "MARKET_NEWS": "COMPLETED"
+      },
+      "news_snapshots": 3
+    },
+    {
+      "task_id": "1a7f32c4-7221-4ee1-90c1-b062eceeaea8",
+      "status": "COMPLETED_WITH_WARNINGS",
+      "perspectives": {
+        "FINANCE": "COMPLETED",
+        "MARKET_NEWS": "COMPLETED",
+        "INDUSTRY_CONTRACT": "COMPLETED"
+      },
+      "news_snapshots": 2
+    }
+  ],
+  "tests": {
+    "ai_passed": 128,
+    "ai_skipped": 2,
+    "rag_passed": 10
+  },
+  "main_unchanged": "671ed8d77cb976157c7db3b501e66315fdc78dce",
+  "separate_naver_license": false
+}

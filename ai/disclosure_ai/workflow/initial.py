@@ -158,6 +158,8 @@ async def prepare(run, state):
         run.tools.call,
         scope=state["scope"],
     )
+    documents.extend(market_news.get("documents", []))
+    context.extend(market_news.get("sources", []))
     if market_news.get("error"):
         warnings.append("시황 뉴스 목록 조회 미완료: " + market_news["error"])
     return {

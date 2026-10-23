@@ -146,6 +146,7 @@ async def report(run, state):
         }
         if item.get("status") == "COMPLETED" and not completed:
             results[kind]["status"] = "INSUFFICIENT_EVIDENCE"
+            results[kind]["limitations"] = [*results[kind]["limitations"], "SOURCE_LINK_FAILED: 보고서에 연결할 원문 출처를 확인하지 못했습니다."]
     corrections = []
     for item in state.get("filing", {}).get("changes", []):
         verified = validated_sources([item], documents, fragments)
@@ -189,6 +190,9 @@ async def report(run, state):
     facts = {
         "analysis_type": state.get("filing", {}).get("analysis_type", "UNKNOWN"),
         "market_as_of": state.get("market_news", {}).get("as_of"),
+        "news_retrieval": {k: state.get("market_news", {}).get(k) for k in
+            ("as_of", "range_start", "days", "mode", "scopes", "topic_tags", "title_only", "collection", "reason_codes", "limitations")},
+        "news_queries": list({str(d["news_retrieval"]): d["news_retrieval"] for d in documents if d.get("news_retrieval")}.values()),
         **{
             key: [cited(item, item["evidence"]) for item in items]
             for key, items in research.items()
@@ -214,6 +218,7 @@ async def report(run, state):
     warnings = list(state.get("warnings", []))
     warnings.extend(original.get("limitations", []))
     warnings.extend(history.get("limitations", []))
+    warnings.extend(state.get("market_news", {}).get("limitations", []))
     for result in state.get("results", {}).values():
         warnings.extend(result.get("limitations", []))
     for name, label in (("filing", "공시"), ("memo", "메모")):
@@ -279,6 +284,9 @@ async def report(run, state):
         },
         "analysis_type": state.get("filing", {}).get("analysis_type", "UNKNOWN"),
         "market_as_of": state.get("market_news", {}).get("as_of"),
+        "news_retrieval": {k: state.get("market_news", {}).get(k) for k in
+            ("as_of", "range_start", "days", "mode", "scopes", "topic_tags", "title_only", "collection", "reason_codes", "limitations")},
+        "news_queries": list({str(d["news_retrieval"]): d["news_retrieval"] for d in documents if d.get("news_retrieval")}.values()),
         "memo_review": memo_review,
         "research_reports": state.get("research_reports", []),
         **research,
@@ -314,7 +322,10 @@ async def report(run, state):
         }
     for item in checked["results"].values():
         if item["status"] == "COMPLETED" and not item["findings"]:
-            item["status"], item["sources"] = "INSUFFICIENT_EVIDENCE", []
+            item["status"], item["sources"] = "FAILED", []
+            item.setdefault("limitations", []).append("OUTPUT_CHECK_FAILED: 출력 검사 후 작성할 서술이 남지 않았습니다.")
+    checked["news_snapshots"] = [doc["article_snapshot"] for doc in documents
+        if doc.get("article_snapshot") and any(source["document_id"] == doc["document_id"] for source in evidence)]
     checked["corrections"] = corrections
     checked["filing_facts"] = filing_facts
     history["comparisons"] = validated_comparisons(checked.pop("history_comparisons"), state)
@@ -513,6 +524,11 @@ def compose(data):
     ]
     if data.get("market_as_of") and any(item.get("perspective_type") == "MARKET_NEWS" for item in selected):
         lines += ["**시황 기준 시각(분석 요청):** " + escape(data["market_as_of"]), ""]
+        news = data.get("news_retrieval", {})
+        lines += ["**뉴스 조회 범위:** " + escape(str(news.get("range_start") or "미확인")) + "부터 기준 시각까지입니다. 제목만 수집했습니다.", ""]
+        for query in data.get("news_queries", []):
+            if query.get("as_of") != data["market_as_of"]:
+                lines += ["추가 뉴스 조회: " + escape(str(query.get("range_start"))) + "부터 " + escape(str(query.get("as_of"))) + "까지입니다.", ""]
     if not sections["summary"]:
         lines += [
             "확인된 공시 내용과 처리 상태를 표시합니다. 근거가 부족한 해석은 작성하지 않았습니다.",

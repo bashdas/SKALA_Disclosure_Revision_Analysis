@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ArrowUpRight, ExternalLink, Link2 } from 'lucide-vue-next'
 import { impactLabels, type Evidence, type Finding } from '../types/domain'
-const props = defineProps<{ findings: Finding[]; evidence: Evidence[] }>()
+const props = withDefaults(defineProps<{ findings: Finding[]; evidence: Evidence[]; headingTag?: 'h2' | 'h3' }>(), { headingTag: 'h2' })
 const emit = defineEmits<{
   openMemo: [paragraph: number | null]
   openEvidence: [source: Evidence]
@@ -25,9 +25,9 @@ function suggestionText(finding: Finding) {
 </script>
 <template>
   <section class="memo-proposals" aria-label="메모수정 제안">
-    <h2>
+    <component :is="headingTag">
       메모수정 제안 <span class="count">{{ findings.length }}</span>
-    </h2>
+    </component>
     <article v-for="(finding, i) in findings" :key="finding.id" class="finding-card surface">
       <div class="finding-header">
         <span class="finding-number">{{ String(i + 1).padStart(2, '0') }}</span
@@ -85,6 +85,10 @@ function suggestionText(finding: Finding) {
 .memo-proposals > h2 {
   margin: 0 0 16px;
   font-size: 21px;
+}
+.memo-proposals > h3 {
+  margin: 0 0 16px;
+  font-size: 17px;
 }
 .evidence-chips button {
   white-space: nowrap;
