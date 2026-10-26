@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { isDialogBackdrop } from '../lib/dialog'
 import { toast, notifyError, queueNotice } from '../lib/notifications'
 import { ref, nextTick, watch, onBeforeUnmount } from 'vue'
 import { X } from 'lucide-vue-next'
@@ -19,21 +20,11 @@ function open() {
   name.value = currentUser.value?.name ?? ''
   dialog.value?.showModal()
 }
-function isOutsideDialog(event: MouseEvent) {
-  if (!dialog.value || event.target !== dialog.value) return false
-  const bounds = dialog.value.getBoundingClientRect()
-  return (
-    event.clientX < bounds.left ||
-    event.clientX > bounds.right ||
-    event.clientY < bounds.top ||
-    event.clientY > bounds.bottom
-  )
-}
 function onDialogPointerDown(event: PointerEvent) {
-  pointerStartedOutside = isOutsideDialog(event)
+  pointerStartedOutside = isDialogBackdrop(event)
 }
 function onDialogClick(event: MouseEvent) {
-  const dismiss = pointerStartedOutside && isOutsideDialog(event)
+  const dismiss = pointerStartedOutside && isDialogBackdrop(event)
   pointerStartedOutside = false
   if (dismiss) close()
 }

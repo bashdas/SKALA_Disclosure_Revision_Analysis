@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { isDialogBackdrop } from '../lib/dialog'
 import { toast, notifyError } from '../lib/notifications'
 import { ref, nextTick, onBeforeUnmount } from 'vue'
 import { Upload, FileText, Pencil, Plus, X } from 'lucide-vue-next'
@@ -68,6 +69,7 @@ async function upload() {
     class="memo-dialog surface upload-panel"
     :aria-labelledby="'memo-title-' + companyId"
     @cancel.prevent="close"
+    @click="isDialogBackdrop($event) && close()"
   >
     <div class="memo-dialog-heading">
       <h2 :id="'memo-title-' + companyId">메모 추가</h2>
