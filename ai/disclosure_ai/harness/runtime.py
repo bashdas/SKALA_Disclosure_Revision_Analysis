@@ -16,6 +16,13 @@ from disclosure_ai.harness.output import masked_json, review_output
 
 
 class Harness:
+    # 과거 원문 재분석과 네 관점 조회 후 보고서 검사를 마칠 시간을 확보합니다.
+    RUN_SECONDS = 300
+    ANALYSIS_TOKENS = 240000
+    REPORT_TOKENS = 300000
+    ANALYSIS_TURNS = 24
+    REPORT_TURNS = 30
+
     def __init__(self, task_id: str, ledger: Ledger, call_model=None):
         self.task_id = task_id
         self.ledger = ledger
@@ -33,17 +40,17 @@ class Harness:
         self.encoding = tiktoken.get_encoding("o200k_base")
 
     def remaining(self, report: bool = False) -> float:
-        reserve = 0 if report else 30
-        return 120 - reserve - (time.time() - self.ledger.row(self.task_id)["started"])
+        reserve = 0 if report else 60
+        return self.RUN_SECONDS - reserve - (time.time() - self.ledger.row(self.task_id)["started"])
 
     async def reserve(self, tokens: int, report: bool = False, role: str = "") -> None:
         async with self.ledger.lock:
             row = self.ledger.row(self.task_id)
             role_counts = json.loads(row["tools"])
-            if role.startswith("perspective:") and role_counts.get("model:" + role, 0) >= 3:
+            if role.startswith("perspective:") and role_counts.get("model:" + role, 0) >= 5:
                 raise LimitReached("관점별 모델 호출 한도에 도달했습니다.")
-            ceiling = 80000 if report else 64000
-            turns = 12 if report else 10
+            ceiling = self.REPORT_TOKENS if report else self.ANALYSIS_TOKENS
+            turns = self.REPORT_TURNS if report else self.ANALYSIS_TURNS
             if (
                 self.remaining(report) <= 0
                 or row["turns"] >= turns
@@ -73,16 +80,16 @@ class Harness:
             and context.get("selection", {}).get("perspective_type") == "MARKET_NEWS"
         ):
             system += (prompts / "market_news.md").read_text()
-        input_limit, output_limit = (8000, 1500) if role == "perspective" else (10000, 2000)
+        input_limit, output_limit = (16000, 2500) if role == "perspective" else (20000, 4000)
         if context.get("history_context"):
-            input_limit = 8000 if role == "perspective" else 14000
+            input_limit = 16000 if role == "perspective" else 24000
         if (
             role == "perspective"
             and context.get("selection", {}).get("perspective_type") == "MARKET_NEWS"
         ):
-            input_limit = 8000
-        if role in {"base", "research"}:
-            output_limit = 4000
+            input_limit = 16000
+        if role == "output_check":
+            input_limit = 24000
         schema_tokens = len(
             self.encoding.encode(json.dumps(schema.model_json_schema(), ensure_ascii=False))
         )
@@ -161,10 +168,13 @@ class Harness:
                 if role in {"perspective", "news_plan"}
                 else role
             )
-            await self.reserve(used_input + output_limit, report, role_scope)
+            reserved = used_input + output_limit
+            await self.reserve(reserved, report, role_scope)
+            charged = used_input
+            estimated = True
             started = time.monotonic()
             try:
-                async with asyncio.timeout(min(20, self.remaining(report) - (10 if report else 0))):
+                async with asyncio.timeout(min(45, self.remaining(report) - (10 if report else 0))):
                     if self.call_model:
                         answer = await self.call_model(role, context, schema)
                         parsed = schema.model_validate(answer)
@@ -188,6 +198,7 @@ class Harness:
                             if response.usage
                             else used_input + output_limit
                         )
+                charged, estimated = actual, False
                 self.ledger.event(
                     self.task_id,
                     "MODEL_END",
@@ -196,7 +207,10 @@ class Harness:
                     elapsed=time.monotonic() - started,
                 )
                 return parsed
-            except (ValidationError, ValueError, LengthFinishReasonError):
+            except (ValidationError, ValueError, LengthFinishReasonError) as error:
+                usage = getattr(getattr(error, "completion", None), "usage", None)
+                if usage:
+                    charged, estimated = usage.total_tokens, False
                 self.ledger.event(self.task_id, "FORMAT_ERROR", role=role)
                 if repair:
                     raise
@@ -222,6 +236,16 @@ class Harness:
                     raise
                 retries += 1
                 await asyncio.sleep(min(0.2 * retries, max(0, self.remaining(report))))
+            finally:
+                # 실패 응답의 사용량이 없으면 입력량을 추정 비용으로 남기고 미사용 출력 예약을 반환합니다.
+                async with self.ledger.lock:
+                    self.ledger.db.execute(
+                        "UPDATE runs SET tokens=tokens+? WHERE id=?",
+                        (charged - reserved, self.task_id),
+                    )
+                    self.ledger.db.commit()
+                    self.ledger.event(self.task_id, "MODEL_BUDGET_SETTLED", role=role_scope,
+                                      reserved=reserved, charged=charged, estimated=estimated)
 
     async def review_output(
         self, payload: dict, *, grounding=False, corrections=(), advisory=False,

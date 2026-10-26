@@ -86,6 +86,8 @@ async def fake_model(role, context, schema):
             "summary": "계약금액이 정정됐습니다.",
             "proposals": [],
             "selected": [],
+            "not_selected": [{"perspective_type": kind, "reason": "기본 분석으로 충분합니다."}
+                             for kind in ["INDUSTRY_CONTRACT", "FINANCE", "FX_HEDGE", "MARKET_NEWS"]],
             "no_additional_analysis_reason": "기본 분석으로 메모 수정 필요성을 확인했습니다.",
             "limitations": [],
         }
@@ -161,6 +163,10 @@ def test_parallel_perspectives(ledger):
                 for p in ["FINANCE", "INDUSTRY_CONTRACT", "FX_HEDGE"]
             ]
             answer["no_additional_analysis_reason"] = None
+        if role == "base" and "selected" in answer:
+            answer["not_selected"] = [{"perspective_type": kind, "reason": "기본 분석으로 충분합니다."}
+                for kind in ["INDUSTRY_CONTRACT", "FINANCE", "FX_HEDGE", "MARKET_NEWS"]
+                if kind not in {s["perspective_type"] for s in answer["selected"]}]
         return answer
 
     async def check():
@@ -196,14 +202,14 @@ def test_shared_lookup_and_failure_fanout(ledger):
 def test_report_budget_reserved_and_persisted(ledger):
     async def check():
         h = Harness("task", ledger)
-        for _ in range(10):
+        for _ in range(Harness.ANALYSIS_TURNS):
             await h.reserve(100)
         with pytest.raises(LimitReached):
             await h.reserve(100)
         reopened = Ledger(ledger.db.execute("PRAGMA database_list").fetchone()[2])
         h2 = Harness("task", reopened)
-        await h2.reserve(100, report=True)
-        await h2.reserve(100, report=True)
+        for _ in range(Harness.REPORT_TURNS - Harness.ANALYSIS_TURNS):
+            await h2.reserve(100, report=True)
         with pytest.raises(LimitReached):
             await h2.reserve(100, report=True)
         reopened.db.close()
@@ -234,7 +240,7 @@ def test_advice_and_secret_filter():
 
 
 def test_time_limit(ledger):
-    ledger.db.execute("UPDATE runs SET started=? WHERE id='task'", (time.time() - 121,))
+    ledger.db.execute("UPDATE runs SET started=? WHERE id='task'", (time.time() - Harness.RUN_SECONDS - 1,))
     ledger.db.commit()
 
     async def check():
@@ -318,12 +324,12 @@ def test_semantic_output_check_and_budget_failure(ledger):
         assert checked["sections"]["summary"] == fact
         assert checked["sources"] == payload["sources"]
         assert warnings
-        ledger.db.execute("UPDATE runs SET turns=12 WHERE id='task'")
+        ledger.db.execute("UPDATE runs SET turns=30 WHERE id='task'")
         ledger.db.commit()
         failed, warnings = await harness.review_output(payload)
         assert failed["sections"]["summary"] == ""
         assert failed["sources"] == payload["sources"]
-        assert warnings and ledger.row("task")["turns"] == 12
+        assert warnings and ledger.row("task")["turns"] == Harness.REPORT_TURNS
 
     asyncio.run(check())
 

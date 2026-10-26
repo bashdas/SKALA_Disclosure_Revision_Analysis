@@ -43,6 +43,7 @@
   --shadow-card: 0 1px 3px var(--shadow-color);
   --shadow-hover: 0 4px 16px var(--shadow-color);
   /* Compatibility aliases for existing component classes. */
+  --scrollbar-thumb: color-mix(in srgb, var(--muted) 30%, transparent);
   --navy: var(--primary);
   --teal: var(--primary);
   --mint: var(--primary-soft);
@@ -77,6 +78,23 @@
 }
 * {
   box-sizing: border-box;
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
+}
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 999px;
+}
+::-webkit-scrollbar-button {
+  display: none;
 }
 body {
   margin: 0;

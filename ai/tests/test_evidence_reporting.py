@@ -45,6 +45,10 @@ def test_unfounded_proposals_and_findings_never_reach_report(ledger):  # noqa: F
             ]
         if role == "perspective":
             value["findings"] = "UNSUPPORTED"
+        if role == "base" and "selected" in value:
+            value["not_selected"] = [{"perspective_type": kind, "reason": "기본 분석으로 충분합니다."}
+                for kind in ["INDUSTRY_CONTRACT", "FINANCE", "FX_HEDGE", "MARKET_NEWS"]
+                if kind not in {s["perspective_type"] for s in value["selected"]}]
         return value
 
     async def check():

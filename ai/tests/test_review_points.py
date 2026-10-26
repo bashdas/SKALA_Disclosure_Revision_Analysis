@@ -54,6 +54,10 @@ def test_review_survives_without_editable_sentence_or_completed_deep_analysis(le
             assert context["facts"]["review_points"][0]["evidence_ids"]
             assert not context["facts"]["proposals"]
             seen.append(role)
+        if role == "base" and "selected" in answer:
+            answer["not_selected"] = [{"perspective_type": kind, "reason": "기본 분석으로 충분합니다."}
+                for kind in ["INDUSTRY_CONTRACT", "FINANCE", "FX_HEDGE", "MARKET_NEWS"]
+                if kind not in {s["perspective_type"] for s in answer["selected"]}]
         return answer
 
     async def check():
@@ -92,6 +96,10 @@ def test_review_requires_both_original_memo_and_current_disclosure(ledger, evide
             answer["review_points"] = [{**point(evidence), "title": "UNSUPPORTED_REVIEW"}]
         else:
             assert "UNSUPPORTED_REVIEW" not in str(context)
+        if role == "base" and "selected" in answer:
+            answer["not_selected"] = [{"perspective_type": kind, "reason": "기본 분석으로 충분합니다."}
+                for kind in ["INDUSTRY_CONTRACT", "FINANCE", "FX_HEDGE", "MARKET_NEWS"]
+                if kind not in {s["perspective_type"] for s in answer["selected"]}]
         return answer
 
     async def check():

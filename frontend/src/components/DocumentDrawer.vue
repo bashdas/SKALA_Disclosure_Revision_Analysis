@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { isDialogBackdrop } from '../lib/dialog'
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { X, ExternalLink, FileText } from 'lucide-vue-next'
 import { useWorkspace } from '../stores/workspace'
@@ -94,7 +95,7 @@ onBeforeUnmount(() => dialog.value?.close())
     :class="{ 'memo-reader': !!store.drawer?.memoId }"
     aria-labelledby="source-title"
     @cancel.prevent="close"
-    @click="$event.target === dialog && close()"
+    @click="isDialogBackdrop($event) && close()"
   >
     <template v-if="store.drawer">
       <div class="drawer-header">

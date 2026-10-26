@@ -124,7 +124,7 @@ class OpenDartDocumentParser:
                     continue
                 cells = []
                 for cell in row:
-                    if tag(cell) not in ("td", "th"):
+                    if tag(cell) not in ("td", "th", "te", "tu"):
                         continue
                     attrs = {key.lower(): value for key, value in cell.attrib.items()}
                     cells.append({"text": text_of(cell), "header": tag(cell) == "th",

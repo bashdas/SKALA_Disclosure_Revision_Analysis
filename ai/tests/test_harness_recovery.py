@@ -76,6 +76,10 @@ def test_shared_stage_roundtrip_and_checkpoint_resume(ledger, tmp_path):
                 "requests": [],
                 "limitations": [],
             }
+        if role == "base" and "selected" in result:
+            result["not_selected"] = [{"perspective_type": kind, "reason": "기본 분석으로 충분합니다."}
+                for kind in ["INDUSTRY_CONTRACT", "FINANCE", "FX_HEDGE", "MARKET_NEWS"]
+                if kind not in {s["perspective_type"] for s in result["selected"]}]
         return result
 
     async def check():
@@ -201,7 +205,7 @@ def test_expired_run_preserves_nested_checkpoint_sources_without_network(ledger)
             raise AssertionError("expired run must not call network")
 
     async def check():
-        ledger.db.execute("UPDATE runs SET started=? WHERE id='task'", (time.time() - 121,))
+        ledger.db.execute("UPDATE runs SET started=? WHERE id='task'", (time.time() - Harness.RUN_SECONDS - 1,))
         ledger.db.commit()
         result = await execute(
             Graph(), Harness("task", ledger), Tools(), {}, None, initial()["request"], "org"
@@ -250,7 +254,7 @@ def test_control_calls_and_retry_save_share_bounded_transport(ledger, monkeypatc
             result = await internal_request("00000000-0000-0000-0000-000000000001", "GET", "status")
         assert result["status"] == "RUNNING" and len(calls) == 3
         tools = Tools()
-        ledger.db.execute("UPDATE runs SET started=? WHERE id='task'", (time.time() - 121,))
+        ledger.db.execute("UPDATE runs SET started=? WHERE id='task'", (time.time() - Harness.RUN_SECONDS - 1,))
         ledger.db.commit()
         result = await retry_save(h, tools, {"content": "보존한 보고서"})
         assert result["status"] == "COMPLETED" and tools.count == 3
@@ -308,7 +312,7 @@ def test_lookup_budget_and_wait_limit_end_selected_job(ledger):
     async def check():
         h = Harness("task", ledger)
         tools = FakeTools()
-        ledger.db.execute("UPDATE runs SET tokens=64000 WHERE id='task'")
+        ledger.db.execute("UPDATE runs SET tokens=240000 WHERE id='task'")
         ledger.db.commit()
         limited = await h.tool("financial", {}, tools.call)
         assert limited["error"] == "LIMIT_REACHED" and not tools.calls
@@ -365,4 +369,57 @@ def test_finance_accepts_news_metadata_within_shared_budget(ledger):
         await h.model("perspective", context, PerspectiveAnswer)
         assert calls == ["perspective"]
         assert ledger.row("task")["tokens"] <= 9500
+    asyncio.run(check())
+
+
+def test_model_budget_settles_success_and_timeout_without_releasing_input(ledger):
+    from disclosure_ai.schemas import BaseAnalysis
+
+    async def model(role, context, schema):
+        if context.get("timeout"):
+            raise TimeoutError("upstream")
+        return await fake_model(role, context, schema)
+
+    async def check():
+        h = Harness("task", ledger, model)
+        await h.model("base", {}, BaseAnalysis)
+        event = [json.loads(e["payload"]) for e in ledger.events("task")
+                 if e["kind"] == "MODEL_BUDGET_SETTLED"][-1]
+        assert event["charged"] < event["reserved"]
+        assert ledger.row("task")["tokens"] == event["charged"]
+        before = ledger.row("task")["tokens"]
+        with pytest.raises(TimeoutError):
+            await h.model("base", {"timeout": True}, BaseAnalysis)
+        events = [json.loads(e["payload"]) for e in ledger.events("task")
+                  if e["kind"] == "MODEL_BUDGET_SETTLED"][-3:]
+        assert all(e["estimated"] and 0 < e["charged"] < e["reserved"] for e in events)
+        assert ledger.row("task")["tokens"] == before + sum(e["charged"] for e in events)
+        assert ledger.row("task")["turns"] == 4
+
+    asyncio.run(check())
+
+
+def test_missing_finance_decision_is_retried_by_model_without_forcing_selection(ledger):
+    from disclosure_ai.workflow.initial import impact
+
+    calls = []
+    async def model(role, context, schema):
+        calls.append(role)
+        answer = await fake_model("base", {}, None)
+        if role == "base":
+            answer["not_selected"] = [i for i in answer["not_selected"] if i["perspective_type"] != "FINANCE"]
+            return answer
+        assert role == "selection"
+        return {k: answer[k] for k in ["selected", "not_selected", "no_additional_analysis_reason"]}
+
+    async def check():
+        from test_analysis import filing
+        h = Harness("task", ledger, model)
+        state = {**initial(), "filing": filing(), "memo": {"document_id": "memo:1:v1", "text": "계약금액은 100입니다."},
+                 "context": filing()["changes"], "documents": filing()["documents"]}
+        result = await impact(AnalysisGraph(h, FakeTools(), InMemorySaver()), state)
+        assert calls == ["base", "selection"]
+        assert result["base"]["selected"] == []
+        assert {i["perspective_type"] for i in result["base"]["not_selected"]} == {"INDUSTRY_CONTRACT", "FINANCE", "FX_HEDGE", "MARKET_NEWS"}
+
     asyncio.run(check())

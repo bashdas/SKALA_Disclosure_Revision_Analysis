@@ -54,6 +54,10 @@ def test_ir_announcement_and_empty_proposal_decision(ledger, decision, selected)
                                    "quote": "계약 취소가 있으면 잔존 선박의 인도와 회수 여부를 확인합니다."}]
                                  if decision == "MEMO_ONLY_KEEP" else [source]),
                 }
+            if role == "base" and "selected" in result:
+                result["not_selected"] = [{"perspective_type": kind, "reason": "기본 분석으로 충분합니다."}
+                    for kind in ["INDUSTRY_CONTRACT", "FINANCE", "FX_HEDGE", "MARKET_NEWS"]
+                    if kind not in {s["perspective_type"] for s in result["selected"]}]
             return result
         if role == "perspective":
             seen.append("perspective")

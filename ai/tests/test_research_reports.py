@@ -191,6 +191,10 @@ def test_graph_renders_research_with_existing_save_contract(ledger, catalog, mon
                     "evidence": evidence,
                 }
             ]
+        if role == "base" and "selected" in answer:
+            answer["not_selected"] = [{"perspective_type": kind, "reason": "기본 분석으로 충분합니다."}
+                for kind in ["INDUSTRY_CONTRACT", "FINANCE", "FX_HEDGE", "MARKET_NEWS"]
+                if kind not in {s["perspective_type"] for s in answer["selected"]}]
         return answer
 
     news_source = {"document_id": "news:1", "location": "news:title", "quote": "원자재 가격이 상승했습니다.",

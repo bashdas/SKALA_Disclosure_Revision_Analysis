@@ -33,11 +33,11 @@ def test_target_review_survives_advisory_rejection_and_failure(ledger):
         payload = {"reason": text, "quote": "원문", "request": {"fixed": True}}
         checked, warnings = await h.review_output(payload, grounding=True, advisory=True)
         assert checked == payload and warnings
-        ledger.db.execute("UPDATE runs SET turns=12 WHERE id='task'")
+        ledger.db.execute("UPDATE runs SET turns=30 WHERE id='task'")
         ledger.db.commit()
         checked, warnings = await h.review_output(payload, grounding=True, advisory=True)
         assert checked == payload and warnings
-        assert ledger.row("task")["turns"] == 12
+        assert ledger.row("task")["turns"] == Harness.REPORT_TURNS
 
     asyncio.run(check())
 
@@ -70,6 +70,10 @@ def test_contract_change_without_formula_is_review_and_visible(ledger):
                               if k in {"document_id", "location", "quote", "url"}}],
                 "calculation_basis": None,
             }]
+        if role == "base" and "selected" in answer:
+            answer["not_selected"] = [{"perspective_type": kind, "reason": "기본 분석으로 충분합니다."}
+                for kind in ["INDUSTRY_CONTRACT", "FINANCE", "FX_HEDGE", "MARKET_NEWS"]
+                if kind not in {s["perspective_type"] for s in answer["selected"]}]
         return answer
 
     async def check():

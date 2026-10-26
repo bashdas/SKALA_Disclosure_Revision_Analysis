@@ -134,6 +134,10 @@ def test_worker_backend_report_retry_and_cancellation(
                     "question": "실적 영향",
                 }
             ]
+        if role == "base" and "selected" in result:
+            result["not_selected"] = [{"perspective_type": kind, "reason": "기본 분석으로 충분합니다."}
+                for kind in ["INDUSTRY_CONTRACT", "FINANCE", "FX_HEDGE", "MARKET_NEWS"]
+                if kind not in {s["perspective_type"] for s in result["selected"]}]
         return result
 
     with (
@@ -197,7 +201,7 @@ def test_worker_backend_report_retry_and_cancellation(
         early = task(analysis_context)
         ledger = Ledger(str(state))
         try:
-            ledger.begin(str(early), "early", started=time.time() - 121)
+            ledger.begin(str(early), "early", started=time.time() - Harness.RUN_SECONDS - 1)
             body = json.loads(ledger.row(str(task_id))["report"])
             body["report_json"]["request"]["analysis_task_id"] = str(early)
             ledger.keep(str(early), "report", body)

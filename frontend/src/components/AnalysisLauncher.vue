@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { isDialogBackdrop } from '../lib/dialog'
 import { notifyError } from '../lib/notifications'
 import { computed, ref, watch, nextTick, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
@@ -97,6 +98,7 @@ async function start() {
     class="analysis-dialog analysis-launcher"
     aria-labelledby="analysis-dialog-title"
     @cancel.prevent="close"
+    @click="isDialogBackdrop($event) && close()"
     @close="restoreTriggerFocus"
   >
     <div class="analysis-dialog-heading">
