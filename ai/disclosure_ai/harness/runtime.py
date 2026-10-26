@@ -12,7 +12,7 @@ from pydantic import ValidationError
 from disclosure_ai.errors import LimitReached
 from disclosure_ai.harness import lookup
 from disclosure_ai.harness.ledger import Ledger
-from disclosure_ai.harness.output import mask, review_output
+from disclosure_ai.harness.output import masked_json, review_output
 
 
 class Harness:
@@ -91,13 +91,13 @@ class Harness:
 
     def fits_model_input(self, role: str, context: dict, schema) -> bool:
         *_, available = self.model_input_spec(role, context, schema)
-        return len(self.encoding.encode(mask(json.dumps(context, ensure_ascii=False)))) <= available
+        return len(self.encoding.encode(masked_json(context))) <= available
 
     async def model(self, role: str, context: dict, schema, report: bool = False):
         system, input_limit, output_limit, schema_tokens, available = self.model_input_spec(
             role, context, schema
         )
-        content = mask(json.dumps(context, ensure_ascii=False))
+        content = masked_json(context)
         encoded = self.encoding.encode(content)
         if role == "output_check" and len(encoded) > available:
             raise LimitReached("출력 검사 문맥을 일부만 검사할 수 없습니다.")

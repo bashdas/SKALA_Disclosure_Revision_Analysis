@@ -1,3 +1,4 @@
+import json
 import re
 
 from disclosure_ai.schemas import OutputReview
@@ -8,6 +9,22 @@ def mask(text: str) -> str:
     text = re.sub(r"sk-[A-Za-z0-9_-]+", "[인증정보]", text)
     text = re.sub(r"[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}", "[이메일]", text)
     return re.sub(r"(?<!\d)01[016789][- ]?\d{3,4}[- ]?\d{4}(?!\d)", "[전화번호]", text)
+
+
+def masked_json(value) -> str:
+    # Mask text before serialization so patterns cannot consume JSON escape sequences
+    # or mistake a numeric value for a phone number. Leave the caller's input intact.
+    def visit(item):
+        if isinstance(item, str):
+            return mask(item)
+        if isinstance(item, dict):
+            return {mask(key) if isinstance(key, str) else key: visit(child)
+                    for key, child in item.items()}
+        if isinstance(item, (list, tuple)):
+            return [visit(child) for child in item]
+        return item
+
+    return json.dumps(visit(value), ensure_ascii=False)
 
 
 def sentences(text):
