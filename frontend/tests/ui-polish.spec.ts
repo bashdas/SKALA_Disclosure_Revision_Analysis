@@ -275,7 +275,7 @@ test('작성·파일 저장이 끝나면 창을 닫고 실패하면 입력을 �
   expect(state.writes).toBe(2)
 })
 
-test('설정 창은 이전 최대 높이의 3분의 2로 줄이고 하단 기능까지 스크롤합니다', async ({
+test('설정 창은 제목을 고정하고 본문만 스크롤하며 바깥 클릭으로 닫습니다', async ({
   page,
 }, testInfo) => {
   await fixtures(page)
@@ -285,9 +285,72 @@ test('설정 창은 이전 최대 높이의 3분의 2로 줄이고 하단 기능
   const box = (await dialog.boundingBox())!
   expect(box.height).toBeLessThanOrEqual(((page.viewportSize()!.height - 40) * 2) / 3 + 2)
   expect(box.x).toBeGreaterThanOrEqual(15)
+  const heading = dialog.locator('.account-dialog-heading')
+  const headingBefore = (await heading.boundingBox())!
+  await page.mouse.click(box.x + 8, box.y + 8)
+  await expect(dialog).toBeVisible()
   await page.screenshot({ path: testInfo.outputPath('settings.png') })
   await dialog.getByRole('button', { name: '로그아웃', exact: true }).scrollIntoViewIfNeeded()
   await expect(dialog.getByRole('button', { name: '로그아웃', exact: true })).toBeVisible()
+  await expect(dialog.getByRole('heading', { name: '설정', exact: true })).toBeVisible()
+  await expect(dialog.getByRole('button', { name: '내 계정 닫기' })).toBeVisible()
+  expect(
+    await dialog.locator('.account-dialog-body').evaluate((el) => el.scrollTop),
+  ).toBeGreaterThan(0)
+  expect((await heading.boundingBox())!.y).toBeCloseTo(headingBefore.y, 0)
+  expect((await dialog.boundingBox())!.y).toBeCloseTo(box.y, 0)
+  await page.screenshot({ path: testInfo.outputPath('settings-scrolled.png') })
+  await page.mouse.move(headingBefore.x + 10, headingBefore.y + 10)
+  await page.mouse.down()
+  await page.mouse.move(box.x - 8, box.y + 10)
+  await page.mouse.up()
+  await expect(dialog).toBeVisible()
+  if (testInfo.project.name === 'mobile') await page.touchscreen.tap(box.x - 8, box.y + 10)
+  else await page.mouse.click(box.x - 8, box.y + 10)
+  await expect(dialog).not.toBeVisible()
+  await expect(page.getByRole('button', { name: '화면 검증', exact: true })).toBeFocused()
+  await page.getByRole('button', { name: '화면 검증', exact: true }).click()
   await page.keyboard.press('Escape')
+  await expect(dialog).not.toBeVisible()
+})
+
+test('설정 창은 저장 중 바깥 클릭으로 닫히지 않고 저장 후에는 닫힙니다', async ({ page }) => {
+  await fixtures(page)
+  let release!: () => void
+  let started!: () => void
+  const pending = new Promise<void>((resolve) => {
+    release = resolve
+  })
+  const saving = new Promise<void>((resolve) => {
+    started = resolve
+  })
+  await page.route('**/api/v1/users/me', async (route) => {
+    const updating = route.request().method() === 'PATCH'
+    if (updating) {
+      started()
+      await pending
+    }
+    await route.fulfill({
+      json: {
+        id: 'fixture-user',
+        email: 'fixture@example.com',
+        name: updating ? '변경 이름' : '화면 검증',
+        role: 'ANALYST',
+      },
+    })
+  })
+  await page.goto(`/companies/${company.corp_code}?tab=memos`)
+  await page.getByRole('button', { name: '화면 검증', exact: true }).click()
+  const dialog = page.getByRole('dialog', { name: '설정', exact: true })
+  await dialog.getByLabel('이름', { exact: true }).fill('변경 이름')
+  await dialog.getByRole('button', { name: '이름 저장', exact: true }).click()
+  await saving
+  const box = (await dialog.boundingBox())!
+  await page.mouse.click(box.x - 8, box.y + 10)
+  await expect(dialog).toBeVisible()
+  await expect(dialog.getByRole('button', { name: '내 계정 닫기' })).toBeDisabled()
+  release()
+  await expect(dialog.getByRole('button', { name: '내 계정 닫기' })).toBeEnabled()
+  await page.mouse.click(box.x - 8, box.y + 10)
   await expect(dialog).not.toBeVisible()
 })

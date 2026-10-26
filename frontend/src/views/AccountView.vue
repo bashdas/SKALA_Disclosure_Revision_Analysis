@@ -11,14 +11,35 @@ const name = ref(''),
   deletePassword = ref(''),
   confirmingDelete = ref(false)
 const dialog = ref<HTMLDialogElement | null>(null)
+let pointerStartedOutside = false
 const route = useRoute(),
   router = useRouter()
 function open() {
+  pointerStartedOutside = false
   name.value = currentUser.value?.name ?? ''
   dialog.value?.showModal()
 }
+function isOutsideDialog(event: MouseEvent) {
+  if (!dialog.value || event.target !== dialog.value) return false
+  const bounds = dialog.value.getBoundingClientRect()
+  return (
+    event.clientX < bounds.left ||
+    event.clientX > bounds.right ||
+    event.clientY < bounds.top ||
+    event.clientY > bounds.bottom
+  )
+}
+function onDialogPointerDown(event: PointerEvent) {
+  pointerStartedOutside = isOutsideDialog(event)
+}
+function onDialogClick(event: MouseEvent) {
+  const dismiss = pointerStartedOutside && isOutsideDialog(event)
+  pointerStartedOutside = false
+  if (dismiss) close()
+}
 function close() {
   if (busy.value) return
+  pointerStartedOutside = false
   dialog.value?.close()
   currentPassword.value = newPassword.value = confirmPassword.value = ''
   error.value = ''
@@ -110,6 +131,9 @@ async function withdraw() {
     class="account-dialog surface"
     aria-labelledby="account-title"
     @cancel.prevent="close"
+    @pointerdown="onDialogPointerDown"
+    @pointercancel="pointerStartedOutside = false"
+    @click="onDialogClick"
   >
     <div class="account-dialog-heading">
       <h2 id="account-title">설정</h2>
@@ -123,99 +147,109 @@ async function withdraw() {
         <X :size="20" />
       </button>
     </div>
-    <p>{{ currentUser?.email }}</p>
-    <h3>이름 변경</h3>
-    <form @submit.prevent="saveName">
-      <label
-        >이름<input
-          v-model="name"
-          required
-          maxlength="100"
-          autocomplete="name"
-          pattern=".*\S.*"
-          :disabled="busy"
-      /></label>
-      <button class="button secondary full-width" type="submit" :disabled="busy">이름 저장</button>
-    </form>
-    <h3>비밀번호 변경</h3>
-    <SkeletonState v-if="busy || !currentUser" variant="account-form" />
-    <form v-show="!busy && currentUser" aria-label="비밀번호 변경" @submit.prevent="submit">
-      <label
-        >현재 비밀번호<input
-          v-model="currentPassword"
-          :disabled="busy"
-          type="password"
-          autocomplete="current-password"
-          required
-          maxlength="1024"
-      /></label>
-      <label
-        >새 비밀번호<input
-          v-model="newPassword"
-          :disabled="busy"
-          type="password"
-          autocomplete="new-password"
-          required
-          minlength="12"
-          maxlength="128"
-      /></label>
-      <label
-        >새 비밀번호 확인<input
-          v-model="confirmPassword"
-          :disabled="busy"
-          type="password"
-          autocomplete="new-password"
-          required
-          minlength="12"
-          maxlength="128"
-      /></label>
-      <p class="small muted">비밀번호는 12~128자입니다. 변경하면 기존 로그인 세션이 만료됩니다.</p>
-      <button class="button primary full-width" type="submit" :disabled="busy">
-        {{ busy ? '변경 중…' : '비밀번호 변경' }}
-      </button>
-    </form>
-    <p v-if="error" role="alert" class="field-error">{{ error }}</p>
-    <h3>화면</h3>
-    <button
-      class="button secondary full-width"
-      type="button"
-      :aria-pressed="theme.theme === 'dark'"
-      @click="theme.toggle"
-    >
-      {{ theme.theme === 'dark' ? '라이트 모드로 전환' : '다크 모드로 전환' }}
-    </button>
-    <h3>계정</h3>
-    <div class="account-actions">
-      <button class="button secondary" type="button" :disabled="busy" @click="signOut">
-        로그아웃
-      </button>
+    <div class="account-dialog-body">
+      <p>{{ currentUser?.email }}</p>
+      <h3>이름 변경</h3>
+      <form @submit.prevent="saveName">
+        <label
+          >이름<input
+            v-model="name"
+            required
+            maxlength="100"
+            autocomplete="name"
+            pattern=".*\S.*"
+            :disabled="busy"
+        /></label>
+        <button class="button secondary full-width" type="submit" :disabled="busy">
+          이름 저장
+        </button>
+      </form>
+      <h3>비밀번호 변경</h3>
+      <SkeletonState v-if="busy || !currentUser" variant="account-form" />
+      <form v-show="!busy && currentUser" aria-label="비밀번호 변경" @submit.prevent="submit">
+        <label
+          >현재 비밀번호<input
+            v-model="currentPassword"
+            :disabled="busy"
+            type="password"
+            autocomplete="current-password"
+            required
+            maxlength="1024"
+        /></label>
+        <label
+          >새 비밀번호<input
+            v-model="newPassword"
+            :disabled="busy"
+            type="password"
+            autocomplete="new-password"
+            required
+            minlength="12"
+            maxlength="128"
+        /></label>
+        <label
+          >새 비밀번호 확인<input
+            v-model="confirmPassword"
+            :disabled="busy"
+            type="password"
+            autocomplete="new-password"
+            required
+            minlength="12"
+            maxlength="128"
+        /></label>
+        <p class="small muted">
+          비밀번호는 12~128자입니다. 변경하면 기존 로그인 세션이 만료됩니다.
+        </p>
+        <button class="button primary full-width" type="submit" :disabled="busy">
+          {{ busy ? '변경 중…' : '비밀번호 변경' }}
+        </button>
+      </form>
+      <p v-if="error" role="alert" class="field-error">{{ error }}</p>
+      <h3>화면</h3>
       <button
-        class="button secondary"
+        class="button secondary full-width"
         type="button"
-        :disabled="busy"
-        @click="confirmingDelete = !confirmingDelete"
+        :aria-pressed="theme.theme === 'dark'"
+        @click="theme.toggle"
       >
-        계정 탈퇴
+        {{ theme.theme === 'dark' ? '라이트 모드로 전환' : '다크 모드로 전환' }}
       </button>
-    </div>
-    <form
-      v-if="confirmingDelete"
-      class="withdraw-form"
-      aria-label="계정 탈퇴 확인"
-      @submit.prevent="withdraw"
-    >
-      <p>탈퇴하면 로그인할 수 없으며 이름과 이메일이 삭제됩니다. 작성한 회사 자료는 보존됩니다.</p>
-      <label
-        >현재 비밀번호<input
-          v-model="deletePassword"
-          type="password"
-          autocomplete="current-password"
-          required
-          maxlength="1024"
+      <h3>계정</h3>
+      <div class="account-actions">
+        <button class="button secondary" type="button" :disabled="busy" @click="signOut">
+          로그아웃
+        </button>
+        <button
+          class="button secondary"
+          type="button"
           :disabled="busy"
-      /></label>
-      <button class="button secondary full-width" type="submit" :disabled="busy">탈퇴 확정</button>
-    </form>
+          @click="confirmingDelete = !confirmingDelete"
+        >
+          계정 탈퇴
+        </button>
+      </div>
+      <form
+        v-if="confirmingDelete"
+        class="withdraw-form"
+        aria-label="계정 탈퇴 확인"
+        @submit.prevent="withdraw"
+      >
+        <p>
+          탈퇴하면 로그인할 수 없으며 이름과 이메일이 삭제됩니다. 작성한 회사 자료는 보존됩니다.
+        </p>
+        <label
+          >현재 비밀번호<input
+            v-model="deletePassword"
+            type="password"
+            autocomplete="current-password"
+            required
+            maxlength="1024"
+            :disabled="busy"
+        /></label>
+        <button class="button secondary full-width" type="submit" :disabled="busy">
+          탈퇴 확정
+        </button>
+      </form>
+    </div>
   </dialog>
 </template>
 
@@ -224,10 +258,13 @@ async function withdraw() {
   width: min(480px, calc(100vw - 32px));
   max-height: calc((100dvh - 40px) * 2 / 3);
   margin: auto;
-  padding: 24px;
+  padding: 0;
   color: var(--ink);
-  overflow-y: auto;
-  overscroll-behavior: none;
+  overflow: hidden;
+}
+.account-dialog[open] {
+  display: flex;
+  flex-direction: column;
 }
 .account-dialog::backdrop {
   background: rgb(0 0 0 / 55%);
@@ -236,7 +273,14 @@ async function withdraw() {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 12px;
+  flex: 0 0 auto;
+  padding: 24px 24px 12px;
+}
+.account-dialog-body {
+  min-height: 0;
+  padding: 0 24px 24px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 .account-dialog h3 {
   margin: 24px 0 16px;
