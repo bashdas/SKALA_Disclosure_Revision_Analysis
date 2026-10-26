@@ -1,4 +1,4 @@
-from typing import Literal
+from typing import Literal, get_args
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -51,6 +51,25 @@ class Selection(Model):
 class OmittedPerspective(Model):
     perspective_type: Perspective
     reason: str
+
+
+class PerspectiveDecision(Model):
+    selected: list[Selection]
+    not_selected: list[OmittedPerspective]
+    no_additional_analysis_reason: str | None
+
+    @model_validator(mode="after")
+    def complete_decisions(self):
+        kinds = [item.perspective_type for item in [*self.selected, *self.not_selected]]
+        if len(kinds) != len(set(kinds)) or set(kinds) != set(get_args(Perspective)):
+            raise ValueError("Each perspective requires exactly one decision with a reason")
+        if any(not item.selection_reason.strip() or not item.question.strip() for item in self.selected):
+            raise ValueError("Selected perspectives require a reason and a question")
+        if any(not item.reason.strip() for item in self.not_selected):
+            raise ValueError("Omitted perspectives require a reason")
+        if not self.selected and not (self.no_additional_analysis_reason or "").strip():
+            raise ValueError("No selection requires a specific reason")
+        return self
 
 
 class MemoReview(Model):

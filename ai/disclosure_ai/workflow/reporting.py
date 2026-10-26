@@ -224,7 +224,7 @@ async def report(run, state):
     for name, label in (("filing", "공시"), ("memo", "메모")):
         if state.get(name, {}).get("error"):
             warnings.append(label + " 조회를 완료하지 못했습니다.")
-    if evidence and run.h.ledger.row(run.h.task_id)["turns"] < 11:
+    if evidence and run.h.ledger.row(run.h.task_id)["turns"] < run.h.REPORT_TURNS - 1:
         try:
             summary = await run.h.model(
                 "report",

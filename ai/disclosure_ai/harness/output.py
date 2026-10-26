@@ -174,10 +174,11 @@ async def review_output(
                 indices = proposed
         omitted = set(range(len(candidates))) - indices
     accepted = set()
+    check_failed = False
     warnings = []
     if omitted:
         warnings.append(
-            "OUTPUT_CHECK_PARTIAL: 출력 검사 입력 한도에 맞춰 요약과 핵심 관점을 우선 검증했습니다. 한도 밖의 미검증 새 관점과 해석은 제외했습니다."
+            "OUTPUT_CHECK_PARTIAL: 출력 검사 입력 한도에 맞춰 요약과 핵심 관점을 우선 검증했습니다. 한도 밖의 항목은 미검증 상태로 보존했습니다."
         )
     if indices:
         try:
@@ -194,9 +195,10 @@ async def review_output(
         except RunCancelled:
             raise
         except Exception as error:
+            check_failed = True
             harness.ledger.event(harness.task_id, "OUTPUT_CHECK_FAILED", error=type(error).__name__)
             warnings.append(
-                "OUTPUT_CHECK_FAILED: 출력 검사 가이드를 완료하지 못했습니다. 분석 내용의 추가 확인이 필요합니다."
+                "OUTPUT_CHECK_FAILED: 출력 검사를 완료하지 못해 기존 분석을 미검증 상태로 보존했습니다. 추가 확인이 필요합니다."
                 if advisory
                 else "출력 검사를 완료하지 못해 자유 서술을 제외하고 원문 근거와 처리 상태를 보존했습니다."
             )
@@ -206,6 +208,11 @@ async def review_output(
             if advisory
             else "근거 또는 출력 안전성을 확인하지 못한 문장은 작성하지 않았습니다."
         )
+    # 검사 미실행과 부적합 판정은 구분합니다. 가이드 검사 실패 시 완성된 분석을 보존합니다.
+    if advisory and (check_failed or not indices):
+        accepted = set(identities)
+    elif advisory and omitted:
+        accepted.update(identities[i] for i in omitted)
     grounded = accepted.copy()
     if advisory:
         accepted = set(identities)

@@ -1,6 +1,6 @@
 import asyncio
 
-from disclosure_ai.schemas import BaseAnalysis, ResearchAnalysis
+from disclosure_ai.schemas import BaseAnalysis, PerspectiveDecision, ResearchAnalysis
 from disclosure_ai.services.business import RunCancelled
 from disclosure_ai.services.documents import (
     analysis_context,
@@ -195,6 +195,24 @@ async def impact(run, state):
             BaseAnalysis,
         )
         data = base.model_dump()
+        try:
+            PerspectiveDecision.model_validate({key: data.get(key) for key in PerspectiveDecision.model_fields})
+        except ValueError:
+            run.h.ledger.event(run.h.task_id, "PERSPECTIVE_DECISION_RETRY")
+            # 필요성 판단은 모델에 맡기고 누락 또는 중복된 응답만 다시 요청합니다.
+            try:
+                decision = await run.h.model(
+                    "selection",
+                    {"request": state["request"], "previous_decision": data,
+                     **model_context(state["filing"], state["context"], state["memo"], state.get("history")),
+                     "market_news": state.get("market_news", {})},
+                    PerspectiveDecision,
+                )
+                data.update(decision.model_dump())
+            except RunCancelled:
+                raise
+            except Exception as error:
+                data["limitations"].append("PERSPECTIVE_DECISION_INCOMPLETE: 관점 재판단 미완료: " + type(error).__name__)
         assessment = data["history_assessment"]
         if (assessment["status"] == "REQUIRED" and not state.get("history_reanalyzed")
                 and not data.get("history_request")):

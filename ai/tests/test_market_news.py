@@ -1,4 +1,5 @@
 import asyncio
+import json
 from uuid import uuid4
 
 import pytest
@@ -65,6 +66,10 @@ def test_four_perspectives_and_news_rag_article_reanalysis(ledger, kind):
                 }
                 for p in ["FINANCE", "FX_HEDGE", "INDUSTRY_CONTRACT", "MARKET_NEWS"]
             ]
+            if role == "base" and "selected" in result:
+                result["not_selected"] = [{"perspective_type": kind, "reason": "기본 분석으로 충분합니다."}
+                    for kind in ["INDUSTRY_CONTRACT", "FINANCE", "FX_HEDGE", "MARKET_NEWS"]
+                    if kind not in {s["perspective_type"] for s in result["selected"]}]
             return result
         if role == "perspective" and context["selection"]["perspective_type"] == "MARKET_NEWS":
             observed.append(context["observations"])
@@ -157,6 +162,10 @@ def test_four_perspectives_leave_report_and_checker_budget(ledger):
                 }
                 for kind in ["FINANCE", "FX_HEDGE", "INDUSTRY_CONTRACT", "MARKET_NEWS"]
             ]
+            if role == "base" and "selected" in answer:
+                answer["not_selected"] = [{"perspective_type": kind, "reason": "기본 분석으로 충분합니다."}
+                    for kind in ["INDUSTRY_CONTRACT", "FINANCE", "FX_HEDGE", "MARKET_NEWS"]
+                    if kind not in {s["perspective_type"] for s in answer["selected"]}]
             return answer
         if role == "perspective":
             return {
@@ -175,7 +184,9 @@ def test_four_perspectives_leave_report_and_checker_budget(ledger):
         assert output["report"]["content"] and output["output"]["report_id"] == "report"
         assert len(output["results"]) == 4
         assert all(result["status"] == "LIMIT_REACHED" for result in output["results"].values())
-        assert ledger.row("task")["turns"] <= 12
+        assert ledger.row("task")["turns"] <= Harness.REPORT_TURNS
+        assert any(e["kind"] == "MODEL_END" and json.loads(e["payload"])["role"] == "report"
+                   for e in ledger.events("task"))
         assert any(e["kind"] == "OUTPUT_CHECK_END" for e in ledger.events("task"))
 
     asyncio.run(check())

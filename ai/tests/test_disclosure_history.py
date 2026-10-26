@@ -162,6 +162,10 @@ def test_new_disclosure_requests_history_then_reanalyses_once(ledger):  # noqa: 
                     "past_fact": "과거 계약금액은 100입니다.", "current_fact": "공급 물량이 변경됐습니다.",
                     "interpretation": "동일 물량에 대한 변경인지 추가 확인해야 합니다.",
                     "evidence": [old, request(data)["evidence"][0]]}]
+        if role == "base" and "selected" in answer:
+            answer["not_selected"] = [{"perspective_type": kind, "reason": "기본 분석으로 충분합니다."}
+                for kind in ["INDUSTRY_CONTRACT", "FINANCE", "FX_HEDGE", "MARKET_NEWS"]
+                if kind not in {s["perspective_type"] for s in answer["selected"]}]
         return answer
 
     async def check():
@@ -525,6 +529,10 @@ def test_required_assessment_runs_history_even_without_separate_request(ledger):
             answer["history_assessment"] = {"status": "REQUIRED" if context["history_lookup_allowed"] else "ALREADY_AVAILABLE",
                 "reason": "원래 계약의 물량과 조건이 기존 성장 가정의 검토에 필요합니다.",
                 "evidence": request(data)["evidence"]}
+        if role == "base" and "selected" in answer:
+            answer["not_selected"] = [{"perspective_type": kind, "reason": "기본 분석으로 충분합니다."}
+                for kind in ["INDUSTRY_CONTRACT", "FINANCE", "FX_HEDGE", "MARKET_NEWS"]
+                if kind not in {s["perspective_type"] for s in answer["selected"]}]
         return answer
 
     async def check():

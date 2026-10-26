@@ -129,7 +129,7 @@ def parse_filing(data: bytes, receipt: str) -> dict:
                                 "rowspan": c.get("rowspan", 1),
                                 "colspan": c.get("colspan", 1),
                             }
-                            for c in row.find_all(["td", "th"], recursive=False)
+                            for c in row.find_all(["td", "th", "te", "tu"], recursive=False)
                         ]
                     }
                     for row in table.find_all("tr")

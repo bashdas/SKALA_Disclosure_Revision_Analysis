@@ -85,7 +85,7 @@ def test_new_view_checks_all_fields_and_fails_closed_without_extra_calls(ledger,
             assert context["facts"]["review_points"][0]["memo_view"] is None
             answer = {"summary": [{"text": FACT, "evidence_ids": [next(iter(context["evidence"]))]}]}
             if reject == "budget":
-                ledger.db.execute("UPDATE runs SET started=? WHERE id='task'", (time.time() - 115,))
+                ledger.db.execute("UPDATE runs SET started=? WHERE id='task'", (time.time() - Harness.RUN_SECONDS + 5,))
                 ledger.db.commit()
         elif role == "output_check":
             if reject == "failure":
@@ -98,6 +98,10 @@ def test_new_view_checks_all_fields_and_fails_closed_without_extra_calls(ledger,
                        for s in new for ref in s["evidence_ids"])
             assert "DISCLOSURE_REVIEW" not in [s["text"] for s in rows]
             answer["safe_indices"] = [s["index"] for s in rows if s.get("kind") != "review_" + str(reject)]
+        if role == "base" and "selected" in answer:
+            answer["not_selected"] = [{"perspective_type": kind, "reason": "기본 분석으로 충분합니다."}
+                for kind in ["INDUSTRY_CONTRACT", "FINANCE", "FX_HEDGE", "MARKET_NEWS"]
+                if kind not in {s["perspective_type"] for s in answer["selected"]}]
         return answer
 
     async def check():
@@ -112,6 +116,9 @@ def test_new_view_checks_all_fields_and_fails_closed_without_extra_calls(ledger,
             markdown = report["sections"]["review_points"]
             assert "새로운 검토 관점" in markdown and "검토 조건" in markdown
             assert "기존 메모의 관점과 가정" not in markdown and "None" not in markdown
+        elif reject in {"failure", "budget"}:
+            assert report["base"]["review_points"]
+            assert any("OUTPUT_CHECK_FAILED" in warning for warning in report["warnings"])
         else:
             assert report["base"]["review_points"] == []
             assert any("새 검토 관점" in warning for warning in report["warnings"])
@@ -141,6 +148,10 @@ def test_mixed_views_survive_checkpoint_resume_and_lookup_failure(ledger):  # no
             assert any(p["memo_view"] is None for p in context["review_points"])
             answer["status"] = "NEEDS_TOOLS"
             answer["requests"] = [{"tool": "local_search", "query": "달러 대금 환헤지 만기 금액"}]
+        if role == "base" and "selected" in answer:
+            answer["not_selected"] = [{"perspective_type": kind, "reason": "기본 분석으로 충분합니다."}
+                for kind in ["INDUSTRY_CONTRACT", "FINANCE", "FX_HEDGE", "MARKET_NEWS"]
+                if kind not in {s["perspective_type"] for s in answer["selected"]}]
         return answer
 
     async def check():

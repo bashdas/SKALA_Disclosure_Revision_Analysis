@@ -94,7 +94,7 @@ def test_api_resume_uses_original_deadline(monkeypatch, tmp_path):
             ledger = api.app.state.ledger
             ledger.begin(task_id, "resume")
             ledger.db.execute(
-                "UPDATE runs SET started=? WHERE id=?", (time.time() - 119.99, task_id)
+                "UPDATE runs SET started=? WHERE id=?", (time.time() - api.Harness.RUN_SECONDS + 0.01, task_id)
             )
             ledger.db.commit()
             await asyncio.wait_for(api.run(body, object(), {"scope": "org"}), 0.5)

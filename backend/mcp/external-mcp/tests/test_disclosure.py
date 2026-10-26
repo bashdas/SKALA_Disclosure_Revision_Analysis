@@ -246,3 +246,13 @@ def test_dart_html_body_in_xml_named_member():
     result = OpenDartDocumentParser().parse(archive(html, '20261016800907.xml'))
     assert result['text'] == '정정공시 원문'
     assert result['files'][0]['content_type'] == 'text/html'
+
+
+def test_dart_typed_numeric_cells_preserve_amounts_and_column_order():
+    xml = b'<DOCUMENT><TABLE><TR><TD>Shares</TD><TE UNIT="SHARE" COLSPAN="2">89,485,500</TE></TR><TR><TD>Facility</TD><TU ROWSPAN="2">850,000,000,000</TU><TE>450,000,000,000</TE></TR></TABLE></DOCUMENT>'
+    parsed = OpenDartDocumentParser().parse(archive(xml))
+    rows = parsed["tables"][0]["rows"]
+    assert [cell["text"] for cell in rows[0]["cells"]] == ["Shares", "89,485,500"]
+    assert rows[0]["cells"][1]["colspan"] == 2
+    assert rows[1]["cells"][1]["rowspan"] == 2
+    assert "Facility\t850,000,000,000\t450,000,000,000" in parsed["text"]

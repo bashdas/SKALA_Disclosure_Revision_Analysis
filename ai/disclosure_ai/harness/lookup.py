@@ -82,7 +82,7 @@ async def call(harness, name, args, invoke, *, report=False, scope=""):
                 if (
                     counts.get(name, 0) >= 3
                     or harness.remaining(report) <= 0
-                    or (not report and row["tokens"] >= 64000)
+                    or (not report and row["tokens"] >= harness.ANALYSIS_TOKENS)
                 ):
                     result = {"error": "LIMIT_REACHED"}
                     break
